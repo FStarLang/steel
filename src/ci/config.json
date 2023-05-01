@@ -1,6 +1,6 @@
 {
     "RepoVersions" : {
-        "fstar": "taramana_no_steel",
+        "fstar": "guido_dsl",
         "karamel" : "taramana_no_steel"
     },
     "NotificationChannel" : "#steel-build"
