@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Identify the base FStar branch and the notification channel
         run: |
-          echo "FSTAR_BRANCH=$(jq -c -r '.RepoVersions.fstar' src/ci/config.json || echo master)" >> $GITHUB_ENV
+          echo "FSTAR_BRANCH=$(jq -c -r '.RepoVersions.fstar' src/ci/config.json || echo taramana_no_steel)" >> $GITHUB_ENV
           echo "CI_SLACK_CHANNEL=$(jq -c -r '.NotificationChannel' src/ci/config.json)" >> $GITHUB_ENV
       - name: Determine the build flavor
         run: |
