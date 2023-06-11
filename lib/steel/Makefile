@@ -8,7 +8,8 @@ endif
 
 FSTAR_FILES:=$(wildcard *.fst *.fsti)
 
-FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel' --load_cmxs steel
+STEEL_BOOT=
+FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel' $(if $(STEEL_BOOT),,--load_cmxs steel)
 
 COMPAT_INDEXED_EFFECTS=--compat_pre_typed_indexed_effects
 MY_FSTAR=$(RUNLIM) $(FSTAR) $(SIL) $(FSTAR_OPTIONS)
@@ -30,7 +31,7 @@ Steel.ST.GhostPCMReference.fst.checked: COMPAT_INDEXED_EFFECTS=
 
 include .depend
 
-steel: $(ALL_CHECKED_FILES)
+steel: $(if $(STEEL_BOOT), Steel.Effect.Common.fsti.checked Steel.ST.GenElim.Base.fsti.checked Steel.ST.GenElim1.Base.fsti.checked  ,$(ALL_CHECKED_FILES))
 
 .PHONY: pulse
 pulse: steel

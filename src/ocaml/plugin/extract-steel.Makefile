@@ -11,9 +11,14 @@ else
 	FSTAR=fstar.exe
 endif
 
-FSTAR_FILES:=$(wildcard $(LIB_STEEL)/*.fst $(LIB_STEEL)/*.fsti)
+PLUGIN_ROOTS+= Steel.Effect.Common.fsti
+PLUGIN_ROOTS+= Steel.ST.GenElim.Base.fsti
+PLUGIN_ROOTS+= Steel.ST.GenElim1.Base.fsti
+FSTAR_FILES:=$(addprefix $(LIB_STEEL)/, $(PLUGIN_ROOTS))
 
-MY_FSTAR=$(RUNLIM) $(FSTAR) $(SIL) $(OTHERFLAGS) --include $(LIB_STEEL) --cache_checked_modules --odir $(OUTPUT_DIRECTORY) --warn_error @241 --already_cached '*,'
+MY_FSTAR=$(RUNLIM) $(FSTAR) $(SIL) $(OTHERFLAGS) --include $(LIB_STEEL) --cache_checked_modules --odir $(OUTPUT_DIRECTORY) --warn_error @241
+MY_FSTAR+=$(if $(STEEL_BOOT),, --already_cached '*,')
+
 EXTRACT_MODULES=--extract '+Steel.Effect.Common +Steel.ST.GenElim.Base +Steel.ST.GenElim1.Base'
 
 COMPAT_INDEXED_EFFECTS=--compat_pre_typed_indexed_effects

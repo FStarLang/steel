@@ -108,3 +108,12 @@ install-share:
 	+$(MAKE) -C share/steel install
 
 install: install-ocaml install-lib install-include install-share install-src-c
+
+
+.PHONY: reboot-steel
+reboot-steel:
+	+$(MAKE) -C lib/steel steel STEEL_BOOT=1
+	rm -f src/ocaml/plugin/.depend-steel
+	+$(MAKE) -C src/ocaml/plugin/ -f extract-steel.Makefile .depend-steel STEEL_BOOT=1
+	+$(MAKE) -C src/ocaml/plugin/ -f extract-steel.Makefile STEEL_BOOT=1
+	@echo The steel files were extracted.
