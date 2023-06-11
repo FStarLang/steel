@@ -5,7 +5,7 @@ open Pulse.Checker.Common
 open Pulse.Checker.VPropEquiv
 open Pulse.Typing.Metatheory
 open Pulse.Checker.Auto.Util
-module T = FStar.Tactics
+module T = FStar.Tactics.V2
 module VP = Pulse.Checker.VPropEquiv
 module F = Pulse.Checker.Framing
 

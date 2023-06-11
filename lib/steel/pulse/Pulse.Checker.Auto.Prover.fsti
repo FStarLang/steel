@@ -1,7 +1,7 @@
 module Pulse.Checker.Auto.Prover
 open Pulse.Syntax
 open Pulse.Typing
-module T = FStar.Tactics
+module T = FStar.Tactics.V2
 
 noeq
 type framing_failure = {

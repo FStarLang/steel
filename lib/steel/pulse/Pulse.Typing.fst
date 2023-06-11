@@ -1,11 +1,11 @@
 module Pulse.Typing
 module RT = FStar.Reflection.Typing
-module R = FStar.Reflection
+module R = FStar.Reflection.V2
 open Pulse.Reflection.Util
 module L = FStar.List.Tot
 open FStar.List.Tot
 open Pulse.Syntax
-module FTB = FStar.Tactics
+module FTB = FStar.Tactics.V2
 include Pulse.Typing.Env
 // let fstar_env =
 //   g:R.env { 
