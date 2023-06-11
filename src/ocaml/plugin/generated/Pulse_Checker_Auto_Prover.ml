@@ -17,8 +17,8 @@ let (__proj__Mkframing_failure__item__remaining_context :
 type ('g, 'v) vprop_typing = unit
 let (unit_const : Pulse_Syntax_Base.term) =
   Pulse_Syntax_Base.Tm_FStar
-    ((FStar_Reflection_Builtins.pack_ln
-        (FStar_Reflection_Data.Tv_Const FStar_Reflection_Data.C_Unit)),
+    ((FStar_Reflection_V2_Builtins.pack_ln
+        (FStar_Reflection_V2_Data.Tv_Const FStar_Reflection_V2_Data.C_Unit)),
       FStar_Range.range_0)
 let (proof_steps_idem : Pulse_Syntax_Base.st_term) =
   {
@@ -86,12 +86,16 @@ let (step_intro_exists : Pulse_Checker_Auto_Util.prover_step_t) =
   fun g ->
     fun p ->
       FStar_Tactics_Effect.tac_bind
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (56)) (Prims.of_int (4)) (Prims.of_int (56))
-           (Prims.of_int (51)))
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (55)) (Prims.of_int (2)) (Prims.of_int (56))
-           (Prims.of_int (51)))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (56)) (Prims.of_int (4)) (Prims.of_int (56))
+                 (Prims.of_int (51)))))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (55)) (Prims.of_int (2)) (Prims.of_int (56))
+                 (Prims.of_int (51)))))
         (Obj.magic (Pulse_Checker_Auto_IntroExists.intro_exists g p))
         (fun uu___ ->
            (fun uu___ ->
@@ -103,12 +107,16 @@ let (step_intro_pure : Pulse_Checker_Auto_Util.prover_step_t) =
   fun g ->
     fun p ->
       FStar_Tactics_Effect.tac_bind
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (61)) (Prims.of_int (4)) (Prims.of_int (61))
-           (Prims.of_int (47)))
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (60)) (Prims.of_int (2)) (Prims.of_int (61))
-           (Prims.of_int (47)))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (61)) (Prims.of_int (4)) (Prims.of_int (61))
+                 (Prims.of_int (47)))))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (60)) (Prims.of_int (2)) (Prims.of_int (61))
+                 (Prims.of_int (47)))))
         (Obj.magic (Pulse_Checker_Auto_IntroPure.intro_pure g p))
         (fun uu___ ->
            (fun uu___ ->
@@ -120,12 +128,16 @@ let (step_intro_rewrite : Pulse_Checker_Auto_Util.prover_step_t) =
   fun g ->
     fun p ->
       FStar_Tactics_Effect.tac_bind
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (66)) (Prims.of_int (4)) (Prims.of_int (66))
-           (Prims.of_int (53)))
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (65)) (Prims.of_int (2)) (Prims.of_int (66))
-           (Prims.of_int (53)))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (66)) (Prims.of_int (4)) (Prims.of_int (66))
+                 (Prims.of_int (53)))))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (65)) (Prims.of_int (2)) (Prims.of_int (66))
+                 (Prims.of_int (53)))))
         (Obj.magic (Pulse_Checker_Auto_IntroRewrite.intro_rewrite g p))
         (fun uu___ ->
            (fun uu___ ->
@@ -151,12 +163,18 @@ let rec (first_success :
                Obj.magic
                  (Obj.repr
                     (FStar_Tactics_Effect.tac_bind
-                       (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-                          (Prims.of_int (73)) (Prims.of_int (12))
-                          (Prims.of_int (73)) (Prims.of_int (15)))
-                       (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-                          (Prims.of_int (73)) (Prims.of_int (6))
-                          (Prims.of_int (75)) (Prims.of_int (24)))
+                       (FStar_Sealed.seal
+                          (Obj.magic
+                             (FStar_Range.mk_range
+                                "Pulse.Checker.Auto.Prover.fst"
+                                (Prims.of_int (73)) (Prims.of_int (12))
+                                (Prims.of_int (73)) (Prims.of_int (15)))))
+                       (FStar_Sealed.seal
+                          (Obj.magic
+                             (FStar_Range.mk_range
+                                "Pulse.Checker.Auto.Prover.fst"
+                                (Prims.of_int (73)) (Prims.of_int (6))
+                                (Prims.of_int (75)) (Prims.of_int (24)))))
                        (Obj.magic (s g p))
                        (fun uu___ ->
                           (fun uu___ ->
@@ -237,12 +255,16 @@ let rec (solve :
   fun g ->
     fun p ->
       FStar_Tactics_Effect.tac_bind
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (115)) (Prims.of_int (10)) (Prims.of_int (115))
-           (Prims.of_int (16)))
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
-           (Prims.of_int (115)) (Prims.of_int (4)) (Prims.of_int (120))
-           (Prims.of_int (20))) (Obj.magic (step g p))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (115)) (Prims.of_int (10))
+                 (Prims.of_int (115)) (Prims.of_int (16)))))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Prover.fst"
+                 (Prims.of_int (115)) (Prims.of_int (4)) (Prims.of_int (120))
+                 (Prims.of_int (20))))) (Obj.magic (step g p))
         (fun uu___ ->
            (fun uu___ ->
               match uu___ with

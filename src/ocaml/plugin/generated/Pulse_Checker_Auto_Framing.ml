@@ -4,12 +4,16 @@ let (step_match : Pulse_Checker_Auto_Util.prover_step_t) =
   fun g ->
     fun p ->
       FStar_Tactics_Effect.tac_bind
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Framing.fst"
-           (Prims.of_int (14)) (Prims.of_int (14)) (Prims.of_int (14))
-           (Prims.of_int (62)))
-        (FStar_Range.mk_range "Pulse.Checker.Auto.Framing.fst"
-           (Prims.of_int (15)) (Prims.of_int (4)) (Prims.of_int (52))
-           (Prims.of_int (28)))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Framing.fst"
+                 (Prims.of_int (14)) (Prims.of_int (14)) (Prims.of_int (14))
+                 (Prims.of_int (62)))))
+        (FStar_Sealed.seal
+           (Obj.magic
+              (FStar_Range.mk_range "Pulse.Checker.Auto.Framing.fst"
+                 (Prims.of_int (15)) (Prims.of_int (4)) (Prims.of_int (52))
+                 (Prims.of_int (28)))))
         (Obj.magic
            (Pulse_Checker_Framing.all_matches g
               p.Pulse_Checker_Auto_Util.unmatched_pre
