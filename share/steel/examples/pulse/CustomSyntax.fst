@@ -28,10 +28,23 @@ fn test_read (r:ref U32.t)
              (#p:perm)
    requires pts_to r p n
    returns x : U32.t
-   ensures pts_to r p x
+   ensures (pts_to r p x `star` pure (x==n))
 {
   let x = !r;
   x
+}
+```
+
+```pulse
+fn test_read_2 (r:ref U32.t)
+             (#n:erased U32.t)
+             (#p:perm)
+   requires pts_to r p n
+   returns x : (x:U32.t{x==n})
+   ensures pts_to r p x
+{
+  let x = !r;
+  (x<:(x:U32.t{x==n}))
 }
 ```
 
@@ -87,7 +100,7 @@ fn swap_with_elim_pure (r1 r2:ref U32.t)
 ```
 
 ```pulse
-fn intro_pure_example (r:ref U32.t)
+fn elim_and_intro_pure_example (r:ref U32.t)
                       (#n1 #n2:erased U32.t)
    requires 
      (pts_to r full_perm n1 `star`
@@ -290,12 +303,12 @@ fn sum (r:ref nat) (n:nat)
 {
    let mut i = zero;
    let mut sum = zero;
-   introduce exists b m s. (
-     pts_to i full_perm m `star`
-     pts_to sum full_perm s `star`
-     pure (s == sum_spec m /\
-           b == (m <> n)))
-   with (zero <> n);
+   introduce exists b' m' s'. (
+     pts_to i full_perm m' `star`
+     pts_to sum full_perm s' `star`
+     pure (s' == sum_spec m' /\
+           b' == (m' <> n)))
+   with (zero <> n) _ _;
         
    while (let m = !i; (m <> n))
    invariant b . exists m s. (
@@ -308,12 +321,12 @@ fn sum (r:ref nat) (n:nat)
      let s = !sum;
      i := (m + 1);
      sum := s + m + 1;
-     introduce exists b m s. (
-       pts_to i full_perm m `star`
-       pts_to sum full_perm s `star`
-       pure (s == sum_spec m /\
-             b == (m <> n)))
-     with (m + 1 <> n)
+     introduce exists b' m' s'. (
+       pts_to i full_perm m' `star`
+       pts_to sum full_perm s' `star`
+       pure (s' == sum_spec m' /\
+             b' == (m' <> n)))
+     with (m + 1 <> n) _ _
    };
    let s = !sum;
    r := s;
@@ -398,5 +411,18 @@ fn incr (x:nat)
 {
   let y = x + 1;
   ( y <: r:nat { r > x } )
+}
+```
+
+```pulse
+fn dummy_tuple (#t:Type0) (r:ref t) (#n:erased t) (#p:perm)
+   requires pts_to r p n
+   returns ret : t & U32.t
+   ensures (pts_to r p (fst ret) `star` 
+            pure (fst ret == n /\
+                  snd ret = 0ul))
+{
+  let x = !r;
+  (x, 0ul)
 }
 ```
