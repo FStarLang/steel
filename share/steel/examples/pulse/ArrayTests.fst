@@ -214,6 +214,22 @@ fn write_then_read_twice_neq (#t:Type0) (a:array t) (i:US.t) (v1 v2:t)
 } 
 ```
 
+// assume
+// val free_array (a: A.array U32.t)
+//   : stt unit
+//     (fun _ -> (A.pts_to a full_perm) `star` pure (A.is_full_array a))
+//     (fun _ -> emp)
+
+```pulse
+fn alloc_then_free (n:US.t)
+  requires emp
+  ensures emp
+{
+  let a = new_array 0ul n;
+  free_array a;
+}
+```
+
 let sorted (s0 s:Seq.seq U32.t) =
    (forall (i:nat). i < Seq.length s - 1 ==> U32.v (Seq.index s i) <= U32.v (Seq.index s (i + 1))) /\
    (forall (i:nat). i < Seq.length s0 ==> (exists (j:nat). j < Seq.length s /\ U32.v (Seq.index s0 i) == U32.v (Seq.index s j))) /\

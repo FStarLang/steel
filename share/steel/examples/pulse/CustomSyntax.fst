@@ -416,11 +416,11 @@ fn incr (x:nat)
 
 ```pulse
 fn dummy_tuple (#t:Type0) (r:ref t) (#n:erased t) (#p:perm)
-   requires pts_to r p n
-   returns ret : t & U32.t
-   ensures (pts_to r p (fst ret) `star` 
-            pure (fst ret == n /\
-                  snd ret = 0ul))
+  requires pts_to r p n
+  returns ret : t & U32.t
+  ensures (pts_to r p (fst ret) `star` 
+          pure (fst ret == n /\
+                snd ret = 0ul))
 {
   let x = !r;
   (x, 0ul)
