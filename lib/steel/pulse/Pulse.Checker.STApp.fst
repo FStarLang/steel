@@ -1,13 +1,13 @@
 module Pulse.Checker.STApp
 
-module T = FStar.Tactics
+module T = FStar.Tactics.V2
 module RT = FStar.Reflection.Typing
 
 open Pulse.Syntax
 open Pulse.Typing
 open Pulse.Checker.Pure
 open Pulse.Checker.Common
-
+module RU = Pulse.RuntimeUtils
 module P = Pulse.Syntax.Printer
 
 module FV = Pulse.Typing.FV
@@ -17,7 +17,7 @@ let check_stapp
   (g:env)
   (t:st_term{Tm_STApp? t.term})
   (pre:term)
-  (pre_typing:tot_typing g pre Tm_VProp)
+  (pre_typing:tot_typing g pre tm_vprop)
   (post_hint:post_hint_opt g)
   (check':bool -> check_t)
   : T.Tac (checker_result_t g pre post_hint) =
@@ -55,6 +55,10 @@ let check_stapp
     (fun _ ->
       let g = push_context "st_app" t.range g in        
       let (| head, ty_head, dhead |) = check_term g head in
+      if RU.debug_at_level (fstar_env g) "st_app" then
+        T.print (Printf.sprintf "st_app: head = %s, ty_head = %s\n"
+                   (P.term_to_string head)
+                   (P.term_to_string ty_head));
       match is_arrow ty_head with
       | Some ({binder_ty=formal;binder_ppname=ppname}, bqual, comp_typ) ->
         is_arrow_tm_arrow ty_head;

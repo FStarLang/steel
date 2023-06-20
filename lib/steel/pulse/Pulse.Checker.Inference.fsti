@@ -3,8 +3,8 @@ module Pulse.Checker.Inference
 open Pulse.Syntax
 open Pulse.Typing
 
-module T = FStar.Tactics
-module R = FStar.Reflection
+module T = FStar.Tactics.V2
+module R = FStar.Reflection.V2
 module RT = FStar.Reflection.Typing
 
 val uvar : Type0
@@ -37,10 +37,10 @@ val solutions_to_string (sol:solution)
   : T.Tac string
 
 val apply_solution (sol:solution) (t:term)
-  : term
+  : T.Tac term
 
 val contains_uvar (t:term)
-  : bool
+  : T.Tac bool
 
 val try_unify (g:env) (l r:term)
   : T.Tac solution
