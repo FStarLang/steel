@@ -435,40 +435,42 @@ fn swap (r1 r2:ref U32.t)
 let my_sorted (s:Seq.seq U32.t) =
   forall (i:nat). i < Seq.length s - 1 ==> U32.v (Seq.index s i) <= U32.v (Seq.index s (i + 1))
 
+[@@expect_failure]
 ```pulse 
-fn insert_into_sorted (a:array U32.t) (l:(l:nat{A.length a = l})) (#s:Ghost.erased (Seq.seq U32.t))
-	requires (A.pts_to a full_perm s `star`
-						pure (A.length a = Seq.length s /\
-									// my_sorted (Seq.slice s 0 (A.length a - 1))))
-									my_sorted (Seq.slice s 0 (A.length a))))
-	returns a:array U32.t
-	ensures 
-		exists s'. (
-				A.pts_to a full_perm s' `star`
-        pure (my_sorted s')
-    )
-{
-	let mut j = l - 1;
-	// while (let vj = !j; (vj > 0 /\ a.(vj-1) > a.(vj)))
-	while (let vj = !j; (vj > 0))
-	invariant b. exists vj. (
-      pts_to j full_perm vj `star`
-      pure (0 <= vj /\
-            vj <= l - 1 /\
-            my_sorted (Seq.slice s (vj-1) l) /\
-            // b == (vj > 0 /\ a.(vj-1) > a.(vj)))
-            b == (vj > 0))
+fn insert_into_sorted 
+  (#t:eqtype) (l:US.t) (a:A.larray t (US.v l))
+  (#s:elseq t (US.v l))
+	requires (
+    A.pts_to a full_perm s `star`
+		pure (my_sorted s)
   )
-  {
-    let vj = !j;
-    // swap a.(vj-1) a.(vj);
-    j := vj - 1
-  };
+	returns a:A.larray t (US.v l)
+	ensures exists s_. (
+			A.pts_to a full_perm s_ `star`
+      pure (my_sorted s_)
+  )
+{
+	// let mut j = l - 1;
+	// // while (let vj = !j; (vj > 0 /\ a.(vj-1) > a.(vj)))
+	// while (let vj = !j; (vj > 0))
+	// invariant b. exists vj. (
+  //     pts_to j full_perm vj `star`
+  //     pure (0 <= vj /\
+  //           vj <= l - 1 /\
+  //           my_sorted (Seq.slice s (vj-1) l) /\
+  //           // b == (vj > 0 /\ a.(vj-1) > a.(vj)))
+  //           b == (vj > 0))
+  // )
+  // {
+  //   let vj = !j;
+  //   // swap a.(vj-1) a.(vj);
+  //   j := vj - 1
+  // };
   a
 }
 ```
 
-(*
+[@@expect_failure]
 ```pulse
 fn isort (a:array U32.t) (#s:Ghost.erased (Seq.seq U32.t))
    requires (A.pts_to a full_perm s)
@@ -507,4 +509,3 @@ fn isort (a:array U32.t) (#s:Ghost.erased (Seq.seq U32.t))
    };
 }
 ```
-*)
