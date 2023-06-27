@@ -352,6 +352,13 @@ let rec (elab_st_typing :
                         Pulse_Typing.tm_bool b Pulse_Typing.tm_false)) uu___2
                   uu___3 e2_typing in
               FStar_Reflection_Typing.mk_if rb re1 re2
+          | Pulse_Typing.T_Match
+              (uu___, sc, uu___1, uu___2, uu___3, uu___4, brty, uu___5) ->
+              let sc1 = Pulse_Elaborate_Pure.elab_term sc in
+              let brs = elab_branches uu___ uu___3 uu___4 brty in
+              FStar_Reflection_V2_Builtins.pack_ln
+                (FStar_Reflection_V2_Data.Tv_Match
+                   (sc1, FStar_Pervasives_Native.None, brs))
           | Pulse_Typing.T_IntroPure (uu___, p, uu___1, uu___2) ->
               let head =
                 Pulse_Syntax_Pure.tm_pureapp
@@ -502,3 +509,39 @@ let rec (elab_st_typing :
                | Pulse_Syntax_Base.STT_Ghost ->
                    Pulse_Reflection_Util.mk_stt_ghost_admit ru rres rpre
                      rpost1)
+and (elab_br :
+  Pulse_Typing_Env.env ->
+    Pulse_Syntax_Base.comp_st ->
+      Pulse_Syntax_Base.pattern ->
+        Pulse_Syntax_Base.st_term ->
+          (unit, unit, unit, unit) Pulse_Typing.br_typing ->
+            FStar_Reflection_V2_Data.branch)
+  =
+  fun g ->
+    fun c ->
+      fun p ->
+        fun e ->
+          fun d ->
+            let uu___ = d in
+            match uu___ with
+            | Pulse_Typing.TBR (uu___1, uu___2, uu___3, uu___4, bs, ed) ->
+                let e1 =
+                  elab_st_typing (Pulse_Typing.extend_env_bs uu___1 bs)
+                    uu___4 uu___2 ed in
+                ((Pulse_Elaborate_Pure.elab_pat p), e1)
+and (elab_branches :
+  Pulse_Typing_Env.env ->
+    Pulse_Syntax_Base.comp_st ->
+      Pulse_Syntax_Base.branch Prims.list ->
+        (unit, unit, unit) Pulse_Typing.brs_typing ->
+          FStar_Reflection_V2_Data.branch Prims.list)
+  =
+  fun g ->
+    fun c ->
+      fun brs ->
+        fun d ->
+          match d with
+          | Pulse_Typing.TBRS_0 (uu___, uu___1) -> []
+          | Pulse_Typing.TBRS_1 (uu___, uu___1, p, e, bd, uu___2, d') ->
+              (elab_br uu___ uu___1 p e bd) ::
+              (elab_branches uu___ uu___1 uu___2 d')
