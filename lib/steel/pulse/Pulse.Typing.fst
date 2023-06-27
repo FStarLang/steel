@@ -16,6 +16,7 @@ let debug_log (level:string)  (g:env) (f: unit -> T.Tac string) : T.Tac unit =
 
 let tm_unit = tm_fvar (as_fv unit_lid)
 let tm_bool = tm_fvar (as_fv bool_lid)
+let tm_int  = tm_fvar (as_fv int_lid)
 let tm_true = tm_constant R.C_True
 let tm_false = tm_constant R.C_False
 
@@ -91,6 +92,25 @@ let extend_env_l (f:R.env) (g:env_bindings) : R.env =
      g
      f
 let elab_env (e:env) : R.env = extend_env_l (fstar_env e) (bindings e)
+
+
+(*
+ * If I call this fresh, I get:
+ *     Pulse.Typing.fst(545,0-546,20): (Error 162) The qualifier list "[assume]" is not permissible for this element: definitions cannot be assumed or marked with equality qualifiers
+ * What!?!? Oh.. there's a fresh in Pulse.Typing.Env, which is *included*...
+ *)
+let freshv (g:env) (x:var) : prop =
+  None? (lookup g x)
+
+let rec all_fresh (g:env) (xs:list binding) : Tot prop (decreases xs) =
+  match xs with
+  | [] -> True
+  | x::xs -> freshv g (fst x) /\ all_fresh (push_binding g (fst x) ppname_default (snd x)) xs
+
+let rec extend_env_bs (g:env) (bs:list binding{all_fresh g bs}) : Tot (g':env{env_extends g' g}) (decreases bs) =
+  match bs with
+  | [] -> g
+  | (x,t)::bs -> extend_env_bs (push_binding g x ppname_default t) bs
 
 let elab_push_binding (g:env) (x:var { ~ (Set.mem x (dom g)) }) (t:typ)
   : Lemma (elab_env (push_binding g x ppname_default t) ==
@@ -547,6 +567,17 @@ type comp_typing : env -> comp -> universe -> Type =
       st_comp_typing g st ->
       comp_typing g (C_STGhost inames st) st.u
 
+(* Implies freshness *)
+let bindings_for_pat_ok (g:env) (p:pattern) (bs:list binding) : Type0 =
+   match p, bs with
+   | Pat_Constant _, [] -> True
+   | Pat_Var _, [b] -> freshv g (fst b)
+   | Pat_Cons fv vs, bs -> List.length vs == List.length bs /\ all_fresh g bs
+   | _ -> False
+
+(* They are also fresh *)
+let bindings_for_pat (g:env) (p:pattern) = bs:(list binding){bindings_for_pat_ok g p bs}
+
 let prop_validity (g:env) (t:term) =
   FTB.prop_validity_token (elab_env g) (elab_term t)
 
@@ -648,6 +679,17 @@ type st_typing : env -> st_term -> comp -> Type =
       st_typing (push_binding g hyp ppname_default (mk_eq2 u0 tm_bool b tm_false)) e2 c ->
       my_erased (comp_typing g c uc) ->
       st_typing g (wr (Tm_If { b; then_=e1; else_=e2; post=None })) c
+
+  | T_Match :
+      g:env ->
+      sc:term ->
+      scty:typ ->
+      tot_typing g sc scty ->
+      c:comp_st ->
+      brs:list (pattern & st_term) ->
+      brs_typing g brs c ->
+      pats_complete g sc scty (L.map (fun (p, _) -> elab_pat p) brs) ->
+      st_typing g (wr (Tm_Match {sc; returns_=None; brs})) c
 
   | T_Frame:
       g:env ->
@@ -778,6 +820,42 @@ type st_typing : env -> st_term -> comp -> Type =
       st_typing g (wr (Tm_Admit { ctag=c; u=s.u; typ=s.res; post=None }))
                   (comp_admit c s)
 
+and pats_complete : env -> term -> typ -> list R.pattern -> Type0 =
+  // just check the elaborated term with the core tc
+  | PC_Elab :
+    g:env ->
+    sc:term ->
+    scty:typ ->
+    pats:list R.pattern ->
+    bnds:list (list R.binding) ->
+    RT.match_is_complete (elab_env g) (elab_term sc) (elab_term scty) pats bnds ->
+    pats_complete g sc scty pats
+
+and brs_typing : env -> list branch -> comp_st -> Type =
+  | TBRS_0 :
+      g:env ->
+      c:comp_st ->
+      brs_typing g [] c
+
+  | TBRS_1 :
+      g:env ->
+      c:comp_st ->
+      p:pattern ->
+      e:st_term ->
+      br_typing g p e c ->
+      rest:list branch ->
+      brs_typing g rest c ->
+      brs_typing g ((p,e)::rest) c
+
+and br_typing : env -> pattern -> st_term -> comp_st -> Type =
+  | TBR :
+      g:env ->
+      c:comp_st ->
+      p:pattern ->
+      e:st_term ->
+      bs:bindings_for_pat g p ->
+      st_typing (extend_env_bs g bs) e c ->
+      br_typing g p e c
 
 (* this requires some metatheory on FStar.Reflection.Typing
 

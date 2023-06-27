@@ -26,9 +26,14 @@ let main' (t:st_term) (pre:term) (g:RT.fstar_top_env)
       let (| pre, ty, pre_typing |) = Pulse.Checker.Pure.check_term g pre in
       if eq_tm ty tm_vprop
       then let pre_typing : tot_typing g pre tm_vprop = E pre_typing in
+           print "CHECK";
            let (| t, c, t_typing |) = check g t pre pre_typing None in
+           print "CHECKED";
+           print "ELAB";
            let refl_e = elab_st_typing t_typing in
+           print "ELAB2";
            let refl_t = elab_comp c in
+           print "ELAB2";
            soundness_lemma g t c t_typing;
            (refl_e, refl_t)
       else fail g (Some t.range) "pulse main: cannot typecheck pre at type vprop"

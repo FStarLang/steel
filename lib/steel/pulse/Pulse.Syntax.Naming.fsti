@@ -77,6 +77,12 @@ let rec freevars_st (t:st_term)
       Set.union (Set.union (freevars b) (freevars_st then_))
                 (Set.union (freevars_st else_) (freevars_term_opt post))
 
+    | Tm_Match { sc ; returns_; brs } ->
+      let (@@) = Set.union in
+      freevars sc
+        @@ freevars_term_opt returns_
+        @@ freevars_branches brs
+
     | Tm_IntroPure { p }
     | Tm_ElimExists { p } ->
       freevars p
@@ -111,6 +117,10 @@ let rec freevars_st (t:st_term)
 
     | Tm_ProofHintWithBinders { binders; v; t } ->
       Set.union (freevars v) (freevars_st t)
+and freevars_branches (t:list (pattern & st_term)) : Set.set var =
+  match t with
+  | [] -> Set.empty
+  | (_, b)::tl -> freevars_st b `Set.union` freevars_branches tl
 
 let rec ln' (t:term) (i:int) : Tot bool (decreases t) =
   match t.t with
@@ -161,6 +171,16 @@ let rec ln_list' (t:list term) (i:int) : bool =
   | [] -> true
   | hd::tl -> ln' hd i && ln_list' tl i
 
+let rec for_all_dec (top:'a) (f : (x:'b{x << top} -> bool)) (l : list 'b{l << top}) : bool =
+  match l with
+  | [] -> true
+  | x::xs -> f x && for_all_dec top f xs
+
+let rec map_dec (top:'a) (f : (x:'b{x << top} -> 'c)) (l : list 'b{l << top}) : list 'c =
+  match l with
+  | [] -> []
+  | x::xs -> f x :: map_dec top f xs
+
 let rec ln_st' (t:st_term) (i:int)
   : Tot bool (decreases t)
   = match t.term with
@@ -191,6 +211,11 @@ let rec ln_st' (t:st_term) (i:int)
       ln_st' else_ i &&
       ln_opt' post (i + 1)
   
+    | Tm_Match {sc; returns_; brs } ->
+      ln' sc i &&
+      ln_opt' returns_ i &&
+      for_all_dec t (ln_branch i) brs
+
     | Tm_IntroPure { p }
     | Tm_ElimExists { p } ->
       ln' p i
@@ -232,6 +257,13 @@ let rec ln_st' (t:st_term) (i:int)
       let n = L.length binders in
       ln' v (i + n) &&
       ln_st' t (i + n)
+
+and ln_branch (i:int) (b : pattern & st_term) : Tot bool (decreases b) =
+  let (p, e) = b in
+  match p with
+  | Pat_Cons fv l -> ln_st' e (i + length l)
+  | Pat_Constant _ -> ln_st' e i
+  | Pat_Var _ -> ln_st' e (i+1)
 
 let ln (t:term) = ln' t (-1)
 let ln_st (t:st_term) = ln_st' t (-1)
@@ -383,6 +415,11 @@ let rec subst_st_term (t:st_term) (ss:subst)
               else_ = subst_st_term else_ ss;
               post = subst_term_opt post (shift_subst ss) }
 
+    | Tm_Match { sc; returns_; brs } ->
+      Tm_Match { sc = subst_term sc ss;
+                 returns_ = subst_term_opt returns_ ss;
+                 brs = map_dec t (subst_branch ss) brs }
+
     | Tm_IntroPure { p; should_check } ->
       Tm_IntroPure { p = subst_term p ss; should_check }
 
@@ -436,6 +473,18 @@ let rec subst_st_term (t:st_term) (ss:subst)
                                 t = subst_st_term t ss }
     in
     { t with term = t' }
+
+and subst_branch (ss:subst) (b : pattern & st_term) : Tot (pattern & st_term) (decreases b) =
+  let (p, e) = b in
+  let pat_n_binders (p:pattern) : nat =
+    match p with
+    | Pat_Constant _ -> 0
+    | Pat_Var _ -> 1
+    | Pat_Cons _ args -> L.length args
+  in
+  let nn = pat_n_binders p in
+  let ss = shift_subst_n nn ss in
+  p, subst_st_term e ss
 
 let open_st_term' (t:st_term) (v:term) (i:index) : st_term =
   subst_st_term t [ DT i v ]
