@@ -189,6 +189,11 @@ let rec elab_st_typing (#g:env)
       let re2 = elab_st_typing e2_typing in
       RT.mk_if rb re1 re2
 
+    | T_Match _ sc _ _ _ _ brty  _ ->
+      let sc = elab_term sc in
+      let brs = elab_branches brty in
+      R.pack_ln (R.Tv_Match sc None brs)
+
     | T_IntroPure _ p _ _ ->
       let head = 
         tm_pureapp (tm_fvar (as_fv (mk_steel_wrapper_lid "intro_pure")))
@@ -270,3 +275,23 @@ let rec elab_st_typing (#g:env)
        | STT -> mk_stt_admit ru rres rpre rpost
        | STT_Atomic -> mk_stt_atomic_admit ru rres rpre rpost
        | STT_Ghost -> mk_stt_ghost_admit ru rres rpre rpost)
+
+and elab_br (#g:env)
+            (#c:comp_st)
+            (#p:pattern)
+            (#e:st_term)
+            (d : br_typing g p e c)
+  : Tot R.branch (decreases d)
+  = let TBR _ _ _ _ bs ed = d in
+    let e = elab_st_typing ed in
+    (elab_pat p, e)
+and elab_branches (#g:env)
+                  (#c:comp_st)
+                  (#brs:list branch)
+                  (d : brs_typing g brs c)
+  : Tot (list R.branch)
+        (decreases d)
+  = match d with
+    | TBRS_0 _ _ -> []
+    | TBRS_1 _ _ p e bd _ d' ->
+    elab_br bd :: elab_branches d'
