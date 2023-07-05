@@ -11,6 +11,7 @@ module US = FStar.SizeT
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 open Array
+open HashTable
 
 noeq
 type context_t = 
@@ -25,16 +26,19 @@ type context_t =
 
 (* GLOBAL STATE *)
 
-assume
-val session_table_len : US.t
+let table_prop 
+  (table_len: US.t) 
+  (table:(a:(A.array U32.t){US.v session_table_len == A.length a}))
+  : vprop
+  = exists_ (fun (s:Ghost.erased (Seq.seq U32.t){Seq.length s = US.v table_len}) 
+      -> A.pts_to table full_perm s)
 
-// let session_table : A.array U32.t = new_array 0ul tbl_len
+// let session_table : A.array U32.t = new_table ()
 assume 
 val session_table : a:(A.array U32.t){US.v session_table_len == A.length a}
 
 let session_table_prop : vprop 
-  = exists_ (fun (s:Ghost.erased (Seq.seq U32.t){Seq.length s = US.v session_table_len}) 
-      -> A.pts_to session_table full_perm s)
+  = table_prop session_table_len session_table
 
 // let session_id_ctr : R.ref US.t = W.alloc 0
 assume
@@ -46,8 +50,8 @@ let session_id_ctr_prop : vprop
 (* IMPLEmENTATION *)
 
 (* 
-init_dpe: Internal to DPE 
-Create the session table and session table lock. 
+  init_dpe: Internal to DPE 
+  Create the session table and session table lock. 
 *)
 ```pulse
 fn init_dpe (_:unit)
@@ -55,34 +59,39 @@ fn init_dpe (_:unit)
     session_table_prop ** 
     session_id_ctr_prop
   )
+  returns tup:(L.lock session_table_prop & L.lock session_id_ctr_prop)
   ensures emp
 {
   unfold session_table_prop;
+  unfold table_prop session_table_len session_table;
   unfold session_id_ctr_prop;
 
   fill_array session_table_len session_table 0ul;
   session_id_ctr := 0sz;
 
-  fold session_table_prop;
   fold session_id_ctr_prop;
+  fold table_prop session_table_len session_table;
+  fold session_table_prop;
 
   let session_table_lock = new_lock session_table_prop;
   let session_id_ctr_lock = new_lock session_id_ctr_prop;
-  ()
+  
+  (session_table_lock, session_id_ctr_lock)
 }
 ```
 
 (*
 
-
-// OpenSession: Part of DPE API 
-// Create a context table and context table lock for the new session. 
-// Add the context table lock to the session table. 
+(*
+  OpenSession: Part of DPE API 
+  Create a context table and context table lock for the new session. 
+  Add the context table lock to the session table. 
+*)
 fn OpenSession ()
 {
-  let ctxt_tbl = (new_table);
-  let ctxt_tbl_lock = new_lock (exists s. A.pts_to ctxt_tbl full_perm s);
-  
+  let ctxt_tbl = new_table ();
+  let ctxt_table_lock = new_lock (table_prop context_table_len ctxt_tbl);
+
   let cur_session = !session_id_ctr;
   let session_tbl = acquire session_tbl_lock;
   store session_tbl cur_session ctxt_tbl_lock;
