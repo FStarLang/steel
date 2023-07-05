@@ -13,6 +13,19 @@ module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 
 
+// assume val global : R.ref int
+// let global_lock = new_lock ()
+
+// ```pulse
+// fn ex (_:unit)
+//   requires emp
+//   ensures emp
+// {
+//   global := 0;
+//   ()
+// }
+// ```
+
 noeq
 type context_t = 
   | Engine_context  : uds:A.array U8.t -> 
@@ -31,6 +44,7 @@ val tbl_len : US.t
 init_dpe: Internal to DPE 
 Create the session table and session table lock. 
 *)
+[@@expect_failure]
 ```pulse
 fn init_dpe (_:unit)
   requires emp
@@ -38,7 +52,7 @@ fn init_dpe (_:unit)
 {
   let session_tbl = new_array 0ul tbl_len;
 
-  let session_tbl_lock = new_lock (exists s. A.pts_to session_tbl full_perm s);
+  let session_tbl_lock = new_lock (exists_ (fun s -> A.pts_to session_tbl full_perm s));
   let session_id_ctr = R.ref US.t;
 
   session_id_ctr := 0;
