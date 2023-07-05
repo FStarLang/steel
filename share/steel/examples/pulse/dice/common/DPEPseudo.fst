@@ -2,29 +2,15 @@ module DPEPseudo
 open Pulse.Main
 open Pulse.Steel.Wrapper
 open FStar.Ghost
-open Steel.ST.Util 
-open Steel.ST.Array
+open Steel.ST.Util
 open Steel.FractionalPermission
-// module SL = Steel.ST.SpinLock
+module L = Steel.ST.SpinLock
 module A = Steel.ST.Array
 module R = Steel.ST.Reference
 module US = FStar.SizeT
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
-
-
-// assume val global : R.ref int
-// let global_lock = new_lock ()
-
-// ```pulse
-// fn ex (_:unit)
-//   requires emp
-//   ensures emp
-// {
-//   global := 0;
-//   ()
-// }
-// ```
+open Array
 
 noeq
 type context_t = 
@@ -37,25 +23,51 @@ type context_t =
                       csr_deviceID:A.array U8.t ->
                       context_t
 
+(* GLOBAL STATE *)
+
 assume
-val tbl_len : US.t
+val session_table_len : US.t
+
+// let session_table : A.array U32.t = new_array 0ul tbl_len
+assume 
+val session_table : a:(A.array U32.t){US.v session_table_len == A.length a}
+
+let session_table_prop : vprop 
+  = exists_ (fun (s:Ghost.erased (Seq.seq U32.t){Seq.length s = US.v session_table_len}) 
+      -> A.pts_to session_table full_perm s)
+
+// let session_id_ctr : R.ref US.t = W.alloc 0
+assume
+val session_id_ctr : R.ref US.t
+
+let session_id_ctr_prop : vprop
+  = exists_ (fun v -> R.pts_to session_id_ctr full_perm v)
+
+(* IMPLEmENTATION *)
 
 (* 
 init_dpe: Internal to DPE 
 Create the session table and session table lock. 
 *)
-[@@expect_failure]
 ```pulse
 fn init_dpe (_:unit)
-  requires emp
+  requires (
+    session_table_prop ** 
+    session_id_ctr_prop
+  )
   ensures emp
 {
-  let session_tbl = new_array 0ul tbl_len;
+  unfold session_table_prop;
+  unfold session_id_ctr_prop;
 
-  let session_tbl_lock = new_lock (exists_ (fun s -> A.pts_to session_tbl full_perm s));
-  let session_id_ctr = R.ref US.t;
+  fill_array session_table_len session_table 0ul;
+  session_id_ctr := 0sz;
 
-  session_id_ctr := 0;
+  fold session_table_prop;
+  fold session_id_ctr_prop;
+
+  let session_table_lock = new_lock session_table_prop;
+  let session_id_ctr_lock = new_lock session_id_ctr_prop;
   ()
 }
 ```
