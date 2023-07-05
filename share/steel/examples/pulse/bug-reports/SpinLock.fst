@@ -5,14 +5,15 @@ open FStar.Ghost
 open Steel.ST.Util
 open Steel.FractionalPermission
 module R = Steel.ST.Reference
+#push-options "--ide_id_info_off"
 
 ```pulse
 fn lock_ref (r:R.ref int) (#v_:Ghost.erased int)
   requires R.pts_to r full_perm v_
   ensures emp
 {
-let my_lock = new_lock (exists_ (fun v -> R.pts_to r full_perm v));  
-()
+  let my_lock = new_lock (exists_ (fun v -> R.pts_to r full_perm v));
+  ()
 }
 ```
 

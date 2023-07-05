@@ -1,4 +1,5 @@
-module Pulse.Checker.Auto.ElimPure
+module Pulse.Prover.ElimPure
+
 module RT = FStar.Reflection.Typing
 module R = FStar.Reflection.V2
 module L = FStar.List.Tot
@@ -6,11 +7,10 @@ module T = FStar.Tactics.V2
 open FStar.List.Tot
 open Pulse.Syntax
 open Pulse.Checker.Pure
-open Pulse.Checker.Common
 open Pulse.Typing
 module Metatheory = Pulse.Typing.Metatheory
 open Pulse.Reflection.Util
-open Pulse.Checker.Auto.Elims
+open Pulse.Prover.Common
 
 let elim_pure_head =
     let elim_pure_explicit_lid = mk_steel_wrapper_lid "elim_pure_explicit" in
@@ -89,6 +89,9 @@ let elim_pure (#g:env) (#ctxt:term) (ctxt_typing:tot_typing g ctxt tm_vprop)
            ctxt':term &
            tot_typing g' ctxt' tm_vprop &
            continuation_elaborator g ctxt g' ctxt') =
-  
-  add_elims is_elim_pure mk ctxt_typing
+  let ctxt_emp_typing : tot_typing g (tm_star ctxt tm_emp) tm_vprop = magic () in
+  let (| g', ctxt', ctxt'_emp_typing, k |) = add_elims is_elim_pure mk ctxt_emp_typing in
+  let k = k_elab_equiv k (VE_Trans _ _ _ _ (VE_Comm _ _ _) (VE_Unit _ _))
+                         (VE_Trans _ _ _ _ (VE_Comm _ _ _) (VE_Unit _ _)) in
+  (| g', ctxt', star_typing_inversion_l ctxt'_emp_typing, k |)
  
