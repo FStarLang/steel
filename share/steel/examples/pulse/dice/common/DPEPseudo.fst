@@ -5,6 +5,7 @@ open FStar.Ghost
 open Steel.ST.Util 
 open Steel.ST.Array
 open Steel.FractionalPermission
+// module SL = Steel.ST.SpinLock
 module A = Steel.ST.Array
 module R = Steel.ST.Reference
 module US = FStar.SizeT
@@ -23,19 +24,29 @@ type context_t =
                       csr_deviceID:A.array U8.t ->
                       context_t
 
-(*
+assume
+val tbl_len : US.t
 
-// init_dpe: Internal to DPE 
-// Create the session table and session table lock. 
-fn init_dpe ()
+(* 
+init_dpe: Internal to DPE 
+Create the session table and session table lock. 
+*)
+```pulse
+fn init_dpe (_:unit)
+  requires emp
+  ensures emp
 {
-  let session_tbl = (new_table);
+  let session_tbl = new_array 0ul tbl_len;
 
-  (* the following should be GLOBAL state *)
-  let session_tbl_lock = new_lock (exists s. A.pts_to session_tbl full_perm s); 
+  let session_tbl_lock = new_lock (exists s. A.pts_to session_tbl full_perm s);
   let session_id_ctr = R.ref US.t;
+
   session_id_ctr := 0;
+  ()
 }
+```
+
+(*
 
 
 // OpenSession: Part of DPE API 
