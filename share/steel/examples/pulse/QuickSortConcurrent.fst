@@ -1,14 +1,34 @@
 module QuickSortConcurrent
-module T = FStar.Tactics
-module PM = Pulse.Main
+open Pulse.Steel.Wrapper
 open Steel.ST.Util 
 open Steel.FractionalPermission
-module U32 = FStar.UInt32
-open Pulse.Steel.Wrapper
-module A = Steel.ST.Array
 module R = Steel.ST.Reference
+(*
+assume
+val f (x: int): stt unit (requires emp) (ensures fun _ -> emp)
+
+```pulse
+fn test (x: R.ref int)
+  requires exists v. (R.pts_to x full_perm v)
+  ensures exists v. (R.pts_to x full_perm v)
+{
+  with v. assert (R.pts_to x full_perm v);
+  f v;
+  ()
+}
+```
+*)
+
+
+
+module T = FStar.Tactics
+module PM = Pulse.Main
+module U32 = FStar.UInt32
+module A = Steel.ST.Array
 module Prf = Steel.ST.GenArraySwap.Proof
 module SZ = FStar.SizeT
+
+
 
 #set-options "--ide_id_info_off"
 #push-options "--using_facts_from '* -FStar.Tactics -FStar.Reflection'"
@@ -111,8 +131,8 @@ fn swap (a: A.array int) (i j: nat_fits) (#l:(l:nat{l <= i /\ l <= j})) (#r:(r:n
 }
 ```
 
-let sorted_between (s: Seq.seq int) (a b: int)
-  = forall (i j: nat). 0 <= i /\ a <= i /\ i < j /\ j <= b /\ j < Seq.length s ==> Seq.index s i <= Seq.index s j
+let sorted (s: Seq.seq int)
+  = forall (i j: nat). 0 <= i /\ i <= j /\ j < Seq.length s ==> Seq.index s i <= Seq.index s j
 
 let same_between (n: nat) (s0 s: seqn n) (lo hi: int)
   = forall (k: nat). 0 <= k /\ lo <= k /\ k <= hi /\ k < n ==> Seq.index s0 k = Seq.index s k
@@ -152,6 +172,8 @@ fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) (lb rb: 
       /\ permutation s0 s
    ))
 {
+  admit()
+  (*
   let pivot = a.(SZ.uint_to_t hi);
   let mut i = lo - 1;
   let mut j = lo - 1;
@@ -216,10 +238,119 @@ fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) (lb rb: 
   let vi' = vi + 1;
   let vj' = vj + 1;
   (vi', vj', pivot)
+  *)
 }
 ```
-(*
 
+```pulse
+fn quicksort' (a: A.array int) (lo: nat) (hi:(hi:int{-1 <= hi /\ lo <= hi + 1})) (lb rb: int) (n: nat) (#s0: Ghost.erased (Seq.seq int))
+  requires A.pts_to_range a lo (hi + 1) full_perm s0
+   ** pure (
+    hi < n
+    /\ Seq.length s0 = hi + 1 - lo
+    /\ SZ.fits n /\ A.length a = n
+    /\ lo <= n /\ lb <= rb
+    ///\ between_bounds n s0 lo hi lb rb
+    )
+  ensures exists s. (
+    A.pts_to_range a lo (hi + 1) full_perm s ** pure (
+      hi < n /\ Seq.length s0 = hi + 1 - lo /\ Seq.length s = hi + 1 - lo /\ SZ.fits n /\ A.length a = n
+      ///\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
+      /\ sorted s
+      ///\ between_bounds n s lo hi lb rb
+      /\ permutation s0 s
+    )
+  )
+{ admit() }
+```
+
+assume
+val split
+  (#elt: Type)
+  (a: A.array elt)
+  (i: nat)
+  (#l #r: nat)
+  (#s: Ghost.erased (Seq.seq elt))
+  (#p: perm)
+: stt unit
+    (requires A.pts_to_range a l r p s
+     `star` pure (l <= i /\ i <= r))
+    //(ensures fun _ -> A.pts_to_range a l r p s
+    (ensures fun _ ->
+      exists_ (fun s1 -> exists_ (fun s2 ->
+        A.pts_to_range a l i p s1 `star`
+        A.pts_to_range a i r p s2 `star` pure (
+          l <= i /\ i <= r /\
+          Seq.length s == r + 1 - l /\
+          //A.merge_into (fst res) (snd res) a /\
+          //US.v i <= A.length a /\ US.v i <= Seq.length x /\
+          Seq.length s1 == i + 1 - l /\ Seq.length s2 == r + 1 - i /\
+          s1 == Seq.slice s 0 (i - l) /\
+          s2 == Seq.slice s (i - l) (Seq.length s) /\
+          s == Ghost.hide (Seq.append (Seq.slice s 0 i) (Seq.slice s i (Seq.length s)))
+        )
+      ))
+      )
+
+```pulse
+fn quicksort (a: A.array int) (lo: nat) (hi:(hi:int{-1 <= hi /\ lo <= hi + 1})) (lb rb: int) (n: nat) (#s0: Ghost.erased (Seq.seq int))
+  requires A.pts_to_range a lo (hi + 1) full_perm s0 ** pure (
+    hi < n
+    /\ Seq.length s0 = hi + 1 - lo
+    /\ SZ.fits n /\ A.length a = n
+    /\ lo <= n /\ lb <= rb
+    ///\ between_bounds n s0 lo hi lb rb
+    )
+  ensures exists s. (
+    A.pts_to_range a lo (hi + 1) full_perm s ** pure (
+      hi < n /\ Seq.length s0 = hi + 1 - lo /\ Seq.length s = hi + 1 - lo /\ SZ.fits n /\ A.length a = n
+      ///\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
+      /\ sorted s
+      ///\ between_bounds n s lo hi lb rb
+      /\ permutation s0 s
+    )
+  )
+  // decreases hi - lo (>= -2n)
+{
+  if (lo < hi)
+  {
+    let r = partition a lo hi n lb rb;
+    let pivot = r._3;
+
+    with s. assert (A.pts_to_range a lo (hi + 1) full_perm s);
+    assert_prop (
+      Seq.length s = hi + 1 - lo /\ Seq.length s0 = hi + 1 - lo
+      /\ lo <= r._1 /\ r._1 <= r._2 /\ r._2 <= hi /\ hi < n
+      /\ (forall (k: nat). lo <= k /\ k < r._1 ==> Seq.index s (k - lo) < r._3)
+      /\ (forall (k: nat). r._1 <= k /\ k <= r._2 ==> Seq.index s (k - lo) == r._3)
+      /\ (forall (k: nat). r._2 + 1 <= k /\ k <= hi ==> Seq.index s (k - lo) > r._3)
+      ///\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
+      ///\ between_bounds n s lo hi lb rb
+      /\ permutation s0 s
+    );
+    split a (r._1);
+    with s1. assert (A.pts_to_range a lo r._1 full_perm s1);
+    rewrite (A.pts_to_range a lo r._1 full_perm s1) as (A.pts_to_range a lo ((r._1 - 1) + 1) full_perm s1);
+    with s2. assert (A.pts_to_range a r._1 (hi + 1) full_perm s2);
+    
+    split a (r._2 + 1) #(r._1);
+
+    // termination check
+    assert_prop (hi - lo > (r._1 - 1) - lo);
+    quicksort' a lo (r._1 - 1) lb pivot n;
+
+    // termination check
+    assert_prop (hi - lo > hi - (r._2 + 1));
+    quicksort' a (r._2 + 1) hi pivot rb n;
+    admit()
+  }
+  else {
+    ()
+  }
+}
+```
+
+(*
 ```pulse
 fn partition_old (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.erased (Seq.seq int))
   requires (
@@ -289,63 +420,6 @@ fn partition_old (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost
   let vi = !i;
   swap n a vi hi;
   vi
-}
-```
-
-```pulse
-fn quicksort' (a: A.array int) (lo hi: int) (lb rb: int) (n: nat) (#s0: (s0:Ghost.erased (Seq.seq int){Seq.length s0 = n}))
-  requires A.pts_to a full_perm s0 ** pure (
-    0 <= lo /\ hi < n /\ Seq.length s0 = n /\ SZ.fits n /\ A.length a = n
-    /\ hi >= -1 /\ lo <= n /\ lb <= rb
-    /\ between_bounds n s0 lo hi lb rb
-    )
-  ensures exists s. (
-    A.pts_to a full_perm s ** pure (
-      0 <= lo /\ hi < n /\ Seq.length s0 = n /\ Seq.length s = n /\ SZ.fits n /\ A.length a = n
-      /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
-      /\ sorted_between s lo hi
-      /\ between_bounds n s lo hi lb rb
-      /\ permutation s0 s
-    )
-  )
-{ admit() }
-```
-
-```pulse
-fn quicksort (a: A.array int) (lo hi: int) (lb rb: int) (n: nat) (#s0: (s0:Ghost.erased (Seq.seq int){Seq.length s0 = n}))
-  requires A.pts_to a full_perm s0 ** pure (
-    0 <= lo /\ hi < n /\ Seq.length s0 = n /\ SZ.fits n /\ A.length a = n
-    /\ hi >= -1 /\ lo <= n /\ lb <= rb
-    /\ between_bounds n s0 lo hi lb rb
-    )
-  ensures exists s. (
-    A.pts_to a full_perm s ** pure (
-      0 <= lo /\ hi < n /\ Seq.length s0 = n /\ Seq.length s = n /\ SZ.fits n /\ A.length a = n
-      /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
-      /\ sorted_between s lo hi
-      /\ between_bounds n s lo hi lb rb
-      /\ permutation s0 s
-    )
-  )
-  // decreases hi - lo (>= -2n)
-{
-  if (lo < hi)
-  {
-    let r = partition a lo hi n lb rb;
-    let pivot = r._3;
-
-    // termination check
-    assert_prop (hi - lo > (r._1 - 1) - lo);
-    quicksort' a lo (r._1 - 1) lb pivot n;
-
-    // termination check
-    assert_prop (hi - lo > hi - (r._2 + 1));
-    quicksort' a (r._2 + 1) hi pivot rb n;
-    ()
-  }
-  else {
-    ()
-  }
 }
 ```
 *)
