@@ -95,69 +95,62 @@ val op_Array_Assignment
     ))))
 
 ```pulse
-fn swap (a: A.array int) (i j: nat_fits) (l:(l:nat{l <= i /\ l <= j})) (r:(r:nat{i < r /\ j < r}))
+fn swap (a: A.array int) (i j: nat_fits) (#l:(l:nat{l <= i /\ l <= j})) (#r:(r:nat{i < r /\ j < r}))
   (#s0: Ghost.erased (Seq.seq int))
-  //(#s0: (s0:Ghost.erased (Seq.seq int){Seq.length s0 = r - l}))
   requires A.pts_to_range a l r full_perm s0
-  //** pure (l <= i /\ i < r /\ l <= j /\ j < r)
-  ensures exists s. (
-    A.pts_to_range a l r full_perm s
-    (*
-    ** pure (
-      //Seq.length s0 = n /\ Seq.length s = n /\
-    Seq.length s0 = r - l /\ Seq.length s = r - l
-    //s = seq_swap s0 (i - l) (j - l) /\ permutation s0 s)
-    *)
-    )
+  ensures exists s. (A.pts_to_range a l r full_perm s
+    ** pure (Seq.length s0 = r - l /\ Seq.length s = r - l /\
+      s = seq_swap s0 (i - l) (j - l) /\ permutation s0 s
+    ))
 {
   let vi = a.(SZ.uint_to_t i);
   let vj = a.(SZ.uint_to_t j);
-  //with s. assert (A.pts_to_range a l r full_perm s ** pure (Seq.length s ==  r - l));
-  with s. assert (A.pts_to_range a l r full_perm s);
-  assert_prop (s = s0);
-  assert_prop (Seq.length s = r - l);
-  assert_prop (Seq.index s (i - l) == vi);
   (a.(SZ.uint_to_t i) <- vj);
   (a.(SZ.uint_to_t j) <- vi);
   ()
 }
 ```
-(*
+
 let sorted_between (s: Seq.seq int) (a b: int)
   = forall (i j: nat). 0 <= i /\ a <= i /\ i < j /\ j <= b /\ j < Seq.length s ==> Seq.index s i <= Seq.index s j
 
 let same_between (n: nat) (s0 s: seqn n) (lo hi: int)
   = forall (k: nat). 0 <= k /\ lo <= k /\ k <= hi /\ k < n ==> Seq.index s0 k = Seq.index s k
 
-let between_bounds (n: nat) (s: seqn n) (lo hi: int) (lb rb: int)
-  = forall (k: nat). 0 <= k /\ lo <= k /\ k <= hi /\ k < n ==> lb <= Seq.index s k /\ Seq.index s k <= rb
+//let between_bounds (n: nat) (s: seqn n) (lo hi: int) (lb rb: int)
+//  = forall (k: nat). 0 <= k /\ lo <= k /\ k <= hi /\ k < n ==> lb <= Seq.index s k /\ Seq.index s k <= rb
+
+//let between_bounds (n: nat) (s: seqn n) (lo hi: int) (lb rb: int)
+//  = forall (k: nat). 0 <= k /\ lo <= k /\ k <= hi /\ k < n ==> lb <= Seq.index s k /\ Seq.index s k <= rb
+
 
 ```pulse
-fn partition (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.erased (Seq.seq int))
+fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) (lb rb: int) (#s0: Ghost.erased (Seq.seq int))
   requires (
-    A.pts_to a full_perm s0 **
+    A.pts_to_range a lo (hi + 1) full_perm s0 **
     pure (
-      0 <= hi /\ hi < n /\
-      0 <= lo /\ lo < hi /\
+      //0 <= hi /\
+      hi < n /\
+      //0 <= lo /\
       n = A.length a /\ SZ.fits n /\
-      n = Seq.length s0
-      /\ between_bounds n s0 lo hi lb rb
+      Seq.length s0 = hi + 1 - lo // /\
+      //between_bounds n s0 lo hi lb rb
       )
   )
   returns r: int & int & int // left, right, pivot
   ensures exists s. (
-    A.pts_to a full_perm s **
+    A.pts_to_range a lo (hi + 1) full_perm s
+     **
     pure (
-      Seq.length s = n /\ Seq.length s0 = n /\ A.length a = n
+      Seq.length s = hi + 1 - lo /\ Seq.length s0 = hi + 1 - lo
       /\ lo <= r._1 /\ r._1 <= r._2 /\ r._2 <= hi /\ hi < n
-      /\ (forall (k: nat). lo <= k /\ k < r._1 ==> Seq.index s k < r._3)
-      /\ (forall (k: nat). r._1 <= k /\ k <= r._2 ==> Seq.index s k == r._3)
-      /\ (forall (k: nat). r._2 + 1 <= k /\ k <= hi ==> Seq.index s k > r._3)
-      /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
-      /\ between_bounds n s lo hi lb rb
+      /\ (forall (k: nat). lo <= k /\ k < r._1 ==> Seq.index s (k - lo) < r._3)
+      /\ (forall (k: nat). r._1 <= k /\ k <= r._2 ==> Seq.index s (k - lo) == r._3)
+      /\ (forall (k: nat). r._2 + 1 <= k /\ k <= hi ==> Seq.index s (k - lo) > r._3)
+      ///\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
+      ///\ between_bounds n s lo hi lb rb
       /\ permutation s0 s
-    )
-   )
+   ))
 {
   let pivot = a.(SZ.uint_to_t hi);
   let mut i = lo - 1;
@@ -165,7 +158,7 @@ fn partition (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.era
   let mut k = lo;
   while (let vk = !k; (vk < hi))
     invariant b . exists s vi vj vk. (
-      A.pts_to a full_perm s **
+      A.pts_to_range a lo (hi + 1) full_perm s **
       R.pts_to i full_perm vi **
       R.pts_to j full_perm vj **
       R.pts_to k full_perm vk **
@@ -173,16 +166,16 @@ fn partition (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.era
         eq2_prop #bool b (vk < hi) /\
         lo <= vk /\ vk <= hi /\
         lo - 1 <= vi /\ vi <= vj /\ vj < vk /\
-        A.length a = n /\
-        n = Seq.length s0
-        /\ n = Seq.length s
-        /\ Seq.index s hi = pivot
-        /\ (forall (l:nat). lo <= l /\ l <= vi ==> Seq.index s l < pivot)
-        /\ (forall (l:nat). vi + 1 <= l /\ l <= vj ==> Seq.index s l == pivot)
-        /\ (forall (l:nat). vj + 1 <= l /\ l <= vk - 1 ==> Seq.index s l > pivot)
-        /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
-        /\ between_bounds n s lo hi lb rb
+        Seq.length s = hi + 1 - lo /\
+        Seq.index s (hi - lo) = pivot
+        /\ (forall (l:nat). lo <= l /\ l <= vi ==> Seq.index s (l - lo) < pivot)
+        /\ (forall (l:nat). vi + 1 <= l /\ l <= vj ==> Seq.index s (l - lo) == pivot)
+        /\ (forall (l:nat). vj + 1 <= l /\ l <= vk - 1 ==> Seq.index s (l - lo) > pivot)
         /\ permutation s0 s
+        (*
+        A.length a = n
+        /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
+        /\ between_bounds n s lo hi lb rb *)
       ))
   {
     let vk = !k;
@@ -192,8 +185,8 @@ fn partition (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.era
       i := vi + 1;
       let vj = !j;
       j := vj + 1;
-      swap n a (vj + 1) vk;
-      swap n a (vi + 1) (vj + 1);
+      swap a (vj + 1) vk;
+      swap a (vi + 1) (vj + 1);
       k := vk + 1;
       ()
     }
@@ -201,7 +194,7 @@ fn partition (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.era
       if (ak = pivot) {
         let vj = !j;
         j := vj + 1;
-        swap n a (vj + 1) vk;
+        swap a (vj + 1) vk;
         k := vk + 1;
         ()
       }
@@ -216,7 +209,7 @@ fn partition (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.era
   j := vj + 1;
 
   // swap j with hi
-  swap n a (vj + 1) hi;
+  swap a (vj + 1) hi;
 
   let vi = !i;
   i := vi + 1;
@@ -225,7 +218,7 @@ fn partition (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.era
   (vi', vj', pivot)
 }
 ```
-
+(*
 
 ```pulse
 fn partition_old (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost.erased (Seq.seq int))
