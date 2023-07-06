@@ -131,6 +131,13 @@ val pts_to
   ([@@@ smt_fallback ] s: Seq.seq elt)
 : Tot vprop
 
+let pts_to_range
+  (#elt: Type0) (a: array elt) (i j: nat)
+  (p: P.perm)
+  ([@@@ smt_fallback ] s: Seq.seq elt)
+: Tot vprop
+= admit()
+
 /// A stateful lemma to relate the size of an array with the size
 /// of the element sequence it points to
 /// This ghost function proves that an array always points to a
