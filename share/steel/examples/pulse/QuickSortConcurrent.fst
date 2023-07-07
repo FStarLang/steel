@@ -95,8 +95,7 @@ let permutation_refl (#a:eqtype) (s: Seq.seq a)
     [SMTPat (permutation s s)]
    = Squash.return_squash (Refl s)
 
-assume
-val op_Array_Access
+let op_Array_Access
   (#t: Type)
   (a: A.array t)
   (i: SZ.t)
@@ -111,9 +110,9 @@ val op_Array_Access
       A.pts_to_range a l r p s `star`
       pure (Seq.length s == r - l /\
             res == Seq.index s (SZ.v i - l)))
+= pts_to_range_index a i #l #r #s #p
 
-assume
-val op_Array_Assignment
+let op_Array_Assignment
   (#t: Type)
   (a: A.array t)
   (i: SZ.t)
@@ -131,6 +130,7 @@ val op_Array_Assignment
     pure(
       Seq.length s0 == r - l /\ s == Seq.upd s0 (SZ.v i - l) v
     ))))
+= pts_to_range_upd a i v #l #r
 
 ```pulse
 fn swap (a: A.array int) (i j: nat_fits) (#l:(l:nat{l <= i /\ l <= j})) (#r:(r:nat{i < r /\ j < r}))
@@ -691,6 +691,63 @@ fn partition_old (a: A.array int) (lo hi: int) (n: nat) (lb rb: int) (#s0: Ghost
   let vi = !i;
   swap n a vi hi;
   vi
+}
+```
+
+```pulse
+fn quicksort' (a: A.array int) (lo hi: int) (lb rb: int) (n: nat) (#s0: (s0:Ghost.erased (Seq.seq int){Seq.length s0 = n}))
+  requires A.pts_to a full_perm s0 ** pure (
+    0 <= lo /\ hi < n /\ Seq.length s0 = n /\ SZ.fits n /\ A.length a = n
+    /\ hi >= -1 /\ lo <= n /\ lb <= rb
+    /\ between_bounds n s0 lo hi lb rb
+    )
+  ensures exists s. (
+    A.pts_to a full_perm s ** pure (
+      0 <= lo /\ hi < n /\ Seq.length s0 = n /\ Seq.length s = n /\ SZ.fits n /\ A.length a = n
+      /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
+      /\ sorted_between s lo hi
+      /\ between_bounds n s lo hi lb rb
+      /\ permutation s0 s
+    )
+  )
+{ admit() }
+```
+
+```pulse
+fn quicksort (a: A.array int) (lo hi: int) (lb rb: int) (n: nat) (#s0: (s0:Ghost.erased (Seq.seq int){Seq.length s0 = n}))
+  requires A.pts_to a full_perm s0 ** pure (
+    0 <= lo /\ hi < n /\ Seq.length s0 = n /\ SZ.fits n /\ A.length a = n
+    /\ hi >= -1 /\ lo <= n /\ lb <= rb
+    /\ between_bounds n s0 lo hi lb rb
+    )
+  ensures exists s. (
+    A.pts_to a full_perm s ** pure (
+      0 <= lo /\ hi < n /\ Seq.length s0 = n /\ Seq.length s = n /\ SZ.fits n /\ A.length a = n
+      /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
+      /\ sorted_between s lo hi
+      /\ between_bounds n s lo hi lb rb
+      /\ permutation s0 s
+    )
+  )
+  // decreases hi - lo (>= -2n)
+{
+  if (lo < hi)
+  {
+    let r = partition a lo hi n lb rb;
+    let pivot = r._3;
+
+    // termination check
+    assert_prop (hi - lo > (r._1 - 1) - lo);
+    quicksort' a lo (r._1 - 1) lb pivot n;
+
+    // termination check
+    assert_prop (hi - lo > hi - (r._2 + 1));
+    quicksort' a (r._2 + 1) hi pivot rb n;
+    ()
+  }
+  else {
+    ()
+  }
 }
 ```
 *)
