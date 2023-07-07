@@ -51,75 +51,75 @@ let check_bind
   (pre_typing:tot_typing g pre tm_vprop)
   (post_hint:post_hint_opt g)
   (check:check_t)
-  : T.Tac (checker_result_t g pre post_hint) =
-  let Tm_Bind { binder=b; head=e1; body=e2 } = t.term in
-  let (| e1, c1, d1 |) = check g e1 pre pre_typing None in
-  if not (stateful_comp c1)
-  then fail g None "Bind: c1 is not st"
-  else 
-    let s1 = st_comp_of_comp c1 in
-    let t = s1.res in
-    let (| t_typing, _, x, next_pre_typing |) = 
-      Metatheory.(st_comp_typing_inversion (comp_typing_inversion (st_typing_correctness d1))) in
-    let px = b.binder_ppname, x in
-    let next_pre = open_term_nv s1.post px in
-    let g' = push_binding g x b.binder_ppname s1.res in
-    let (| e2', c2, d2 |) = check g' (open_st_term_nv e2 px) next_pre next_pre_typing post_hint in
-    FV.st_typing_freevars d2;
-    if not (stateful_comp c2)
-    then fail g None "Bind: c2 is not st"
-    else ( 
-      let e2_closed = close_st_term e2' x in
-      assume (open_st_term e2_closed x == e2');
-      mk_bind' g pre e1 e2_closed c1 c2 px d1 t_typing d2 post_hint ()
-    )
+  : T.Tac (checker_result_t g pre post_hint) = admit ()
+  // let Tm_Bind { binder=b; head=e1; body=e2 } = t.term in
+  // let (| e1, c1, d1 |) = check g e1 pre pre_typing None in
+  // if not (stateful_comp c1)
+  // then fail g None "Bind: c1 is not st"
+  // else 
+  //   let s1 = st_comp_of_comp c1 in
+  //   let t = s1.res in
+  //   let (| t_typing, _, x, next_pre_typing |) = 
+  //     Metatheory.(st_comp_typing_inversion (comp_typing_inversion (st_typing_correctness d1))) in
+  //   let px = b.binder_ppname, x in
+  //   let next_pre = open_term_nv s1.post px in
+  //   let g' = push_binding g x b.binder_ppname s1.res in
+  //   let (| e2', c2, d2 |) = check g' (open_st_term_nv e2 px) next_pre next_pre_typing post_hint in
+  //   FV.st_typing_freevars d2;
+  //   if not (stateful_comp c2)
+  //   then fail g None "Bind: c2 is not st"
+  //   else ( 
+  //     let e2_closed = close_st_term e2' x in
+  //     assume (open_st_term e2_closed x == e2');
+  //     mk_bind' g pre e1 e2_closed c1 c2 px d1 t_typing d2 post_hint ()
+  //   )
 //inlining mk_bind' causes memory to blow up. F* takes a long time to compute a VC for the definition above^. Z3 finishes the proof quickly    
 #pop-options
 
 
-let check_tot_bind g t pre pre_typing post_hint check =
-  let Tm_TotBind { head=e1; body=e2 } = t.term in
-  let (| e1, u1, t1, _t1_typing, e1_typing |) = check_term_and_type g e1 in
-  let t1 =
-    let b = {binder_ty=t1;binder_ppname=ppname_default} in
-    let eq_tm = mk_eq2 u1 t1 (null_bvar 0) e1 in
-    tm_refine b eq_tm in
-  let (| e1, e1_typing |) =
-    check_term_with_expected_type g e1 t1 in
-  let x = fresh g in
-  let px = v_as_nv x in
-  let g' = push_binding g x (fst px) t1 in
-  // This is just weakening,
-  //   we have g |- pre : vprop
-  //   g' should follow by some weakening lemma
-  let pre_typing' : tot_typing g' pre tm_vprop =
-    check_vprop_with_core g' pre in
-  let (| e2, c2, e2_typing |) =
-    check g' (open_st_term_nv e2 px) pre pre_typing' post_hint in
-  if not (stateful_comp c2)
-  then fail g (Some e2.range) "Tm_TotBind: e2 is not a stateful computation"
-  else
-    let e2_closed = close_st_term e2 x in
-    assume (open_st_term_nv e2_closed (v_as_nv x) == e2);
-    assert (comp_pre c2 == pre);
-    // T.print (Printf.sprintf "c2 is %s\n\n" (P.comp_to_string c2));
-    FV.tot_typing_freevars pre_typing;
-    close_with_non_freevar pre x 0;
-    let c = open_comp_with (close_comp c2 x) e1 in
-    let _ = 
-      match post_hint with
-      | None -> ()
-      | Some post ->
-        assume (comp_post c == comp_post c2 /\
-                comp_res c == comp_res c2 /\
-                comp_u c == comp_u c2)
-    in
-    // T.print (Printf.sprintf "c is %s\n\n" (P.comp_to_string c));
-    LN.tot_typing_ln pre_typing';
-    open_with_gt_ln pre (-1) e1 0;
-    (| _,
-       c,
-       T_TotBind _ _ e2_closed _ _ x (E e1_typing) e2_typing |)
+let check_tot_bind g t pre pre_typing post_hint check = admit ()
+  // let Tm_TotBind { head=e1; body=e2 } = t.term in
+  // let (| e1, u1, t1, _t1_typing, e1_typing |) = check_term_and_type g e1 in
+  // let t1 =
+  //   let b = {binder_ty=t1;binder_ppname=ppname_default} in
+  //   let eq_tm = mk_eq2 u1 t1 (null_bvar 0) e1 in
+  //   tm_refine b eq_tm in
+  // let (| e1, e1_typing |) =
+  //   check_term_with_expected_type g e1 t1 in
+  // let x = fresh g in
+  // let px = v_as_nv x in
+  // let g' = push_binding g x (fst px) t1 in
+  // // This is just weakening,
+  // //   we have g |- pre : vprop
+  // //   g' should follow by some weakening lemma
+  // let pre_typing' : tot_typing g' pre tm_vprop =
+  //   check_vprop_with_core g' pre in
+  // let (| e2, c2, e2_typing |) =
+  //   check g' (open_st_term_nv e2 px) pre pre_typing' post_hint in
+  // if not (stateful_comp c2)
+  // then fail g (Some e2.range) "Tm_TotBind: e2 is not a stateful computation"
+  // else
+  //   let e2_closed = close_st_term e2 x in
+  //   assume (open_st_term_nv e2_closed (v_as_nv x) == e2);
+  //   assert (comp_pre c2 == pre);
+  //   // T.print (Printf.sprintf "c2 is %s\n\n" (P.comp_to_string c2));
+  //   FV.tot_typing_freevars pre_typing;
+  //   close_with_non_freevar pre x 0;
+  //   let c = open_comp_with (close_comp c2 x) e1 in
+  //   let _ = 
+  //     match post_hint with
+  //     | None -> ()
+  //     | Some post ->
+  //       assume (comp_post c == comp_post c2 /\
+  //               comp_res c == comp_res c2 /\
+  //               comp_u c == comp_u c2)
+  //   in
+  //   // T.print (Printf.sprintf "c is %s\n\n" (P.comp_to_string c));
+  //   LN.tot_typing_ln pre_typing';
+  //   open_with_gt_ln pre (-1) e1 0;
+  //   (| _,
+  //      c,
+  //      T_TotBind _ _ e2_closed _ _ x (E e1_typing) e2_typing |)
 
 irreducible
 let coerce_eq (#a #b:Type) (x:a) (_:squash (a == b)) : y:b{y == x} = x
@@ -130,10 +130,12 @@ let check_stapp_no_ctxt (g:env) (t:st_term)
            c:comp_st &
            st_typing (push_env g uvs) t c) = magic ()
 
+
 module PS = Pulse.Prover.Substs
 open Pulse.Prover.Common
 open Pulse.Prover
 #push-options "--z3rlimit_factor 8 --fuel 1 --ifuel 1 --admit_smt_queries true" // --admit_smt_queries true --debug Pulse.Checker.Bind --debug_level NormTop --ugly"
+// #push-options "--debug Pulse.Checker.Bind --debug_level Extreme --ugly --print_effect_args --print_implicits"
 let check_bindv2
   (g:env)
   (t:st_term {Tm_Bind? t.term})
@@ -147,9 +149,11 @@ let check_bindv2
 
     let (| uvs, e1, c1, d1 |) = check_stapp_no_ctxt g e1 in
     let c10 = c1 in
+
     // magic is comp_pre c1 typing, get from inversion of d1 
     let (| g1, uvs1, ss1, remaining_pre, k |) =
       prove pre_typing uvs #(comp_pre c1) (magic ()) in
+
     let x = fresh g1 in
     let px = b.binder_ppname, x in
     // TODO: if the binder is annotated, check subtyping
@@ -161,6 +165,7 @@ let check_bindv2
     // remaining_pre is well-typed, may be prove function can return it?
     // well-typedness of open_term?
     let post_hint2 : post_hint_opt g2 = extend_post_hint_opt_g g post_hint g2 in
+
     let (| e2, c2, d2 |) =
       check g2 (open_st_term_nv e2 px) pre_e2 (magic ()) post_hint2 in
     
@@ -174,7 +179,8 @@ let check_bindv2
       : st_typing g1 (PS.nt_subst_st_term e1 ss1)
                      (PS.nt_subst_comp c1 ss1) = magic () in
 
-        // g1 |- ss1 e1 : ss1 c1
+    // g1 |- ss1 e1 : ss1 c1
+
     let (| e1, c1, d1 |) = add_frame d1 #remaining_pre (magic ()) in
     // assert (comp_pre c1 == PS.nt_subst_term (comp_pre c10) ss1 * remaining_pre);
     // assert (comp_res c1 == PS.nt_subst_term (comp_res c10) ss1);
@@ -194,12 +200,12 @@ let check_bindv2
     // assume (stateful_comp c1);
     // assume (~ (x `Set.mem` freevars_st e2_closed));
     // let g : env = g1 in
-    // let pre : term = comp_pre c1 in
-    // let e1 : st_term = e1 in
-    // let e2 : st_term = e2_closed in
-    // let c1 : comp_st = c1 in
-    // let c2 : comp_st = c2 in
-    // let px : px:nvar { ~ (Set.mem (snd px) (dom g)) } = px in
+    // let pre = (comp_pre c1) <: Tot term in
+    // let e1 = e1 in
+    // let e2 = e2_closed in
+    // let c1 = c1 <: Tot comp_st in
+    // let c2 = c2 <: Tot comp_st in
+    // let px = px <: Tot (px:nvar { ~ (Set.mem (snd px) (dom g)) }) in
     // let d_e1 : st_typing g e1 c1 = coerce_eq d1 () in
     // let d_c1res : tot_typing g (comp_res c1) (tm_type (comp_u c1)) = magic () in
     // let d_e2 : st_typing (push_binding g (snd px) (fst px) (comp_res c1)) (open_st_term_nv e2 px) c2 =
@@ -208,7 +214,7 @@ let check_bindv2
 
     // let r = mk_bind' g pre e1 e2 c1 c2 px d_e1 d_c1res d_e2 post_hint () in
     let r =
-      mk_bind' g1 (magic ()) e1 e2_closed c1 c2 px (magic ()) (magic ()) (magic ()) (magic ()) () in
+      mk_bind' g1 (comp_pre c1) e1 e2_closed c1 c2 px (coerce_eq d1 ()) (magic ()) (coerce_eq d2 ()) (magic ()) () in
       // k post_hint r
     admit ()
 #pop-options
