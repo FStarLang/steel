@@ -42,6 +42,24 @@ let nat_fits = n:nat{SZ.fits n}
 let seq_swap (#a: Type) (s: Seq.seq a) (i j: nat_smaller (Seq.length s)) =
   Seq.upd (Seq.upd s i (Seq.index s j)) j (Seq.index s i)
 
+let larger_than (s: Seq.seq int) (lb: int)
+  = forall (k: nat). k < Seq.length s ==> lb <= Seq.index s k
+
+let larger_than_slice (s: Seq.seq int) (lo: nat) (hi: nat{lo <= hi /\ hi <= Seq.length s}) (lb: int):
+  Lemma (requires larger_than s lb)
+  (ensures larger_than (Seq.slice s lo hi) lb)
+  //[SMTPat (larger_than (Seq.slice s lo hi) lb)]
+= ()
+
+let smaller_than (s: Seq.seq int) (rb: int)
+  = forall (k: nat). k < Seq.length s ==> Seq.index s k <= rb
+
+let between_bounds (s: Seq.seq int) (lb rb: int)
+  //= forall (k: nat). 0 <= k /\ k < Seq.length s ==> lb <= Seq.index s k /\ Seq.index s k <= rb
+  = larger_than s lb /\ smaller_than s rb
+
+
+
 type permutation (#a: Type): Seq.seq a -> Seq.seq a -> Type =
   | Refl : s: Seq.seq a -> permutation s s
   | Swap : s1: Seq.seq a -> s2: Seq.seq a -> i: nat_smaller (Seq.length s2) -> j: nat_smaller (Seq.length s2) ->
@@ -70,6 +88,7 @@ let compose_permutations (#a:eqtype) (s1 s2 s3: Seq.seq a)
     [SMTPat (permutation s1 s2); SMTPat (permutation s2 s3)]
    = (let s12: squash (permutation s1 s2) = () in let s23: squash (permutation s2 s3) = () in
    Squash.bind_squash s12 (fun p12 -> Squash.bind_squash s23 (fun p23 -> Squash.return_squash (compose_perm_aux s1 s2 s3 #p12 #p23))))
+
 
 let permutation_refl (#a:eqtype) (s: Seq.seq a)
   : Lemma (ensures permutation s s)
@@ -133,28 +152,25 @@ fn swap (a: A.array int) (i j: nat_fits) (#l:(l:nat{l <= i /\ l <= j})) (#r:(r:n
 let sorted (s: Seq.seq int)
   = forall (i j: nat). 0 <= i /\ i <= j /\ j < Seq.length s ==> Seq.index s i <= Seq.index s j
 
-let larger_than (s: Seq.seq int) (lb: int)
-  = forall (k: nat). k < Seq.length s ==> lb <= Seq.index s k
-
-let larger_than_slice (s: Seq.seq int) (lo: nat) (hi: nat{lo <= hi /\ hi <= Seq.length s}) (lb: int):
-  Lemma (requires larger_than s lb)
-  (ensures larger_than (Seq.slice s lo hi) lb)
-  //[SMTPat (larger_than (Seq.slice s lo hi) lb)]
-= ()
-
-let smaller_than (s: Seq.seq int) (rb: int)
-  = forall (k: nat). k < Seq.length s ==> Seq.index s k <= rb
-
-
-let between_bounds (s: Seq.seq int) (lb rb: int)
-  //= forall (k: nat). 0 <= k /\ k < Seq.length s ==> lb <= Seq.index s k /\ Seq.index s k <= rb
-  = larger_than s lb /\ smaller_than s rb
+(*
+let rec between_bounds_permutation_aux (s1 s2: Seq.seq int) (lb rb: int) (p12: permutation s1 s2):
+  Lemma
+    (requires between_bounds s1 lb rb)
+    (ensures between_bounds s2 lb rb)
+    (decreases p12)
+= match p12 with
+  | Refl _ -> ()
+  | Swap _ s3 i j p13 -> between_bounds_permutation_aux s1 s3 lb rb p13
 
 let between_bounds_permutation (s1 s2: Seq.seq int) (lb rb: int):
   Lemma
     (requires between_bounds s1 lb rb /\ permutation s1 s2)
     (ensures between_bounds s2 lb rb)
-= admit()
+  = (let s12: squash (permutation s1 s2) = () in
+  let _ = Squash.bind_squash s12 (fun p12 -> Squash.return_squash (between_bounds_permutation_aux s1 s2 lb rb p12))
+  in ())
+  *)
+
 
 let seq_prop_between (f: int -> bool) (s: Seq.seq int) (lo: nat) (hi: int{hi <= Seq.length s})
   = forall (k: nat). 0 <= k /\ k < hi ==> f (Seq.index s k)
@@ -164,6 +180,7 @@ let lt (x: int) = (fun y -> y < x)
 let to_nat (x: int{x >= 0}): nat
   = x
 
+#push-options "--z3rlimit 30"
 ```pulse
 fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) (lb rb: int) (#s0: Ghost.erased (Seq.seq int))
   requires (
@@ -193,7 +210,7 @@ fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) (lb rb: 
       ///\ seq_prop_between (fun x -> x > r._3) s (r._2 + 1 - lo) hi
       /\ (forall (k: nat). r._2 + 1 - lo <= k /\ k <= hi - lo ==> Seq.index s k > r._3)
       ///\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
-      // /\ between_bounds s lb rb
+      /\ between_bounds s lb rb
       /\ permutation s0 s
    ))
 {
@@ -220,7 +237,7 @@ fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) (lb rb: 
         /\ (forall (l:nat). vi + 1 - lo <= l /\ l <= vj - lo ==> Seq.index s l == pivot)
         /\ (forall (l:nat). vj + 1 - lo <= l /\ l <= vk - 1 - lo ==> Seq.index s l > pivot)
         /\ permutation s0 s
-        ///\ between_bounds s lb rb
+        /\ between_bounds s lb rb
         (*
         A.length a = n
         /\ same_between n s0 s 0 (lo - 1) /\ same_between n s0 s (hi + 1) (n - 1)
@@ -267,6 +284,7 @@ fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) (lb rb: 
   (vi', vj', pivot)
 }
 ```
+#pop-options
 
 assume
 val split
@@ -360,10 +378,12 @@ fn partition_wrapper (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi})) (n: nat) 
       /\ permutation s0 s
    ));
 
-  between_bounds_permutation s0 s lb rb;
+  //between_bounds_permutation s0 s lb rb;
 
   //assert_prop (forall (k: nat). k < r._1 - lo ==> Seq.index s k < r._3);
   transfer_smaller_slice s 0 (r._1 - lo) r._3;
+  //transfer_smaller_slice s (r._1 - lo) (r._2 + 1 - lo) r._3;
+  transfer_larger_slice s (r._2 + 1 - lo) (hi + 1 - lo) r._3;
 
 
   //transfer_larger_slice s 0 (r._1 - lo) lb;
