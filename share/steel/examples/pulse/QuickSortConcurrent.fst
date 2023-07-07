@@ -57,8 +57,7 @@ let permutation_refl (#a:eqtype) (s: Seq.seq a)
     [SMTPat (permutation s s)]
    = Squash.return_squash (Refl s)
 
-assume
-val op_Array_Access
+let op_Array_Access
   (#t: Type)
   (a: A.array t)
   (i: SZ.t)
@@ -73,9 +72,9 @@ val op_Array_Access
       A.pts_to_range a l r p s `star`
       pure (Seq.length s == r - l /\
             res == Seq.index s (SZ.v i - l)))
+= pts_to_range_index a i #l #r #s #p
 
-assume
-val op_Array_Assignment
+let op_Array_Assignment
   (#t: Type)
   (a: A.array t)
   (i: SZ.t)
@@ -93,6 +92,7 @@ val op_Array_Assignment
     pure(
       Seq.length s0 == r - l /\ s == Seq.upd s0 (SZ.v i - l) v
     ))))
+= pts_to_range_upd a i v #l #r
 
 ```pulse
 fn swap (a: A.array int) (i j: nat_fits) (l:(l:nat{l <= i /\ l <= j})) (r:(r:nat{i < r /\ j < r}))
