@@ -3,6 +3,7 @@ open Pulse.Main
 open FStar.Ghost
 open Steel.ST.Util
 open Steel.FractionalPermission
+open Pulse.Steel.Wrapper
 module W = Pulse.Steel.Wrapper
 module L = Steel.ST.SpinLock
 module A = Steel.ST.Array
@@ -26,27 +27,29 @@ type context_t =
                       csr_deviceID:A.array U8.t ->
                       context_t
 
-(* GLOBAL STATE *)
+(* ----------- GLOBAL STATE ----------- *)
+
+assume val dpe_hashf : nat -> nat
+assume val sht_len : pos
+assume val cht_len : pos
+let cht_sig = mk_ht_sig cht_len nat context_t dpe_hashf 
+let sht_sig = mk_ht_sig sht_len nat (ht_ref_t cht_sig) dpe_hashf 
 
 // A table whose permission is stored in the lock 
 
 ```pulse
-fn alloc_ht (_:unit)
+fn alloc_ht (l:pos)
   requires emp
   returns _:ht_ref_t
   ensures emp
 {
-  let ht = new_table ();
+  let ht = new_table l;
   let ht_ref = W.alloc #ht_t ht;
   let lk = W.new_lock (exists_ (fun _ht -> R.pts_to ht_ref full_perm _ht));
   ((| ht_ref, lk |) <: ht_ref_t)
 }
 ```
-
-let ht_ref : ht_ref_t = alloc_ht () ()
-
-val session_table_len : US.t
-val context_table_len : US.t
+let sht_ref : ht_ref_t = alloc_ht sht_len ()
 
 // A number that tracks the next session ID
 
@@ -56,81 +59,112 @@ fn alloc_sid (_:unit)
   returns _:sid_ref_t
   ensures emp
 {
-  let sid_ref = W.alloc #US.t 0sz;
+  let sid_ref = W.alloc #nat 0;
   let lk = W.new_lock (exists_ (fun n -> R.pts_to sid_ref full_perm n));
   ((| sid_ref, lk |) <: sid_ref_t)
 }
 ```
-
 let sid_ref : sid_ref_t = alloc_sid () ()
 
-(* IMPLEMENTATION *)
-
-(* 
-  init_dpe: Internal to DPE 
-  Create the session table and session table lock. 
-*)
-```pulse
-fn init_dpe (_:unit)
-  requires emp
-  ensures emp
-{
-  alloc_ht ();
-  alloc_sid ();
-  ()
-}
-```
-
-(*
+(* ----------- IMPLEMENTATION ----------- *)
 
 (*
   OpenSession: Part of DPE API 
   Create a context table and context table lock for the new session. 
   Add the context table lock to the session table. 
+  NOTE: Current implementation disregards session protocol 
 *)
-fn OpenSession ()
+```pulse
+fn open_session (_:unit)
+  requires emp
+  ensures emp
 {
-  let ctxt_tbl = new_table ();
-  let ctxt_table_lock = new_lock (table_prop context_table_len ctxt_tbl);
+  let cht_ref = alloc_ht cht_len;
 
-  let cur_session = !session_id_ctr;
-  let session_tbl = acquire session_tbl_lock;
-  store session_tbl cur_session ctxt_tbl_lock;
+  let l_sid = dsnd sid_ref;
+  let l_sht = dsnd sht_ref;
 
-  session_id_ctr := cur_session + 1;
-}
-
-
-// CloseSession: Part of DPE API 
-// Create a context table and context table lock for the new session. 
-// Add the context table lock to the session table. 
-fn CloseSession ()
-{
-  let ctxt_tbl = (new_table);
-  let ctxt_tbl_lock = new_lock (exists s. A.pts_to ctxt_tbl full_perm s);
+  W.acquire #(exists_ (fun n -> R.pts_to (dfst sid_ref) full_perm n)) l_sid;
+  W.acquire #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
   
-  let cur_session = !session_id_ctr;
-  let session_tbl = acquire session_tbl_lock;
-  store session_tbl cur_session ctxt_tbl_lock;
+  let sid = !(dfst sid_ref);
+  let sht = !(dfst sht_ref);
+
+  store sht sid cht_ref;
+  dfst sid_ref := sid + 1;
+
+  W.release #(exists_ (fun n -> R.pts_to (dfst sid_ref) full_perm n)) l_sid;
+  W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+  ()
 }
+```
 
-
-// InitializeContext: Part of DPE API 
-// Create a context in the initial state (engine context) and store the context
-// in the current session's context table. 
-fn InitializeContext (seed:A.array U8.t) : A.array U32.t
+(* 
+  CloseSession: Part of DPE API 
+  Destroy the context table for the session and remove the reference
+  to it from the session table. 
+  NOTE: Current implementation disregards session protocol 
+*)
+```pulse
+fn close_session (sid:nat)
+  requires emp
+  ensures emp
 {
-  let ctxt = Engine_context seed;
-  let ctxt_hndl = (PRNG);
+  let l_sht = dsnd sht_ref;
+  W.acquire #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+  let sht = !(dfst sht_ref);
 
-  let cur_session = !session_id_ctr;
-  let session_tbl = acquire session_tbl_lock;
-  let ctxt_tbl_lock = get session_tbl cur_session;
-  let ctxt_tbl = acquire ctxt_tbl_lock;
+  let cht_ref = get sht sid;
+
+  let l_cht = dsnd cht_ref;
+  W.acquire #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+  let cht = !(dfst cht_ref);
+
+  destroy cht;
+  W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+
+  delete sht sid;
+  W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+}
+```
+
+assume val init_engine_ctxt (seed:A.array U8.t) : context_t
+assume val prng (_:unit) : nat
+
+(*
+  InitializeContext: Part of DPE API 
+  Create a context in the initial state (engine context) and store the context
+  in the current session's context table. 
+*)
+```pulse
+fn initialize_context (sid:nat) (seed:A.array U8.t)
+  requires emp
+  returns _:nat
+  ensures emp
+{
+  let ctxt = init_engine_ctxt seed;
+  let ctxt_hndl = prng ();
+
+  let l_sht = dsnd sht_ref;
+  W.acquire #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+  let sht = !(dfst sht_ref);
+
+  let cht_ref = get sht sid;
+
+  let l_cht = dsnd cht_ref;
+  W.acquire #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+  let cht = !(dfst cht_ref);
+
+  store cht ctxt_hndl ctxt;
+
+  W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+  W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
   
-  store ctxt_tbl ctxt_hndl ctxt;
   ctxt_hndl
 }
+```
+
+(*
 
 
 // DeriveChild: Part of DPE API 
