@@ -13,7 +13,7 @@ module U32 = FStar.UInt32
 // Hash table types 
 
 noeq
-type cell (kt vt : Type) =
+type cell (kt:eqtype) (vt:Type0) =
   | Clean
   | Zombie
   | Used : k:kt -> v:vt -> cell kt vt
@@ -22,7 +22,7 @@ noeq
 type ht_sig = {
   sz : pos;
   kt : eqtype;
-  vt : Type;
+  vt : Type0;
   hashf : kt -> nat;
 }
 
