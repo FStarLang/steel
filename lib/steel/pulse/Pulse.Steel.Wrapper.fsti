@@ -368,6 +368,88 @@ val free_array
     (A.pts_to a full_perm s `star` pure (A.is_full_array a))
     (fun _ -> emp)
 
+val pts_to_range_intro
+  (#elt: Type0) (a: A.array elt)
+  (p: perm)
+  (s: Seq.seq elt)
+: stt_ghost unit emp_inames
+    (A.pts_to a p s)
+    (fun _ -> A.pts_to_range a 0 (A.length a) p s)
+
+val pts_to_range_elim
+  (#elt: Type0) (a: A.array elt)
+  (p: perm)
+  (s: Seq.seq elt)
+: stt_ghost unit emp_inames
+    (A.pts_to_range a 0 (A.length a) p s)
+    (fun _ -> A.pts_to a p s)
+
+val pts_to_range_split
+  (#elt: Type0)
+  (a: A.array elt)
+  (i m j: nat)
+  (#p: perm)
+  (#s: Seq.seq elt)
+: stt_ghost unit emp_inames
+    (A.pts_to_range a i j p s `star`
+      pure (i <= m /\ m <= j)
+    )
+    (fun _ -> exists_ (fun s1 -> exists_ (fun s2 ->
+      A.pts_to_range a i m p s1 `star`
+      A.pts_to_range a m j p s2 `star`
+      pure (
+        i <= m /\ m <= j /\ j <= A.length a /\
+        Seq.length s == j - i /\
+        s1 == Seq.slice s 0 (m - i) /\
+        s2 == Seq.slice s (m - i) (Seq.length s) /\
+        s == Seq.append s1 s2
+    ))))
+
+val pts_to_range_join
+  (#elt: Type0)
+  (a: A.array elt)
+  (i m j: nat)
+  (#p: perm)
+  (#s1 #s2: Seq.seq elt)
+: stt_ghost unit emp_inames
+    (A.pts_to_range a i m p s1 `star` A.pts_to_range a m j p s2)
+    (fun _ -> A.pts_to_range a i j p (s1 `Seq.append` s2))
+
+val pts_to_range_index
+  (#t: Type)
+  (a: A.array t)
+  (i: US.t)
+  (#l: Ghost.erased nat{l <= US.v i})
+  (#r: Ghost.erased nat{US.v i < r})
+  (#s: Ghost.erased (Seq.seq t))
+  (#p: perm)
+: stt t
+    (requires
+      A.pts_to_range a l r p s)
+    (ensures fun res ->
+      A.pts_to_range a l r p s `star`
+      pure (Seq.length s == r - l /\
+            res == Seq.index s (US.v i - l)))
+
+val pts_to_range_upd
+  (#t: Type)
+  (a: A.array t)
+  (i: US.t)
+  (v: t)
+  (#l: Ghost.erased nat{l <= US.v i})
+  (#r: Ghost.erased nat{US.v i < r})
+  //(#s: Ghost.erased (Seq.seq t) {US.v i < Seq.length s})
+  (#s0: Ghost.erased (Seq.seq t))
+: stt unit
+    //(requires A.pts_to a full_perm s)
+    (requires A.pts_to_range a l r full_perm s0)
+    //(ensures fun _ -> A.pts_to_range a l r full_perm (Seq.upd s0 (US.v i - l) v))
+    //(ensures fun _ -> pure (Seq.length s0 == r - l) `star` A.pts_to a full_perm (Seq.upd s0 (US.v i - l) v))
+    (ensures fun _ -> (exists_ (fun s -> A.pts_to_range a l r full_perm s `star`
+    pure(
+      Seq.length s0 == r - l /\ s == Seq.upd s0 (US.v i - l) v
+    ))))
+
 (***** begin spinlock *****)
 
 
