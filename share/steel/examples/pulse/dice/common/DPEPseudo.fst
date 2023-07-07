@@ -1,9 +1,9 @@
 module DPEPseudo
 open Pulse.Main
-open Pulse.Steel.Wrapper
 open FStar.Ghost
 open Steel.ST.Util
 open Steel.FractionalPermission
+module W = Pulse.Steel.Wrapper
 module L = Steel.ST.SpinLock
 module A = Steel.ST.Array
 module R = Steel.ST.Reference
@@ -12,6 +12,8 @@ module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 open Array
 open HashTable
+
+friend Pulse.Steel.Wrapper
 
 noeq
 type context_t = 
@@ -26,28 +28,43 @@ type context_t =
 
 (* GLOBAL STATE *)
 
-let table_prop 
-  (table_len: US.t) 
-  (table:(a:(A.array U32.t){US.v session_table_len == A.length a}))
-  : vprop
-  = exists_ (fun (s:Ghost.erased (Seq.seq U32.t){Seq.length s = US.v table_len}) 
-      -> A.pts_to table full_perm s)
+// A table whose permission is stored in the lock 
 
-// let session_table : A.array U32.t = new_table ()
-assume 
-val session_table : a:(A.array U32.t){US.v session_table_len == A.length a}
+```pulse
+fn alloc_ht (_:unit)
+  requires emp
+  returns _:ht_ref_t
+  ensures emp
+{
+  let ht = new_table ();
+  let ht_ref = W.alloc #ht_t ht;
+  let lk = W.new_lock (exists_ (fun _ht -> R.pts_to ht_ref full_perm _ht));
+  ((| ht_ref, lk |) <: ht_ref_t)
+}
+```
 
-let session_table_prop : vprop 
-  = table_prop session_table_len session_table
+let ht_ref : ht_ref_t = alloc_ht () ()
 
-// let session_id_ctr : R.ref US.t = W.alloc 0
-assume
-val session_id_ctr : R.ref US.t
+val session_table_len : US.t
+val context_table_len : US.t
 
-let session_id_ctr_prop : vprop
-  = exists_ (fun v -> R.pts_to session_id_ctr full_perm v)
+// A number that tracks the next session ID
 
-(* IMPLEmENTATION *)
+```pulse
+fn alloc_sid (_:unit)
+  requires emp
+  returns _:sid_ref_t
+  ensures emp
+{
+  let sid_ref = W.alloc #US.t 0sz;
+  let lk = W.new_lock (exists_ (fun n -> R.pts_to sid_ref full_perm n));
+  ((| sid_ref, lk |) <: sid_ref_t)
+}
+```
+
+let sid_ref : sid_ref_t = alloc_sid () ()
+
+(* IMPLEMENTATION *)
 
 (* 
   init_dpe: Internal to DPE 
@@ -55,28 +72,12 @@ let session_id_ctr_prop : vprop
 *)
 ```pulse
 fn init_dpe (_:unit)
-  requires (
-    session_table_prop ** 
-    session_id_ctr_prop
-  )
-  returns tup:(L.lock session_table_prop & L.lock session_id_ctr_prop)
+  requires emp
   ensures emp
 {
-  unfold session_table_prop;
-  unfold table_prop session_table_len session_table;
-  unfold session_id_ctr_prop;
-
-  fill_array session_table_len session_table 0ul;
-  session_id_ctr := 0sz;
-
-  fold session_id_ctr_prop;
-  fold table_prop session_table_len session_table;
-  fold session_table_prop;
-
-  let session_table_lock = new_lock session_table_prop;
-  let session_id_ctr_lock = new_lock session_id_ctr_prop;
-  
-  (session_table_lock, session_id_ctr_lock)
+  alloc_ht ();
+  alloc_sid ();
+  ()
 }
 ```
 
