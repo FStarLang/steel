@@ -10,9 +10,9 @@ module A = Steel.ST.Array
 module Prf = Steel.ST.GenArraySwap.Proof
 module SZ = FStar.SizeT
 
-#set-options "--ide_id_info_off"
-#push-options "--using_facts_from '* -FStar.Tactics -FStar.Reflection'"
-#restart-solver
+//#set-options "--ide_id_info_off"
+//#push-options "--using_facts_from '* -FStar.Tactics -FStar.Reflection'"
+//#restart-solver
 
 let nat_smaller (n: nat) = i:nat{i < n}
 let seqn (n: nat) = (s:Seq.seq int{Seq.length s = n})
@@ -20,7 +20,7 @@ let arrayn (n: nat) = (a:A.array int{A.length a = n})
 let nat_fits = n:nat{SZ.fits n}
 
 let seq_swap (#a: Type) (s: Seq.seq a) (i j: nat_smaller (Seq.length s)) =
-  Seq.upd (Seq.upd s i (Seq.index s j)) j (Seq.index s i)
+  Seq.swap s j i
 
 let larger_than (s: Seq.seq int) (lb: int)
   = forall (k: nat). k < Seq.length s ==> lb <= Seq.index s k
@@ -35,43 +35,68 @@ let smaller_than (s: Seq.seq int) (rb: int)
   = forall (k: nat). k < Seq.length s ==> Seq.index s k <= rb
 
 let between_bounds (s: Seq.seq int) (lb rb: int)
-  //= forall (k: nat). 0 <= k /\ k < Seq.length s ==> lb <= Seq.index s k /\ Seq.index s k <= rb
   = larger_than s lb /\ smaller_than s rb
 
-type permutation (#a: Type): Seq.seq a -> Seq.seq a -> Type =
-  | Refl : s: Seq.seq a -> permutation s s
-  | Swap : s1: Seq.seq a -> s2: Seq.seq a -> i: nat_smaller (Seq.length s2) -> j: nat_smaller (Seq.length s2) ->
-   permutation s1 s2 -> permutation s1 (seq_swap s2 i j)
+[@@"opaque_to_smt"]
+let permutation = Seq.Properties.permutation int
 
-let permutation_swap (#a: eqtype) (s: Seq.seq a) (i j: nat_smaller (Seq.length s)):
+let append_permutations_3 (s1 s2 s3 s1' s3': Seq.seq int):
+  Lemma
+    (requires permutation s1 s1' /\ permutation s3 s3')
+    (ensures permutation (Seq.append s1 (Seq.append s2 s3)) (Seq.append s1' (Seq.append s2 s3')))
+= (
+  reveal_opaque (`%permutation) (permutation s1 s1');
+  reveal_opaque (`%permutation) (permutation s2 s2);
+  reveal_opaque (`%permutation) (permutation s3 s3');
+  Seq.Properties.append_permutations s2 s3 s2 s3';
+  reveal_opaque (`%permutation) (permutation (Seq.append s1 (Seq.append s2 s3)) (Seq.append s1' (Seq.append s2 s3')));
+  Seq.Properties.append_permutations s1 (Seq.append s2 s3) s1' (Seq.append s2 s3')
+  )
+
+let seq_swap_commute (s: Seq.seq int) (i j: nat_smaller (Seq.length s)):
+  Lemma (seq_swap s i j == seq_swap s j i)
+  = (
+    let sij = seq_swap s i j in
+    let sji = seq_swap s j i in
+    assert (Seq.length sij = Seq.length sji);
+    assert (forall (k:nat{k < Seq.length sij}). (Seq.index sij k == Seq.index sji k));
+    Seq.lemma_eq_elim sij sji;
+    ()
+  )
+
+let permutation_swap (s: Seq.seq int) (i j: nat_smaller (Seq.length s)):
   Lemma (permutation s (seq_swap s i j))
     [SMTPat (permutation s (seq_swap s i j))]
-  = Squash.return_squash (Swap s s i j (Refl s))
+    = (
+      reveal_opaque (`%permutation) (permutation s (seq_swap s i j));
+      if i <= j
+        then (Seq.Properties.lemma_swap_permutes s i j; seq_swap_commute s i j)
+        else Seq.Properties.lemma_swap_permutes s j i)
 
 let assert_prop (p: prop) : Pure unit (requires p) (ensures fun _ -> p) = ()
 
-let rec compose_perm_aux (#a: eqtype) (s1 s2 s3: Seq.seq a) (#p12: permutation s1 s2) (#p23: permutation s2 s3):
-  Tot (permutation s1 s3)
-  (decreases p23)
-  = match p23 with
-  | Refl _ -> p12
-  | Swap _ s4 i j p24 -> (
-    assert (s3 = seq_swap s4 i j);
-    let p14 = compose_perm_aux s1 s2 s4 #p12 #p24 in
-    Swap s1 s4 i j p14)
-
-let compose_permutations (#a:eqtype) (s1 s2 s3: Seq.seq a)
+let compose_permutations (s1 s2 s3: Seq.seq int)
   : Lemma (requires permutation s1 s2 /\ permutation s2 s3)
     (ensures permutation s1 s3)
     [SMTPat (permutation s1 s2); SMTPat (permutation s2 s3)]
-   = (let s12: squash (permutation s1 s2) = () in let s23: squash (permutation s2 s3) = () in
-   Squash.bind_squash s12 (fun p12 -> Squash.bind_squash s23 (fun p23 -> Squash.return_squash (compose_perm_aux s1 s2 s3 #p12 #p23))))
+   = (
+      reveal_opaque (`%permutation) (permutation s1 s2);
+      reveal_opaque (`%permutation) (permutation s2 s3);
+      reveal_opaque (`%permutation) (permutation s1 s3);
+      Seq.perm_len s1 s2;
+      Seq.perm_len s1 s3;
+      Seq.lemma_trans_perm s1 s2 s3 0 (Seq.length s1);
+      ()
+   )
 
-
-let permutation_refl (#a:eqtype) (s: Seq.seq a)
+let permutation_refl (s: Seq.seq int)
   : Lemma (ensures permutation s s)
     [SMTPat (permutation s s)]
-   = Squash.return_squash (Refl s)
+   =
+   (
+      reveal_opaque (`%permutation) (permutation s s);
+      ()
+   )
 
 let op_Array_Access
   (#t: Type)
@@ -156,8 +181,6 @@ fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi - 1})) (n: nat) (lb 
       /\ permutation s0 s
    ))
 {
-  admit()
-  (*
   let pivot = a.(SZ.uint_to_t (hi - 1));
   let mut i = lo - 1;
   let mut j = lo - 1;
@@ -220,7 +243,6 @@ fn partition (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi - 1})) (n: nat) (lb 
   let vi' = to_nat (vi + 1);
   let vj' = to_nat (vj + 2);
   (vi', vj', pivot)
-  *)
 }
 ```
 #pop-options
@@ -283,8 +305,6 @@ fn partition_wrapper (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi - 1})) (n: n
       /\ permutation s0 (Seq.append s1 (Seq.append s2 s3))
    ))
 {
-  admit()
-  (*
   let r = partition a lo hi n lb rb #s0;
   with s. assert (A.pts_to_range a lo hi full_perm s);
 
@@ -314,7 +334,6 @@ fn partition_wrapper (a: A.array int) (lo: nat) (hi:(hi:nat{lo < hi - 1})) (n: n
   assert_prop (Seq.length s3 = hi - r._2);
   assert_prop (s == Seq.append s1 (Seq.append s2 s3));
   r
-  *)
 }
 ```
 #pop-options
@@ -329,24 +348,7 @@ val join
   (#p: perm)
 : stt unit
     (requires A.pts_to_range a l m p s1 `star` A.pts_to_range a m r p s2)
-    (ensures fun _ -> A.pts_to_range a l r p (Seq.append s1 s2))
-
-#push-options "--z3rlimit 100"
-
-let append_permutations (s1 s2 s1' s2': Seq.seq int):
-  Lemma
-    (requires permutation s1 s1' /\ permutation s2 s2')
-    (ensures permutation (Seq.append s1 s2) (Seq.append s1' s2'))
-= admit()
-
-let append_permutations_3 (s1 s2 s3 s1' s3': Seq.seq int):
-  Lemma
-    (requires permutation s1 s1' /\ permutation s3 s3')
-    (ensures permutation (Seq.append s1 (Seq.append s2 s3)) (Seq.append s1' (Seq.append s2 s3')))
-= (append_permutations s2 s3 s2 s3';
-  append_permutations s1 (Seq.append s2 s3) s1' (Seq.append s2 s3'))
-
-
+    (ensures fun _ -> A.pts_to_range a l r p (Seq.append s1 s2))   
 
 unfold
 let pure_pre_quicksort (a: A.array int) (lo: nat) (hi:(hi:int{-1 <= hi - 1 /\ lo <= hi})) (lb rb: int) (n: nat) (s0: Seq.seq int)
@@ -366,6 +368,7 @@ fn quicksort' (a: A.array int) (lo: nat)
 { admit() }
 ```
 
+#push-options "--z3rlimit 50"
 ```pulse
 fn quicksort (a: A.array int) (lo: nat) (hi:(hi:int{-1 <= hi - 1 /\ lo <= hi})) (lb rb: int) (n: nat) (#s0: Ghost.erased (Seq.seq int))
   requires A.pts_to_range a lo hi full_perm s0 ** pure (pure_pre_quicksort a lo hi lb rb n s0)
@@ -381,11 +384,8 @@ fn quicksort (a: A.array int) (lo: nat) (hi:(hi:int{-1 <= hi - 1 /\ lo <= hi})) 
     with s3. assert (A.pts_to_range a r._2 hi full_perm s3);
     //assert_prop (squash (permutation s0 (Seq.append s1 (Seq.append s2 s3))));
 
-(*
-    Commented out because non-tail if-statements are currently not supported
     if (lo < hi + 1000) // worth parallelizing
     {
-  *)
       parallel
       requires (A.pts_to_range a lo r._1 full_perm s1 ** pure (pure_pre_quicksort a lo r._1 lb pivot n s1))
           and (A.pts_to_range a r._2 hi full_perm s3 ** pure (pure_pre_quicksort a r._2 hi pivot rb n s3))
@@ -401,7 +401,14 @@ fn quicksort (a: A.array int) (lo: nat) (hi:(hi:int{-1 <= hi - 1 /\ lo <= hi})) 
         assert_prop (hi - lo > hi - r._2);
         quicksort' a r._2 hi pivot rb n;
       };
-      (*
+
+      with s1'. assert (A.pts_to_range a lo r._1 full_perm s1');
+      with s3'. assert (A.pts_to_range a r._2 hi full_perm s3');
+      join a lo r._1 r._2;
+      join a lo r._2 hi;
+      Seq.append_assoc s1' s2 s3';
+      append_permutations_3 s1 s2 s3 s1' s3';
+      ()
     }
     else // sequential
     {
@@ -412,31 +419,15 @@ fn quicksort (a: A.array int) (lo: nat) (hi:(hi:int{-1 <= hi - 1 /\ lo <= hi})) 
       // termination check
       assert_prop (hi - lo > hi - r._2);
       quicksort' a r._2 hi pivot rb n;
-    };
-    *)
-
-    with s1'. assert (A.pts_to_range a lo r._1 full_perm s1');
-    with s3'. assert (A.pts_to_range a r._2 hi full_perm s3');
-
-    join a lo r._1 r._2;
-    join a lo r._2 hi;
-
-    //with s. assert (A.pts_to_range a lo hi full_perm s);
-    //assert_prop (s == Seq.append (Seq.append s1' s2) s3');
-    Seq.append_assoc s1' s2 s3';
-    //assert_prop (s == Seq.append s1' (Seq.append s2 s3'));
-    //assert_prop (hi - 1 < n /\ Seq.length s0 = hi - lo /\ Seq.length s = hi - lo /\ SZ.fits n /\ A.length a = n);
-    //assert_prop (sorted s);
-
-    append_permutations_3 s1 s2 s3 s1' s3';
-    //assert_prop (squash (permutation (Seq.append s1 (Seq.append s2 s3)) (Seq.append s1' (Seq.append s2 s3'))));
-    //assert_prop (squash (permutation s0 s));
-    
-    //assert (A.pts_to_range a lo hi full_perm s);
-    //assert_prop (hi - 1 < n /\ Seq.length s0 = hi - lo /\ Seq.length s = hi - lo /\ SZ.fits n /\ A.length a = n);
-    //assert_prop (sorted s);
-    //assert_prop (between_bounds s lb rb);
-    ()
+  
+      with s1'. assert (A.pts_to_range a lo r._1 full_perm s1');
+      with s3'. assert (A.pts_to_range a r._2 hi full_perm s3');
+      join a lo r._1 r._2;
+      join a lo r._2 hi;
+      Seq.append_assoc s1' s2 s3';
+      append_permutations_3 s1 s2 s3 s1' s3';
+      ()
+    }
   }
   else {
     ()
