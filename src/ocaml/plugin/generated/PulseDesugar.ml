@@ -921,18 +921,17 @@ and (desugar_branch :
             (fun uu___2 ->
                match uu___2 with
                | (p1, vs) ->
-                   let uu___3 = push_bvs env vs in
+                   let uu___3 = push_bvs env (FStar_Compiler_List.rev vs) in
                    (match uu___3 with
                     | (env1, bvs) ->
                         let uu___4 = desugar_stmt env1 e in
                         op_let_Question uu___4
                           (fun e1 ->
                              let e2 =
-                               FStar_Compiler_List.fold_right
-                                 (fun v ->
-                                    fun t ->
-                                      PulseSyntaxWrapper.close_st_term t
-                                        v.FStar_Syntax_Syntax.index) bvs e1 in
+                               let uu___5 =
+                                 FStar_Compiler_List.map
+                                   (fun v -> v.FStar_Syntax_Syntax.index) bvs in
+                               PulseSyntaxWrapper.close_st_term_n e1 uu___5 in
                              return (p1, e2))))
 and (desugar_pat :
   env_t ->
