@@ -98,3 +98,44 @@ fn test5 (n:option int) (z:bool)
   }
 }
 ```
+
+#set-options "--debug_level proof_states"
+
+```pulse
+fn listid (xs : list int)
+  requires emp
+  returns r:(list int)
+  ensures emp
+{
+  match xs {
+    Nil -> { Nil #int }
+    Cons hd tl -> { Cons #int hd tl }
+  }
+}
+```
+
+```pulse
+fn hd (xs : list int)
+  requires emp
+  returns r:(int)
+  ensures emp
+{
+  match xs {
+    Nil -> { 0 }
+    Cons hd tl -> { let t = tl; hd }
+  }
+}
+```
+
+```pulse
+fn tl (xs : list int)
+  requires emp
+  returns r:(list u#0 int)
+  ensures emp
+{
+  match xs {
+    Nil -> { Nil #int }
+    Cons hd tl -> { tl }
+  }
+}
+```

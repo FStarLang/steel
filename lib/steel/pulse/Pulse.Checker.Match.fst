@@ -16,27 +16,6 @@ let rec zipWith (f : 'a -> 'b -> T.Tac 'c) (l : list 'a) (m : list 'b) : T.Tac (
   | x::xs, y::ys -> f x y :: zipWith f xs ys
   | _ -> T.fail "zipWith: length mismatch"
 
-//val fresh_bindings_for_pat
-//: g:env -> p:pattern ->
-//  T.Tac (bs:(list binding){bindings_for_pat_ok g p bs /\ all_fresh g bs})
-//let fresh_bindings_for_pat g p =
-//  match p with
-//  | Pat_Constant _ -> []
-//  | Pat_Var n ->
-//    let v = fresh g in
-//    [(v, tm_int)] // FIXME: GET TYPE
-//  | Pat_Cons fv vs ->
-//    let rec aux (g':env) (bs:list binding) (rest:list (RT.pp_name_t & bool))
-//      : Tot (bs:(list binding){bindings_for_pat_ok g p bs /\ all_fresh g bs}) (decreases rest)
-//    = match rest with
-//      | [] -> admit(); L.rev bs
-//      | _::vs ->
-//        let v = fresh g' in
-//        let b : binding = (v, tm_int) in // FIXME: GET TYPE
-//        aux (push_binding g' (fst b) ppname_default (snd b)) (b::bs) vs
-//    in
-//    aux g [] vs
-
 val tot_typing_weakening_n
    (#g:env) (#t:term) (#ty:term)
    (bs:list binding{all_fresh g bs})
@@ -54,19 +33,18 @@ let samepat (b1 b2 : branch) : prop = fst b1 == fst b2
 let samepats (bs1 bs2 : list branch) : prop = L.map fst bs1 == L.map fst bs2
 
 let open_st_term_bs (t:st_term) (bs:list binding) : T.Tac st_term =
-  let rec aux (i:nat{i <= L.length bs}) (t:st_term) : T.Tac st_term =
-    if i < L.length bs
-    then
-      let b = L.index bs i in
-      let s = Pulse.Syntax.Pure.term_of_nvar (ppname_default, fst b) in
-      aux (i+1) (open_st_term' t s i)
-    else t
+  let rec aux (bs:list binding) (i:nat) : subst =
+    match bs with
+    | [] -> []
+    | b::bs ->
+      (DT i (Pulse.Syntax.Pure.term_of_nvar (ppname_default, fst b))) :: aux bs (i+1)
   in
-  aux 0 t
+  let ss = aux (List.rev bs) 0 in
+  subst_st_term t ss
 
 val readback_binding : R.binding -> T.Tac binding
 let readback_binding b =
-  assume (host_term == R.term); // fixme! expose this
+  assume (host_term == R.term); // fixme! expose this fact
   match readback_ty b.sort with
   | Some sort -> (b.uniq, sort)
   | None ->
@@ -79,6 +57,18 @@ let rec map_opt f l = match l with
     let? y = f x in
     let? ys = map_opt f xs in
     Some (y::ys)
+
+let rec r_bindings_to_string (bs : list R.binding) : T.Tac string =
+  match bs with
+  | [] -> ""
+  | b::bs ->
+    (T.unseal b.ppname ^ "-" ^ string_of_int b.uniq ^ ":" ^ T.term_to_string b.sort ^ " ") ^ r_bindings_to_string bs
+
+let rec bindings_to_string (bs : list binding) : T.Tac string =
+  match bs with
+  | [] -> ""
+  | b::bs ->
+    (string_of_int (fst b) ^ ":" ^ Pulse.Syntax.Printer.term_to_string (snd b) ^ " ") ^ bindings_to_string bs
 
 let check_branch
         (g:env)
@@ -250,9 +240,7 @@ let check_match
   : T.Tac (checker_result_t g pre (Some post_hint))
   =
   let orig_brs = brs in
-  T.print ("GGG1 sc = " ^ Pulse.Syntax.Printer.term_to_string sc);
   let (| sc, sc_ty, sc_typing |) = check_term g sc in
-  T.print "GGG2\n";
   let elab_pats = L.map elab_pat (L.map fst brs) in
 
   let (| elab_pats', bnds', complete_d |) : (pats : list R.pattern & list (list R.binding) & pats_complete g sc sc_ty pats) =
@@ -268,7 +256,6 @@ let check_match
   assume (L.length brs == L.length bnds');
   let (| brs, c, brs_d |) = check_branches g pre pre_typing post_hint check brs bnds' in
   assume (L.map (fun (p, _) -> elab_pat p) brs == elab_pats'); // provable
-  T.print "GG MATCH CHECKED";
   (| _,
      c,
      T_Match g sc _ (E sc_typing) c brs brs_d complete_d |)

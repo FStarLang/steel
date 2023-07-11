@@ -431,7 +431,7 @@ and desugar_branch (env:env_t) (br:A.pattern & Sugar.stmt)
     let? (p, vs) = desugar_pat env p in
     let env, bvs = push_bvs env vs in
     let? e = desugar_stmt env e in
-    let e = L.fold_right (fun (v:S.bv) t -> SW.close_st_term t v.index) bvs e in
+    let e = SW.close_st_term_n e (L.map (fun (v:S.bv) -> v.index) bvs) in
     return (p,e)
 
 and desugar_pat (env:env_t) (p:A.pattern)
