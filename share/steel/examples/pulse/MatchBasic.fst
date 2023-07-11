@@ -62,8 +62,8 @@ fn test3_5 (n:option int) (z:bool)
   ensures emp
 {
   match n {
-    Pervasives.None -> { (-1) }
-    Pervasives.Some x -> { x }
+    None -> { (-1) }
+    Some x -> { x }
   }
 }
 ```
@@ -80,8 +80,8 @@ fn test4 (n:optionint) (z:bool)
   ensures emp
 {
   match n {
-    MatchBasic.None -> { 0 }
-    MatchBasic.Some x -> { x }
+    None -> { 0 }
+    Some x -> { x }
   }
 }
 ```
