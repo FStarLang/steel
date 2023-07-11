@@ -75,6 +75,7 @@ val tm_proof_hint_with_binders (_:PulseSugar.hint_type) (_:list binder) (t:term)
 val close_binders (bs:list binder) (xs:list var) : list binder
 val close_term (t:term) (v:var) : term
 val close_st_term (t:st_term) (v:var) : st_term
+val close_st_term_n (t:st_term) (vs:list var) : st_term
 val close_comp (t:comp) (v:var) : comp
 val comp_pre (c:comp) : term
 val comp_res (c:comp) : term

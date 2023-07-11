@@ -175,9 +175,10 @@ let rec st_term_to_string' (level:string) (t:st_term)
         (st_term_to_string' (indent level) else_)
         level
 
-    | Tm_Match {sc} ->
-      sprintf "match (%s) with ..."
+    | Tm_Match {sc; brs} ->
+      sprintf "match (%s) with %s"
         (term_to_string sc)
+        (branches_to_string brs)
 
     | Tm_IntroPure { p } ->
       sprintf "introduce pure (\n%s%s)"
@@ -253,6 +254,15 @@ let rec st_term_to_string' (level:string) (t:st_term)
       sprintf "assert %s in\n%s"
         (term_to_string v)
         (st_term_to_string' level t)
+
+and branches_to_string brs : T.Tac _ =
+  match brs with
+  | [] -> ""
+  | b::bs -> branch_to_string b ^ branches_to_string bs
+
+and branch_to_string br : T.Tac _ =
+  let (pat, e) = br in
+  st_term_to_string' "" e
 
 let st_term_to_string t = st_term_to_string' "" t
 
