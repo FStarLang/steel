@@ -805,7 +805,7 @@ let (close_st_term_n :
         match vs1 with
         | [] -> t1
         | v::vs2 -> aux (i + Prims.int_one) vs2 (close_st_term' t1 v i) in
-      aux Prims.int_zero vs t
+      aux Prims.int_zero (FStar_List_Tot_Base.rev vs) t
 let (close_binders :
   Pulse_Syntax_Base.binder Prims.list ->
     Pulse_Syntax_Base.var Prims.list -> Pulse_Syntax_Base.binder Prims.list)

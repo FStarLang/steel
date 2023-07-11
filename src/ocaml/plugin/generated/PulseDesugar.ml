@@ -921,7 +921,7 @@ and (desugar_branch :
             (fun uu___2 ->
                match uu___2 with
                | (p1, vs) ->
-                   let uu___3 = push_bvs env (FStar_Compiler_List.rev vs) in
+                   let uu___3 = push_bvs env vs in
                    (match uu___3 with
                     | (env1, bvs) ->
                         let uu___4 = desugar_stmt env1 e in
