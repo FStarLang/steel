@@ -13,42 +13,10 @@ module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 open Array
 open HashTable
+open HACL
 
 friend Pulse.Steel.Wrapper
 #set-options "--print_implicits --print_universes"
-
-
-(* ----------- TYPES ----------- *)
-
-noeq
-type context_t = 
-  | Engine_context  : uds:A.array U8.t -> 
-                      context_t
-  | L0_context      : cdi:A.array U8.t -> 
-                      context_t
-  | L1_context      : aliasKey_priv:A.larray U8.t 32 ->
-                      cert_aliasKey:A.array U8.t ->
-                      csr_deviceID:A.array U8.t ->
-                      context_t
-
-assume val destroy_ctxt (_:context_t) : unit
-
-// TODO: add remaining engine record fields
-noeq
-type engine_record_t = {
-  uds: A.array U8.t;
-  l0_image: A.array U8.t;
-}
-let mk_engine_record uds l0_image = {uds; l0_image}
-
-// TODO: add remaining engine record fields
-noeq
-type l0_record_t = {
-  cdi: A.array U8.t;
-  fwid: A.array U8.t;
-}
-let mk_l0_record cdi fwid = {cdi; fwid}
-
 
 (* ----------- GLOBAL STATE ----------- *)
 
@@ -189,41 +157,25 @@ fn initialize_context (sid:nat) (seed:A.array U8.t)
 ```
 
 (* call into DICE implementation *)
-assume val engine_main (_:engine_record_t) : c:context_t{L0_context? c}
-(* 
-  init_engine: Internal to DPE
-  Build the record of DICE Engine state given the uds and l0 image
-*)
-```pulse
-fn init_engine (ctxt:(c:context_t{Engine_context? c})) (data:A.array U8.t)
-  requires emp
-  returns _:engine_record_t
-  ensures emp
-{
-  admit();
-  // TODO: initialize remaining fields
-  // mk_engine_record ctxt.uds data
-}
-```
+assume val engine_main (r:record_t{Engine_record? r}) : c:context_t{L0_context? c}
 
 (* call into DICE implementation *)
-assume val l0_main (_:l0_record_t) : c:context_t{L1_context? c}
-(*
-  init_l0: Internal to DPE
-  Build the record of DICE L0 state given the cdi and fwid
-*)
-```pulse
-fn init_l0 (ctxt:(c:context_t{L0_context? c})) (data:A.array U8.t)
-  requires emp
-  returns _:l0_record_t
-  ensures emp
-{
-  admit();
-  // TODO: initialize remaining fields
-  // mk_l0_record ctxt.cdi data
-}
-```
+assume val l0_main (r:record_t{L0_record? r}) : c:context_t{L1_context? c}
 
+assume val destroy_ctxt (_:context_t) : unit
+
+let mk_engine_record  uds l0_image_header_size l0_image_header l0_image_header_sig
+                      l0_binary_size l0_binary l0_binary_hash l0_image_auth_pubkey
+  = {uds; l0_image_header_size; l0_image_header; l0_image_header_sig;
+     l0_binary_size; l0_binary; l0_binary_hash; l0_image_auth_pubkey}
+
+let mk_l0_record  cdi fwid deviceID_label_len deviceID_label 
+                  aliasKey_label_len aliasKey_label 
+                  deviceIDCSR_ingredients aliasKeyCRT_ingredients 
+  = {cdi; fwid; deviceID_label_len; deviceID_label; 
+     aliasKey_label_len; aliasKey_label; 
+     deviceIDCSR_ingredients; aliasKeyCRT_ingredients}
+     
 (*
   DeriveChild: Part of DPE API 
   Execute the DICE layer associated with the current context and produce a 
@@ -232,7 +184,7 @@ fn init_l0 (ctxt:(c:context_t{L0_context? c})) (data:A.array U8.t)
   NOTE: Returns 0 if called when ctxt has type L1_context (bad invocation)
 *)
 ```pulse
-fn derive_child (sid:nat) (ctxt_hndl:nat) (data:A.array U8.t)
+fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t)
   requires emp
   returns _:nat
   ensures emp
@@ -250,11 +202,10 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (data:A.array U8.t)
   let cht = !(dfst cht_ref);
 
   let cur_ctxt = get cht ctxt_hndl;
-  let a = Engine_context? cur_ctxt;
-  let b = L0_context? cur_ctxt;
-  if a {
-    let engine_rec = init_engine cur_ctxt data;
-    let new_ctxt = engine_main engine_rec;
+  
+  if ((Engine_context? cur_ctxt) && (Engine_record? record)) {
+    // let engine_rec = init_engine cur_ctxt data;
+    let new_ctxt = engine_main record;
     
     destroy_ctxt cur_ctxt;
     delete cht ctxt_hndl;
@@ -265,9 +216,9 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (data:A.array U8.t)
 
     new_ctxt_hndl
   } else {
-    if b {
-      let l0_rec = init_l0 cur_ctxt data;
-      let new_ctxt = l0_main l0_rec;
+    if ((L0_context? cur_ctxt) && (L0_record? record)) {
+      // let l0_rec = init_l0 cur_ctxt data;
+      let new_ctxt = l0_main record;
       
       destroy_ctxt cur_ctxt;
       delete cht ctxt_hndl;

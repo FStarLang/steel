@@ -58,3 +58,8 @@ derive-child-input-args = {
  ? &(internal-inputs: 8) => [* $internal-input-type],
  * &(tstr: uint) => any
 }
+
+$internal-input-type /= &(
+ dpe-info: 1,
+ dpe-dice: 2,
+)
