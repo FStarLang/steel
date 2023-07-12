@@ -18,7 +18,7 @@ open L0Types
 noeq
 type engine_context = { uds: A.array U8.t; }
 let engine_context_perm (c:engine_context) : vprop
-  = A.pts_to c.uds full_perm uds_bytes
+  = A.pts_to c.uds full_perm uds_bytes `star` uds_is_enabled
 let mk_engine_context uds : engine_context = {uds}
 
 noeq
@@ -54,7 +54,7 @@ let mk_engine_context_t engine_context = Engine_context engine_context
 let mk_l0_context_t l0_context = L0_context l0_context
 let mk_l1_context_t l1_context = L1_context l1_context
 
-let locked_context = c:context_t & L.lock (context_perm c)
+let locked_context_t = c:context_t & L.lock (context_perm c)
 
 (* ----------- RECORD ----------- *)
 

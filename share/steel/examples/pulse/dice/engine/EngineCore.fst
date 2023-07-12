@@ -20,9 +20,6 @@ val drop (p:vprop)
     : stt unit p (fun _ -> emp)
 
 assume
-val uds_is_enabled : vprop
-
-assume
 val stack_is_erased : vprop
 
 let l0_is_authentic (repr:engine_record_repr) 
@@ -185,13 +182,13 @@ fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
     A.pts_to cdi full_perm c0 **
     engine_record_perm record repr
   )
-  returns opt: option context_t
+  returns r:dice_return_code
   ensures (
     engine_record_perm record repr **
     A.pts_to uds full_perm (Seq.create (US.v uds_len) 0uy) **
     exists (c1:Seq.seq U8.t). (
       A.pts_to cdi full_perm c1 **
-      pure (Some? opt ==> l0_is_authentic repr /\ cdi_functional_correctness c1 repr)
+      pure (r = DICE_SUCCESS ==> l0_is_authentic repr /\ cdi_functional_correctness c1 repr)
   ))
 {
   let b = authenticate_l0_image record;
@@ -200,13 +197,13 @@ fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
     compute_cdi cdi uds record;
     zeroize_uds uds uds_len;
     disable_uds();
-    Some (mk_l0_context_t (mk_l0_context cdi))
+    DICE_SUCCESS
   }
   else
   {
     zeroize_uds uds uds_len;
     disable_uds ();
-    None #context_t
+    DICE_ERROR
   }
 }
 ```

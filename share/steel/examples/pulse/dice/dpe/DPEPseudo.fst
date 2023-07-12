@@ -26,7 +26,7 @@ friend Pulse.Steel.Wrapper
 assume val dpe_hashf : nat -> nat
 assume val sht_len : pos
 assume val cht_len : pos
-let cht_sig : ht_sig = mk_ht_sig cht_len nat locked_context dpe_hashf 
+let cht_sig : ht_sig = mk_ht_sig cht_len nat locked_context_t dpe_hashf 
 let sht_sig : ht_sig = mk_ht_sig sht_len nat (ht_ref_t cht_sig) dpe_hashf 
 
 // A table whose permission is stored in the lock 
@@ -125,6 +125,43 @@ fn close_session (sid:nat)
 
 assume val prng (_:unit) : nat
 
+```pulse
+fn init_engine_ctxt (uds:A.larray U8.t (US.v uds_len))
+  requires (
+    A.pts_to uds full_perm uds_bytes **
+    uds_is_enabled
+  )
+  returns _:locked_context_t
+  ensures emp
+{
+  let engine_context = mk_engine_context uds;
+  rewrite (A.pts_to uds full_perm uds_bytes) as (A.pts_to engine_context.uds full_perm uds_bytes);
+  rewrite (A.pts_to engine_context.uds full_perm uds_bytes `star` uds_is_enabled) as (engine_context_perm engine_context);
+  let ctxt = mk_engine_context_t engine_context;
+  rewrite (engine_context_perm engine_context) as (context_perm ctxt);
+  let ctxt_lk = W.new_lock (context_perm ctxt);
+  ((| ctxt, ctxt_lk |) <: locked_context_t)
+}
+```
+
+```pulse
+fn init_l0_ctxt (cdi:A.larray U8.t 32)
+  requires exists_ (fun s -> A.pts_to cdi full_perm s)
+  returns _:locked_context_t
+  ensures emp
+{
+  let l0_context = mk_l0_context cdi;
+  rewrite (exists_ (fun s -> A.pts_to cdi full_perm s)) 
+    as (exists_ (fun s -> A.pts_to l0_context._cdi full_perm s)); // FIXME: pulse can't figure this out but a similar rewrite works in line 138
+                                                                  // so it must have to do with the existentially quantified var
+  rewrite (exists_ (fun s -> A.pts_to l0_context._cdi full_perm s)) as (l0_context_perm l0_context);
+  let ctxt = mk_l0_context_t l0_context;
+  rewrite (l0_context_perm l0_context) as (context_perm ctxt);
+  let ctxt_lk = W.new_lock (context_perm ctxt);
+  ((| ctxt, ctxt_lk |) <: locked_context_t)
+}
+```
+
 (*
   InitializeContext: Part of DPE API 
   Create a context in the initial state (engine context) and store the context
@@ -132,15 +169,14 @@ assume val prng (_:unit) : nat
 *)
 ```pulse
 fn initialize_context (sid:nat) (uds:A.larray U8.t (US.v uds_len))
-  requires A.pts_to uds full_perm uds_bytes
+  requires (
+    A.pts_to uds full_perm uds_bytes ** 
+    uds_is_enabled
+  )
   returns _:nat
-  ensures A.pts_to uds full_perm uds_bytes
+  ensures emp
 {
-  let engine_context = mk_engine_context uds;
-  rewrite (A.pts_to uds full_perm uds_bytes) as (engine_context_perm engine_context);
-  let ctxt = mk_engine_context_t engine_context;
-  rewrite (engine_context_perm engine_context) as (context_perm ctxt);
-
+  let locked_context = init_engine_ctxt uds;
   let ctxt_hndl = prng ();
 
   let l_sht = dsnd sht_ref;
@@ -153,9 +189,7 @@ fn initialize_context (sid:nat) (uds:A.larray U8.t (US.v uds_len))
   W.acquire #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
   let cht = !(dfst cht_ref);
 
-  let ctxt_lk = W.new_lock (context_perm ctxt);
-
-  store cht ctxt_hndl (ctxt,ctxt_lk);
+  store cht ctxt_hndl locked_context;
 
   W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
   W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
@@ -164,7 +198,10 @@ fn initialize_context (sid:nat) (uds:A.larray U8.t (US.v uds_len))
 }
 ```
 
-assume val destroy_ctxt (_:context_t) : unit
+assume val zero_ctxt (c:context_t) 
+  : (context_perm c)
+    unit
+    (context_perm c)
      
 (*
   DeriveChild: Part of DPE API 
@@ -193,43 +230,45 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
 
   let locked_ctxt = get cht ctxt_hndl;
 
-  let ctxt_lk = dsnd locked_ctxt;
-  W.acquire #(context_perm (dfst locked_ctxt)) ctxt_lk;
   let cur_ctxt = dfst locked_ctxt;
+  let ctxt_lk = dsnd locked_ctxt;
+  W.acquire #(context_perm cur_ctxt) ctxt_lk;
 
   match cur_ctxt {
   Engine_context ctxt -> {
+    rewrite (context_perm cur_ctxt) as (engine_context_perm ctxt); // FIXME: Pulse can't seem to infer this even though we do the same matching as context_perm
+    rewrite (engine_context_perm ctxt) 
+      as (A.pts_to ctxt.uds full_perm uds_bytes `star` uds_is_enabled);
+    
     match record {
     Engine_record r -> {
       match repr {
-        Engine_repr r0 -> {
-          // FIXME: Need to prove
-          // 1. uds_is_enabled
-          // 2. ctxt.uds pts_to uds_bytes
-          // 3. cdi_buf pts_to c0
-          // 4. engine_record_perm record repr
-          // rewrite (record_perm record repr) as (engine_record_perm r r0);
-          admit()
-          // let cdi_buf = new_array 0uy dice_digest_len;
-          // let new_ctxt = EngineCore.engine_main cdi_buf ctxt.uds record;
+        Engine_repr r0 -> {          
+          rewrite (record_perm record repr) as (engine_record_perm r r0); // FIXME: Pulse can't seem to infer this even though we do the same matching as record_perm
+
+          let cdi = new_array 0uy dice_digest_len;
+          EngineCore.engine_main cdi ctxt.uds r;
+
+          let new_locked_context = init_l0_ctxt cdi;
           
-          // destroy_ctxt cur_ctxt;
-          // delete cht ctxt_hndl;
-          // store cht new_ctxt_hndl new_ctxt;
+          zero_ctxt cur_ctxt;
+          delete cht ctxt_hndl;
+          store cht new_ctxt_hndl new_locked_context;
 
-          // W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
-          // W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+          W.release #(context_perm cur_ctxt) ctxt_lk;
+          W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+          W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
 
-          // new_ctxt_hndl 
+          new_ctxt_hndl 
         }
         _ -> {admit()}
       }
     }
     _ -> {
       // ERROR
+      W.release #(context_perm cur_ctxt) ctxt_lk;
       W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
       W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
-      W.release #(context_perm (dfst locked_ctxt)) ctxt_lk;
       0
     }}
   }
@@ -250,17 +289,17 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
     }
     _ -> {
       // ERROR
+      W.release #(context_perm cur_ctxt) ctxt_lk;
       W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
       W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
-      W.release #(context_perm (dfst locked_ctxt)) ctxt_lk;
       0
     }}
   }
   _ -> { 
     // ERROR
+    W.release #(context_perm cur_ctxt) ctxt_lk;
     W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
     W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
-    W.release #(context_perm (dfst locked_ctxt)) ctxt_lk;
     0
   }}
 }

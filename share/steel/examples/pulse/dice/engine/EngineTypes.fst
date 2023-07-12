@@ -14,6 +14,9 @@ open HACL
 open Array
 
 assume
+val uds_is_enabled : vprop
+
+assume
 val uds_len : hashable_len 
 
 assume
