@@ -32,7 +32,7 @@ type l1_context = { aliasKey_priv: A.larray U8.t 32;
 
 noeq
 type context_t = 
-  | Engine_context :engine_context -> context_t
+  | Engine_context : c:engine_context -> context_t
   | L0_context     : c:l0_context -> context_t
   | L1_context     : c:l1_context -> context_t
 
@@ -61,7 +61,7 @@ let mk_l0_record  cdi fwid deviceID_label_len deviceID_label
   = {cdi; fwid; deviceID_label_len; deviceID_label; 
      aliasKey_label_len; aliasKey_label; 
      deviceIDCSR_ingredients; aliasKeyCRT_ingredients}
-     
+
 noeq
 type record_t =
   | Engine_record : r:engine_record_t -> record_t
@@ -70,4 +70,4 @@ type record_t =
 noeq
 type repr_t = 
   | Engine_repr : r:engine_record_repr -> repr_t
-  // | L0_repr : r:l0_record_repr -> repr_t
+  | L0_repr : r:l0_record_repr -> repr_t

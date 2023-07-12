@@ -55,6 +55,7 @@ fn test3 (n:nat)
 
 // FIXME: Need to qualifiy the constructors or otherwise they desugar to
 // the (not yet in scope) type below.
+[@@expect_failure]
 ```pulse
 fn test3_5 (n:option int) (z:bool)
   requires emp
