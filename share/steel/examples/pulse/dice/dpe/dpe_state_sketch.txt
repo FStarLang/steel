@@ -1,0 +1,51 @@
+type init_state = {
+  uds : array u8
+}
+
+let init_state_perm (st:init_state) = exists s. pts_to st.uds s
+
+type state_1 = {
+  uds       : array u8;
+
+	f_hash   : array u8;
+  f_binary : array u8
+
+  cdi       : array u8;
+}
+
+let state_1_perm (st:state_1) =
+  exists uds_s f_hash_s f_binary_s cdi_s.
+
+  pts_to st.uds uds_s *
+  pts_to st.f_hash f_hash_s *
+  pts_to st.f_binary f_binary_s *
+  pts_to st.cdi cdi_s *
+  pure (f_hash_s == hash f_binary_s /\
+        cdi_s == hmac (uds_s, f_hash_s))
+
+type state =
+  | Init
+  | State1
+
+type t (s:state) =
+  match s with
+  | Init -> init_state
+  | State1 -> state_1
+
+type ctxt_st = s:state & ref (t s)
+type ctxt_st_vprop (e:entry) =
+  match e with
+  | Init, r ->
+    exists (s:init_state). pts_to r s * init_state_perm s
+  | State1, r ->
+    exists (s:state_1). pts_to r s * state_1_perm s
+
+type ctxt_tbl_entry = s:ctxt_st & lock (ctxt_st_vprop s)
+
+type ctxt_tbl = Hashtbl.t ctxt_id ctxt_tbl_entry
+
+type session_tbl_entry = t:ctxt_tbl & lock (ctxt_tbl_permission t)
+
+type session_tbl = Hashtbl.t session_id session_tbl_entry
+
+type global_st = t:session_tbl & lock (session_tbl_permission t)
