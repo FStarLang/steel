@@ -14,6 +14,9 @@ module U32 = FStar.UInt32
 open Array
 open HashTable
 open HACL
+open CommonTypes
+open EngineTypes
+open EngineCore
 
 friend Pulse.Steel.Wrapper
 #set-options "--print_implicits --print_universes"
@@ -120,7 +123,6 @@ fn close_session (sid:nat)
 }
 ```
 
-assume val init_engine_ctxt (seed:A.array U8.t) : context_t
 assume val prng (_:unit) : nat
 
 (*
@@ -129,12 +131,12 @@ assume val prng (_:unit) : nat
   in the current session's context table. 
 *)
 ```pulse
-fn initialize_context (sid:nat) (seed:A.array U8.t)
-  requires emp
+fn initialize_context (sid:nat) (uds:A.larray U8.t (US.v uds_len))
+  requires A.pts_to uds full_perm uds_bytes
   returns _:nat
-  ensures emp
+  ensures A.pts_to uds full_perm uds_bytes
 {
-  let ctxt = init_engine_ctxt seed;
+  let ctxt = mk_engine_context uds;
   let ctxt_hndl = prng ();
 
   let l_sht = dsnd sht_ref;
@@ -157,24 +159,16 @@ fn initialize_context (sid:nat) (seed:A.array U8.t)
 ```
 
 (* call into DICE implementation *)
-assume val engine_main (r:record_t{Engine_record? r}) : c:context_t{L0_context? c}
+// assume val engine_main 
+//   (cdi:A.larray U8.t (US.v dice_digest_len)) 
+//   (uds:A.larray U8.t (US.v uds_len))
+//   (r:record_t{Engine_record? r})
+//   : c:context_t{L0_context? c}
 
 (* call into DICE implementation *)
-assume val l0_main (r:record_t{L0_record? r}) : c:context_t{L1_context? c}
+assume val l0_main (r:l0_record_t) : c:context_t{L1_context? c}
 
 assume val destroy_ctxt (_:context_t) : unit
-
-let mk_engine_record  uds l0_image_header_size l0_image_header l0_image_header_sig
-                      l0_binary_size l0_binary l0_binary_hash l0_image_auth_pubkey
-  = {uds; l0_image_header_size; l0_image_header; l0_image_header_sig;
-     l0_binary_size; l0_binary; l0_binary_hash; l0_image_auth_pubkey}
-
-let mk_l0_record  cdi fwid deviceID_label_len deviceID_label 
-                  aliasKey_label_len aliasKey_label 
-                  deviceIDCSR_ingredients aliasKeyCRT_ingredients 
-  = {cdi; fwid; deviceID_label_len; deviceID_label; 
-     aliasKey_label_len; aliasKey_label; 
-     deviceIDCSR_ingredients; aliasKeyCRT_ingredients}
      
 (*
   DeriveChild: Part of DPE API 
@@ -184,7 +178,7 @@ let mk_l0_record  cdi fwid deviceID_label_len deviceID_label
   NOTE: Returns 0 if called when ctxt has type L1_context (bad invocation)
 *)
 ```pulse
-fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t)
+fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (#repr:Ghost.erased engine_record_repr)
   requires emp
   returns _:nat
   ensures emp
@@ -202,37 +196,63 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t)
   let cht = !(dfst cht_ref);
 
   let cur_ctxt = get cht ctxt_hndl;
-  
-  if ((Engine_context? cur_ctxt) && (Engine_record? record)) {
-    // let engine_rec = init_engine cur_ctxt data;
-    let new_ctxt = engine_main record;
-    
-    destroy_ctxt cur_ctxt;
-    delete cht ctxt_hndl;
-    store cht new_ctxt_hndl new_ctxt;
 
-    W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
-    W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
-
-    new_ctxt_hndl
-  } else {
-    if ((L0_context? cur_ctxt) && (L0_record? record)) {
-      // let l0_rec = init_l0 cur_ctxt data;
-      let new_ctxt = l0_main record;
+  match cur_ctxt {
+  Engine_context ctxt -> {
+    match record {
+    Engine_record record -> {
+      admit()
+      // // FIXME: Need to prove
+      // // 1. uds_is_enabled
+      // // 2. ctxt.uds pts_to uds_bytes
+      // // 3. cdi_buf pts_to c0
+      // // 4. engine_record_perm record repr
+      // let cdi_buf = new_array 0uy dice_digest_len;
+      // let new_ctxt = EngineCore.engine_main cdi_buf ctxt.uds record;
       
-      destroy_ctxt cur_ctxt;
-      delete cht ctxt_hndl;
-      store cht new_ctxt_hndl new_ctxt;
+      // destroy_ctxt cur_ctxt;
+      // delete cht ctxt_hndl;
+      // store cht new_ctxt_hndl new_ctxt;
 
-      W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
-      W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+      // W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+      // W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
 
-      new_ctxt_hndl
-    } else {
+      // new_ctxt_hndl    
+    }
+    L0_record record -> {
+      // ERROR
       W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
       W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
       0
-    };
-  };
+    }}
+  }
+  L0_context ctxt -> { 
+    match record {
+    Engine_record record -> {
+      // ERROR
+      W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+      W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+      0
+    }
+    L0_record record -> {
+      admit()
+      // let new_ctxt = l0_main record;
+      
+      // destroy_ctxt cur_ctxt;
+      // delete cht ctxt_hndl;
+      // store cht new_ctxt_hndl new_ctxt;
+
+      // W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+      // W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+
+      // new_ctxt_hndl
+    }}
+  }
+  L1_context ctxt -> { 
+    // ERROR
+    W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+    W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+    0
+  }}
 }
 ```
