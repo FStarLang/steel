@@ -24,23 +24,15 @@ let state_1_perm (st:state_1) =
         cdi_s == hmac (uds_s, f_hash_s))
 
 type state =
-  | Init
-  | State1
+  | Init   : init_state -> state
+  | State1 : state_1 -> state
 
-type t (s:state) =
-  match s with
-  | Init -> init_state
-  | State1 -> state_1
+type state_vp (s:state) =
+  match state with
+  | Init st -> init_st_perm st
+  | State1 st -> state_1_perm st
 
-type ctxt_st = s:state & ref (t s)
-type ctxt_st_vprop (e:entry) =
-  match e with
-  | Init, r ->
-    exists (s:init_state). pts_to r s * init_state_perm s
-  | State1, r ->
-    exists (s:state_1). pts_to r s * state_1_perm s
-
-type ctxt_tbl_entry = s:ctxt_st & lock (ctxt_st_vprop s)
+type ctxt_tbl_entry = s:state & lock (state_vp s)
 
 type ctxt_tbl = Hashtbl.t ctxt_id ctxt_tbl_entry
 
