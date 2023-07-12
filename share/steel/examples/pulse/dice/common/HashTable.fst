@@ -33,6 +33,7 @@ type ht_t (s:ht_sig) = {
   contents : A.larray (cell s.kt s.vt) s.sz;
 }
 
+// check out ephemeral ht itf
 type ht_ref_t (s:ht_sig) = r:R.ref (ht_t s) & L.lock (exists_ (fun ht -> R.pts_to r full_perm ht))
 
 // Hash table interface

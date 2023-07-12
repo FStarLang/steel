@@ -16,12 +16,6 @@ open EngineTypes
 open HACL
 
 assume
-val uds_len : hashable_len 
-
-assume
-val uds_bytes : v:(Ghost.erased (Seq.seq U8.t)){ Seq.length v = US.v uds_len }
-
-assume
 val drop (p:vprop)
     : stt unit p (fun _ -> emp)
 
@@ -206,7 +200,7 @@ fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
     compute_cdi cdi uds record;
     zeroize_uds uds uds_len;
     disable_uds();
-    Some (mk_l0_context cdi)
+    Some (mk_l0_context_t (mk_l0_context cdi))
   }
   else
   {

@@ -13,6 +13,12 @@ module U8 = FStar.UInt8
 open HACL
 open Array
 
+assume
+val uds_len : hashable_len 
+
+assume
+val uds_bytes : v:(Ghost.erased (Seq.seq U8.t)){ Seq.length v = US.v uds_len }
+
 type dice_return_code = | DICE_SUCCESS | DICE_ERROR
 
 let cdi_t = A.larray U8.t (US.v (digest_len dice_hash_alg))
@@ -27,12 +33,7 @@ type engine_record_t = {
   l0_binary_hash       : A.larray U8.t (US.v dice_digest_len); (*secret bytes *)
   l0_image_auth_pubkey : A.larray U8.t 32; (* secret bytes *)
 }
-let mk_engine_record  l0_image_header_size l0_image_header l0_image_header_sig
-                      l0_binary_size l0_binary l0_binary_hash l0_image_auth_pubkey
-  = {l0_image_header_size; l0_image_header; l0_image_header_sig;
-     l0_binary_size; l0_binary; l0_binary_hash; l0_image_auth_pubkey}
 
-//[@@erasable] Could we make l0_repr erasable from the get go?
 type engine_record_repr = {
     l0_image_header      : Seq.seq U8.t;
     l0_image_header_sig  : Seq.seq U8.t;
@@ -40,6 +41,11 @@ type engine_record_repr = {
     l0_binary_hash       : (s:Seq.seq U8.t{ Seq.length s = US.v dice_digest_len });
     l0_image_auth_pubkey : Seq.seq U8.t;
 }
+
+let mk_engine_repr  l0_image_header_size l0_image_header l0_image_header_sig
+                    l0_binary_size l0_binary l0_binary_hash l0_image_auth_pubkey
+  = {l0_image_header_size; l0_image_header; l0_image_header_sig;
+     l0_binary_size; l0_binary; l0_binary_hash; l0_image_auth_pubkey}
 
 let engine_record_perm (record:engine_record_t) (repr:engine_record_repr) 
   : vprop = 
