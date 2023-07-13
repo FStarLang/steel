@@ -14,12 +14,59 @@ module U32 = FStar.UInt32
 open Array
 open HashTable
 open HACL
+open X509
 open CommonTypes
 open EngineTypes
+open L0Types
 open EngineCore
+open L0Core
 
 friend Pulse.Steel.Wrapper
 #set-options "--print_implicits --print_universes"
+
+(* Context *)
+noeq
+type context_t = 
+  | Engine_context : c:engine_context -> context_t
+  | L0_context     : c:l0_context -> context_t
+  | L1_context     : c:l1_context -> context_t
+
+let context_perm (t:context_t) : vprop = 
+  match t with
+  | Engine_context c -> engine_context_perm c
+  | L0_context c -> l0_context_perm c
+  | L1_context c -> l1_context_perm c
+
+let mk_engine_context_t engine_context = Engine_context engine_context
+let mk_l0_context_t l0_context = L0_context l0_context
+let mk_l1_context_t l1_context = L1_context l1_context
+
+let locked_context_t = c:context_t & L.lock (context_perm c)
+
+
+(* Record *)
+noeq
+type record_t =
+  | Engine_record : r:engine_record_t -> record_t
+  | L0_record     : r:l0_record_t -> record_t
+
+noeq
+type repr_t = 
+  | Engine_repr : r:engine_record_repr -> repr_t
+  | L0_repr     : r:l0_record_repr -> repr_t
+
+let record_perm (t_rec:record_t) (t_rep:repr_t) : vprop = 
+  match t_rec with
+  | Engine_record r -> (
+    match t_rep with 
+    | Engine_repr r0 -> engine_record_perm r r0
+    | _ -> pure(false)
+  )
+  | L0_record r -> (
+    match t_rep with
+    | L0_repr r0 -> l0_record_perm r r0
+    | _ -> pure(false)
+  )
 
 (* ----------- GLOBAL STATE ----------- *)
 
@@ -152,7 +199,7 @@ fn init_engine_ctxt (uds:A.larray U8.t (US.v uds_len))
   ((| ctxt, ctxt_lk |) <: locked_context_t)
 }
 ```
-#set-options "--print_implicits --print_universes"
+
 ```pulse
 fn init_l0_ctxt (cdi:A.larray U8.t (US.v dice_digest_len))
   requires exists s. A.pts_to cdi full_perm s
@@ -169,6 +216,37 @@ fn init_l0_ctxt (cdi:A.larray U8.t (US.v dice_digest_len))
   assume_ (l0_context_perm l0_context);
   let ctxt = mk_l0_context_t l0_context;
   rewrite (l0_context_perm l0_context) as (context_perm ctxt);
+  let ctxt_lk = W.new_lock (context_perm ctxt);
+  ((| ctxt, ctxt_lk |) <: locked_context_t)
+}
+```
+
+```pulse
+fn init_l1_ctxt (aliasKey_priv: A.larray U8.t 32) (aliasKeyCRT: A.array U8.t) (deviceIDCSR: A.array U8.t)
+  requires exists s. A.pts_to aliasKey_priv full_perm s ** 
+    exists s. A.pts_to aliasKeyCRT full_perm s **
+    exists s. A.pts_to deviceIDCSR full_perm s
+  returns _:locked_context_t
+  ensures emp
+{
+  let l1_context = mk_l1_context aliasKey_priv aliasKeyCRT deviceIDCSR;
+// FIXME: pulse can't prove equality in the following two rewrites 
+// has something to do with not unwrapping the existential
+  // rewrite (exists_ (fun s -> A.pts_to aliasKey_priv full_perm s) `star`
+  //          exists_ (fun s -> A.pts_to aliasKeyCRT full_perm s) `star`
+  //          exists_ (fun s -> A.pts_to deviceIDCSR full_perm s)) 
+  //   as (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
+  //       exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
+  //       exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s)); 
+  // rewrite (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
+  //          exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
+  //          exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s)) as (l1_context_perm l1_context);
+  drop_ (exists_ (fun s -> A.pts_to aliasKey_priv full_perm s) `star`
+         exists_ (fun s -> A.pts_to aliasKeyCRT full_perm s) `star`
+         exists_ (fun s -> A.pts_to deviceIDCSR full_perm s));
+  assume_ (l1_context_perm l1_context);
+  let ctxt = mk_l1_context_t l1_context;
+  rewrite (l1_context_perm l1_context) as (context_perm ctxt);
   let ctxt_lk = W.new_lock (context_perm ctxt);
   ((| ctxt, ctxt_lk |) <: locked_context_t)
 }
@@ -259,37 +337,45 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
     match record {
     Engine_record r -> {
       match repr {
-        Engine_repr r0 -> {       
-          // FIXME: Pulse match doesn't handle
-          // rewrite (record_perm record repr) as (engine_record_perm r r0); 
-          drop_ (record_perm record repr);
-          assume_ (engine_record_perm r r0);
+      Engine_repr r0 -> {       
+        // FIXME: Pulse match doesn't handle
+        // rewrite (record_perm record repr) as (engine_record_perm r r0); 
+        drop_ (record_perm record repr);
+        assume_ (engine_record_perm r r0);
 
-          let cdi = new_array 0uy dice_digest_len;
-          EngineCore.engine_main cdi ctxt.uds r;
-          free_array ctxt.uds;
+        let cdi = new_array 0uy dice_digest_len;
+        EngineCore.engine_main cdi ctxt.uds r; // FIXME: match on dice return type
+        free_array ctxt.uds;
 
-          let new_locked_context = init_l0_ctxt cdi;
-          
-          delete cht ctxt_hndl;
-          store cht new_ctxt_hndl new_locked_context;
+        let new_locked_context = init_l0_ctxt cdi;
+        
+        delete cht ctxt_hndl;
+        store cht new_ctxt_hndl new_locked_context;
 
-          // FIXME: Pulse match doesn't handle
-          // rewrite (engine_record_perm r r0) as (record_perm record repr);
-          drop_ (engine_record_perm r r0);
-          assume_ (record_perm record repr);
+        // FIXME: Pulse match doesn't handle
+        // rewrite (engine_record_perm r r0) as (record_perm record repr);
+        drop_ (engine_record_perm r r0);
+        assume_ (record_perm record repr);
 
-          W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
-          W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+        W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+        W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
 
-          new_ctxt_hndl
-        }
-        _ -> {admit()}
+        new_ctxt_hndl
       }
+      _ -> {
+        // ERROR - bad invocation of DeriveChild
+        zeroize_array uds_len ctxt.uds;
+        disable_uds ();
+        free_array ctxt.uds;
+
+        W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+        W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+        0
+      }}
     }
     _ -> {
       // ERROR - bad invocation of DeriveChild
-      zeroize_uds ctxt.uds uds_len;
+      zeroize_array uds_len ctxt.uds;
       disable_uds ();
       free_array ctxt.uds;
 
@@ -298,39 +384,82 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
       0
     }}
   }
-  L0_context ctxt -> { 
+  L0_context ctxt -> {
+    // FIXME: Pulse match doesn't handle
+    // rewrite (context_perm cur_ctxt) as (engine_context_perm ctxt);
+    drop_ (context_perm cur_ctxt);
+    assume_ (l0_context_perm ctxt);
+    rewrite (l0_context_perm ctxt) 
+      as (exists_ (fun (s:elseq U8.t (US.v dice_digest_len)) -> A.pts_to ctxt.cdi full_perm s) `star`
+          pure (A.is_full_array ctxt.cdi));
+
+    // NOTE: we won't eventually release l0_context_perm because we won't 
+    // own it anymore -- we will free the cdi array
+
     match record {
-    L0_record record -> {
-      admit()
-      // // FIXME: Pulse match doesn't handle
-      // // rewrite (record_perm record repr) as (l0_record_perm r r0); 
-      // drop_ (record_perm record repr);
-      // assume_ (l0_record_perm r r0);
+    L0_record r -> {
+      match repr {
+      L0_repr r0 -> {
+        let idcsr_ing = r.deviceIDCSR_ingredients;
+        let akcrt_ing = r.aliasKeyCRT_ingredients;
 
-      // let aliasKey = new_array 0uy 32;
-      // let deviceIDCSR = new_array 0uy 32;
-      // let aliasKeyCRT = new_array 0uy 32;
-      // L0Core.l0_main aliasKey deviceIDCSR aliasKeyCRT ctxt.cdi r;
-      // free_array ctxt.cdi;
+        let deviceIDCRI_len = len_of_deviceIDCRI  idcsr_ing.version idcsr_ing.s_common 
+                                                  idcsr_ing.s_org idcsr_ing.s_country;
+        let aliasKeyTBS_len = len_of_aliasKeyTBS  akcrt_ing.serialNumber akcrt_ing.i_common 
+                                                  akcrt_ing.i_org akcrt_ing.i_country 
+                                                  akcrt_ing.s_common akcrt_ing.s_org 
+                                                  akcrt_ing.s_country akcrt_ing.l0_version;
+        let deviceIDCSR_len = length_of_deviceIDCSR deviceIDCRI_len;
+        let aliasKeyCRT_len = length_of_aliasKeyCRT aliasKeyTBS_len;
 
-      // let new_locked_context = init_l1_ctxt aliasKey deviceIDCSR aliasKeyCRT;
-      
-      // delete cht ctxt_hndl;
-      // store cht new_ctxt_hndl new_locked_context;
+        let aliasKey_pub = new_array 0uy 32sz;
+        let aliasKey_priv = new_array 0uy 32sz;
+        let deviceIDCSR = new_array 0uy (u32_to_us deviceIDCSR_len);
+        let aliasKeyCRT = new_array 0uy (u32_to_us aliasKeyCRT_len);
 
-      // // FIXME: Pulse match doesn't handle
-      // // rewrite (l0_record_perm r r0) as (record_perm record repr);
-      // drop_ (l0_record_perm r r0);
-      // assume_ (record_perm record repr);
+        // FIXME: Pulse match doesn't handle
+        // rewrite (record_perm record repr) as (l0_record_perm r r0); 
+        drop_ (record_perm record repr);
+        assume_ (l0_record_perm r r0);
 
-      // W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
-      // W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+        assume_ (pure(valid_hkdf_ikm_len (digest_len dice_hash_alg)));
+        
+        L0Core.l0_main  ctxt.cdi aliasKey_pub aliasKey_priv 
+                        aliasKeyTBS_len aliasKeyCRT_len aliasKeyCRT 
+                        deviceIDCRI_len deviceIDCSR_len deviceIDCSR r;
+        free_array ctxt.cdi;
+        free_array aliasKey_pub;
 
-      // new_ctxt_hndl
+        let new_locked_context = init_l1_ctxt aliasKey_priv deviceIDCSR aliasKeyCRT;
+        
+        delete cht ctxt_hndl;
+        store cht new_ctxt_hndl new_locked_context;
+
+        // FIXME: Pulse match doesn't handle
+        // rewrite (l0_record_perm r r0) as (record_perm record repr);
+        drop_ (l0_record_perm r r0);
+        assume_ (record_perm record repr);
+
+        W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+        W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+
+        new_ctxt_hndl
+      }
+      _ -> {
+        // ERROR - bad invocation of DeriveChild
+        zeroize_array dice_digest_len ctxt.cdi;
+        free_array ctxt.cdi;
+
+        W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
+        W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
+        0
+      }}
     }
     _ -> {
       // ERROR - bad invocation of DeriveChild
-      W.release #(context_perm cur_ctxt) ctxt_lk;
+      zeroize_array dice_digest_len ctxt.cdi;
+      free_array ctxt.cdi;
+
       W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
       W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
       0

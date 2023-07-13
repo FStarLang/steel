@@ -124,35 +124,6 @@ fn compute_cdi (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
 ```
 
 #set-options "--print_implicits --print_universes"
-// ```pulse
-// fn engine_main (cdi:cdi_t) (ctxt:(t:context_t{Engine_context? t})) (record:engine_record_t)
-//                (#c0:Ghost.erased (Seq.seq U8.t))
-//                (#repr:Ghost.erased engine_record_repr)
-//   requires (
-//     uds_is_enabled **
-//     A.pts_to cdi full_perm c0 **
-//     engine_record_perm record repr
-//   )
-//   returns opt: option context_t
-//   ensures exists (c1:Seq.seq U8.t). (
-//       A.pts_to cdi full_perm c1 **
-//       engine_record_perm record repr **
-//       pure (Some? opt ==> l0_is_authentic repr /\ cdi_functional_correctness c1 repr)
-//   )
-// {
-//   let b = authenticate_l0_image record;
-//   if b 
-//   {
-//     compute_cdi cdi ctxt.uds record;
-//     Some (mk_l0_context cdi)
-//   }
-//   else
-//   {
-//     disable_uds ();
-//     None #context_t
-//   }
-// }
-// ```
 ```pulse
 fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_record_t)
                (#c0:Ghost.erased (Seq.seq U8.t))
@@ -176,13 +147,13 @@ fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
   if b 
   {
     compute_cdi cdi uds record;
-    zeroize_uds uds uds_len;
+    zeroize_array uds_len uds;
     disable_uds();
     DICE_SUCCESS
   }
   else
   {
-    zeroize_uds uds uds_len;
+    zeroize_array uds_len uds;
     disable_uds ();
     DICE_ERROR
   }

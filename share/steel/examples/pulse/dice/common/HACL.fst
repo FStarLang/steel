@@ -136,7 +136,7 @@ val ed25519_sign
 assume
 val dice_hash_alg : alg_t
 
-let dice_digest_len : US.t = digest_len dice_hash_alg
+let dice_digest_len : hashable_len = assume (is_hashable_len (digest_len dice_hash_alg)); digest_len dice_hash_alg
 
 assume 
 val dice_digest_len_is_hashable 

@@ -4,7 +4,7 @@ all: verify
 STEEL_HOME ?= ../../../../../..
 DICE_HOME ?= ../
 
-FSTAR_OPTIONS = --include $(STEEL_HOME)/lib/steel/pulse --include $(DICE_HOME)/lib
+FSTAR_OPTIONS = --include $(STEEL_HOME)/lib/steel/pulse --include $(DICE_HOME)/lib --include $(DICE_HOME)/engine --include $(DICE_HOME)/l0
 
 COMPAT_INDEXED_EFFECTS=
 

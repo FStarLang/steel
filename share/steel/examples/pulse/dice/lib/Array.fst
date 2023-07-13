@@ -52,12 +52,11 @@ fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
 ```pulse
 fn fill_array (#t:Type0) (l:US.t) (a:(a:A.array t{ US.v l == A.length a })) (v:t)
               (#s:(s:Ghost.erased (Seq.seq t) { Seq.length s == US.v l }))
-   requires (A.pts_to a full_perm s)
-   ensures 
-      exists (s:Seq.seq t). (
-         A.pts_to a full_perm s **
-         pure (s `Seq.equal` Seq.create (US.v l) v)
-      )
+  requires (A.pts_to a full_perm s)
+  ensures exists (s:Seq.seq t). (
+    A.pts_to a full_perm s **
+    pure (s `Seq.equal` Seq.create (US.v l) v)
+  )
 {
    let mut i = 0sz;
    while (let vi = !i; US.(vi <^ l))
@@ -76,5 +75,18 @@ fn fill_array (#t:Type0) (l:US.t) (a:(a:A.array t{ US.v l == A.length a })) (v:t
       ()
    };
    ()
+}
+```
+
+```pulse
+fn zeroize_array (l:US.t) (a:(a:A.array U8.t{ US.v l == A.length a }))
+                 (#s:(s:Ghost.erased (Seq.seq U8.t) { Seq.length s == US.v l }))
+   requires A.pts_to a full_perm s
+  ensures exists (s:Seq.seq U8.t). (
+    A.pts_to a full_perm s **
+    pure (s `Seq.equal` Seq.create (US.v l) 0uy)
+  )
+{
+  fill_array l a 0uy
 }
 ```

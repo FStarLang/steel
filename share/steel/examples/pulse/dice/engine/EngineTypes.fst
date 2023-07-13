@@ -26,6 +26,18 @@ type dice_return_code = | DICE_SUCCESS | DICE_ERROR
 
 let cdi_t = A.larray U8.t (US.v (digest_len dice_hash_alg))
 
+(* Engine Context *)
+noeq
+type engine_context = { uds: A.larray U8.t (US.v uds_len); }
+
+let engine_context_perm (c:engine_context) : vprop
+  = A.pts_to c.uds full_perm uds_bytes `star` 
+    uds_is_enabled `star`
+    pure (A.is_full_array c.uds)
+
+let mk_engine_context uds : engine_context = {uds}
+
+(* Engine Record *)
 noeq
 type engine_record_t = {
   l0_image_header_size : signable_len;

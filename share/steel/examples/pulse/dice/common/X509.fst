@@ -33,7 +33,7 @@ val len_of_deviceIDCRI
   (s_common: string)
   (s_org: string)
   (s_country: string)
-  : U32.t
+  : v:U32.t{0 < U32.v v /\ valid_deviceIDCSR_ingredients v}
 
 assume
 val len_of_aliasKeyTBS
@@ -45,7 +45,7 @@ val len_of_aliasKeyTBS
   (s_org         : string)
   (s_country     : string)
   (l0_version    : U32.t)
-  : U32.t
+  : v:U32.t{0 < U32.v v /\ valid_aliasKeyCRT_ingredients v}
 
 (* Serialize Functions *)
 

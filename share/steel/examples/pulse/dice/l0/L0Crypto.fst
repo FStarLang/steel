@@ -77,7 +77,7 @@ fn derive_DeviceID
   (alg:alg_t)
   (deviceID_pub:A.larray U8.t 32)
   (deviceID_priv:A.larray U8.t 32)
-  (cdi:A.larray U8.t 32)
+  (cdi:A.larray U8.t (US.v dice_digest_len))
   (deviceID_label_len:hkdf_lbl_len)
   (deviceID_label:A.larray U8.t (US.v deviceID_label_len))
   (#cdi0 #deviceID_label0 #deviceID_pub0 #deviceID_priv0: Ghost.erased (Seq.seq U8.t))
@@ -103,8 +103,7 @@ fn derive_DeviceID
   )
 {
   let cdigest = new_array 0uy (digest_len alg);
-  is_hashable_len_32;
-  hacl_hash alg cdi 32sz cdigest;
+  hacl_hash alg cdi dice_digest_len cdigest;
 
   derive_key_pair
     deviceID_pub deviceID_priv
@@ -135,7 +134,7 @@ fn derive_AliasKey
   (alg:alg_t)
   (aliasKey_pub: A.larray U8.t 32)
   (aliasKey_priv: A.larray U8.t 32)
-  (cdi: A.larray U8.t 32)
+  (cdi: A.larray U8.t (US.v dice_digest_len))
   (fwid: A.larray U8.t 32)
   (aliasKey_label_len: hkdf_lbl_len)
   (aliasKey_label: A.larray U8.t (US.v aliasKey_label_len))
@@ -167,8 +166,8 @@ fn derive_AliasKey
   let cdigest = new_array 0uy (digest_len alg);
   let adigest = new_array 0uy (digest_len alg);
 
+  hacl_hash alg cdi dice_digest_len cdigest;
   is_hashable_len_32;
-  hacl_hash alg cdi 32sz cdigest;
   hacl_hmac alg adigest cdigest (digest_len alg) fwid 32sz;
 
   derive_key_pair
