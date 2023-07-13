@@ -296,3 +296,5 @@ let with_local #a init #pre #ret_t #post body =
   fun _ -> R.with_local init (fun x -> body x ())
 
 let assert_ (p:vprop) = fun _ -> noop()
+let assume_ (p:vprop) : stt unit emp (fun _ -> p) = admit ()
+assume val drop_ (p:vprop) : stt unit p (fun _ -> emp)

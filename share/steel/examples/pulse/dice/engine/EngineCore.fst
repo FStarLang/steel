@@ -74,25 +74,6 @@ fn disable_uds (_:unit)
 }
 ```
 
-```pulse
-fn zeroize_uds (uds:A.array U8.t) 
-               (l:(l:US.t{ US.v l = A.length uds })) 
-               (#uds0:(uds0:Ghost.erased (Seq.seq U8.t) { Seq.length uds0 = A.length uds }))
-  requires (
-    uds_is_enabled **
-    A.pts_to uds full_perm uds0
-  )
-  ensures (
-    uds_is_enabled **
-    exists (uds1:Seq.seq U8.t). (
-      A.pts_to uds full_perm uds1 **
-      pure (uds1 `Seq.equal` Seq.create (US.v l) 0uy))
-  )
-{
-  fill_array l uds 0uy;
-}
-```
-
 assume
 val read_uds (uds:A.larray U8.t (US.v uds_len))
              (#s:Ghost.erased (Seq.seq U8.t))

@@ -12,20 +12,45 @@ module U32 = FStar.UInt32
 open HACL
 open EngineTypes
 open L0Types
+open Array 
+
+(* ----------- HELPERS ----------- *)
+
+```pulse
+fn zeroize_uds (uds:A.array U8.t) 
+               (l:(l:US.t{ US.v l = A.length uds })) 
+               (#uds0:(uds0:Ghost.erased (Seq.seq U8.t) { Seq.length uds0 = A.length uds }))
+  requires (
+    uds_is_enabled **
+    A.pts_to uds full_perm uds0
+  )
+  ensures (
+    uds_is_enabled **
+    exists (uds1:Seq.seq U8.t). (
+      A.pts_to uds full_perm uds1 **
+      pure (uds1 `Seq.equal` Seq.create (US.v l) 0uy))
+  )
+{
+  fill_array l uds 0uy;
+}
+```
 
 (* ----------- CONTEXT ----------- *)
 
 noeq
-type engine_context = { uds: A.array U8.t; }
+type engine_context = { uds: A.larray U8.t (US.v uds_len); }
 let engine_context_perm (c:engine_context) : vprop
-  = A.pts_to c.uds full_perm uds_bytes `star` uds_is_enabled
+  = A.pts_to c.uds full_perm uds_bytes `star` 
+    uds_is_enabled `star`
+    pure (A.is_full_array c.uds)
 let mk_engine_context uds : engine_context = {uds}
 
 noeq
-type l0_context = { _cdi: A.array U8.t; }
+type l0_context = { cdi: A.array U8.t; }
 let l0_context_perm (c:l0_context) : vprop
-  = exists_ (fun s -> A.pts_to c._cdi full_perm s)
-let mk_l0_context _cdi : l0_context = {_cdi}
+  = exists_ (fun s -> A.pts_to c.cdi full_perm s) `star`
+    pure (A.is_full_array c.cdi)
+let mk_l0_context cdi : l0_context = {cdi}
 
 noeq
 type l1_context = { aliasKey_priv: A.larray U8.t 32;
