@@ -1,4 +1,4 @@
-module DPEPseudo
+module DPE
 open Pulse.Main
 open FStar.Ghost
 open Steel.ST.Util
@@ -15,7 +15,6 @@ open Array
 open HashTable
 open HACL
 open X509
-open CommonTypes
 open EngineTypes
 open L0Types
 open EngineCore
@@ -23,6 +22,21 @@ open L0Core
 
 friend Pulse.Steel.Wrapper
 #set-options "--print_implicits --print_universes"
+
+(* L1 Context -- to be moved *)
+
+noeq
+type l1_context = { aliasKey_priv: A.larray U8.t 32;
+                    aliasKeyCRT: A.array U8.t;
+                    deviceIDCSR: A.array U8.t; }
+
+let l1_context_perm (c:l1_context)
+  : vprop
+  = exists_ (fun s -> A.pts_to c.aliasKey_priv full_perm s) `star`
+    exists_ (fun s -> A.pts_to c.aliasKeyCRT full_perm s) `star`
+    exists_ (fun s -> A.pts_to c.deviceIDCSR full_perm s)
+
+let mk_l1_context aliasKey_priv aliasKeyCRT deviceIDCSR = { aliasKey_priv; aliasKeyCRT; deviceIDCSR }
 
 (* Context *)
 noeq
@@ -170,6 +184,7 @@ fn close_session (sid:nat)
 }
 ```
 
+// TODO: 
 assume val prng (_:unit) : nat
 
 ```pulse
@@ -288,7 +303,7 @@ fn initialize_context (sid:nat) (uds:A.larray U8.t (US.v uds_len))
   ctxt_hndl
 }
 ```
-    
+
 (*
   DeriveChild: Part of DPE API 
   Execute the DICE layer associated with the current context and produce a 

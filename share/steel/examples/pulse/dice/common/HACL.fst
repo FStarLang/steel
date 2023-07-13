@@ -10,8 +10,12 @@ module A = Steel.ST.Array
 module T = FStar.Tactics
 module US = FStar.SizeT
 module U8 = FStar.UInt8
+module U32 = FStar.UInt32
 
 let elseq (a:Type) (l:nat) = s:Ghost.erased (Seq.seq a) { Seq.length s == l }
+
+assume 
+val u32_to_us (v:U32.t) : US.t
 
 (* a tiny model of HACL* hashes *)
 

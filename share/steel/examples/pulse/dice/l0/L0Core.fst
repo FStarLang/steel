@@ -12,7 +12,6 @@ module T = FStar.Tactics
 module US = FStar.SizeT
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
-open CommonTypes
 open L0Types
 open L0Crypto
 open X509

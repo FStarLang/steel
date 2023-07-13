@@ -11,7 +11,6 @@ module T = FStar.Tactics
 module US = FStar.SizeT
 module U8 = FStar.UInt8
 open Array
-open CommonTypes
 open EngineTypes
 open HACL
 
