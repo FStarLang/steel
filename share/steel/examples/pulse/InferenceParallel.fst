@@ -23,23 +23,57 @@ fn write (r: ref U32.t) (#n: erased U32.t)
 
 
 ```pulse
-fn test_par (r1 r2:ref U32.t)
-            (#n1 #n2:erased U32.t)
+fn test_par (r1 r2 r3:ref U32.t)
+            (#n1 #n2 #n3:erased U32.t)
   requires 
-    (pts_to r1 full_perm n1 `star`
-     pts_to r2 full_perm n2)
+    (pts_to r1 full_perm n1 **
+     pts_to r2 full_perm n2 **
+     pts_to r3 full_perm n3)
   ensures
-    (pts_to r1 full_perm n1 `star`
-     pts_to r2 full_perm 1ul)
+    (pts_to r1 full_perm n1 **
+     pts_to r2 full_perm 1ul **
+     pts_to r3 full_perm 1ul)
 {
   parallel
     requires (_) and (_)
     ensures  (_) and (_)
   {
+    // context: A * B * C
      write r1 #n1 // Goes to C_ST
-  }
+     //s1; // A -> A (frame B * C)
+     //s2 // B -> B (frame A * C)
+
+     // Algorithm:
+     // 1. Check left branch with full context
+     // 2. Extract common frame F from the typing derivation
+     // 3. Remove this frame from the left
+     // 4. Use this frame to type check right branch
+
+     // exists v. (r -> v * B)
+     // (exists v. r -> v) * B
+
+(*
+     Seq
+     (Frame (B * C) (... s1...))
+     (Frame (A * C) (... s2...))
+    -->
+    Frame C (
+     Seq
+     (Frame B (... s1...))
+     (Frame A (... s2...)))
+
+// Two lemmas needed
+     Seq (Frame C ...) (Frame C ...)
+     ==> Frame C (Seq ... ...)
+
+     Frame (B * C) s
+     ==> Frame C (Frame B s)
+     *)
+
+   }
   {
-     r2 := 1ul
+     r2 := 1ul;
+     r3 := 1ul
   };
   ()
 }
