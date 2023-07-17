@@ -1,4 +1,4 @@
-module RewriteExistential
+module ExistentialRecordPerm
 open Pulse.Main
 open FStar.Ghost
 open Steel.ST.Util
@@ -25,7 +25,7 @@ let rec_perm (r:my_rec) : vprop
   = A.pts_to r.a full_perm s
   
 ```pulse
-fn rewrite_record_perm(a: A.array U8.t)
+fn rewrite_record_perm (a: A.array U8.t)
   requires A.pts_to a full_perm s
   returns r:my_rec
   ensures rec_perm r
