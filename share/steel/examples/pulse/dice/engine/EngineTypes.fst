@@ -20,7 +20,7 @@ assume
 val uds_len : hashable_len 
 
 assume
-val uds_bytes : v:(Ghost.erased (Seq.seq U8.t)){ Seq.length v = US.v uds_len }
+val uds_bytes : Ghost.erased (elseq U8.t uds_len)
 
 type dice_return_code = | DICE_SUCCESS | DICE_ERROR
 

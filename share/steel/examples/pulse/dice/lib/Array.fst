@@ -10,11 +10,15 @@ open Pulse.Steel.Wrapper
 module US = FStar.SizeT
 module U8 = FStar.UInt8
 
-let elseq (a:Type) (l:nat) = s:Ghost.erased (Seq.seq a) { Seq.length s == l }
+let elseq (a:Type) (l:US.t) = s:Seq.seq a{ Seq.length s == US.v l }
+
+let coerce (#t:Type) (l:US.t) (s:Ghost.erased (elseq t l)) : Ghost.erased (Seq.seq t)
+  = let s_ = reveal s in 
+    hide s_
 
 ```pulse
 fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
-           (#p1 #p2:perm) (#s1 #s2:elseq t (US.v l))
+           (#p1 #p2:perm) (#s1 #s2:Ghost.erased (elseq t l))
   requires (
     A.pts_to a1 p1 s1 **
     A.pts_to a2 p2 s2
@@ -27,7 +31,7 @@ fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
   )
 {
   let mut i = 0sz;
-  while (let vi = !i; if US.(vi <^ l) { let v1 = a1.(vi); let v2 = a2.(vi); (v1 = v2) } else { false } )
+  while (let vi = !i; if US.(vi <^ l) { let v1 = op_Array_Access a1 vi #(coerce l s1) #p1; let v2 = op_Array_Access a2 vi #(coerce l s2) #p2; (v1 = v2) } else { false } )
   invariant b. exists (vi:US.t). ( 
     R.pts_to i full_perm vi **
     A.pts_to a1 p1 s1 **
@@ -51,7 +55,7 @@ fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
 
 ```pulse
 fn fill_array (#t:Type0) (l:US.t) (a:(a:A.array t{ US.v l == A.length a })) (v:t)
-              (#s:(s:Ghost.erased (Seq.seq t) { Seq.length s == US.v l }))
+              (#s:Ghost.erased (elseq t l))
   requires (A.pts_to a full_perm s)
   ensures exists (s:Seq.seq t). (
     A.pts_to a full_perm s **
@@ -80,8 +84,8 @@ fn fill_array (#t:Type0) (l:US.t) (a:(a:A.array t{ US.v l == A.length a })) (v:t
 
 ```pulse
 fn zeroize_array (l:US.t) (a:(a:A.array U8.t{ US.v l == A.length a }))
-                 (#s:(s:Ghost.erased (Seq.seq U8.t) { Seq.length s == US.v l }))
-   requires A.pts_to a full_perm s
+                 (#s:Ghost.erased (elseq U8.t l))
+  requires A.pts_to a full_perm s
   ensures exists (s:Seq.seq U8.t). (
     A.pts_to a full_perm s **
     pure (s `Seq.equal` Seq.create (US.v l) 0uy)

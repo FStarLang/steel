@@ -54,7 +54,8 @@ fn authenticate_l0_image (record:engine_record_t) (#repr:Ghost.erased engine_rec
     let hash_buf = new_array 0uy dice_digest_len;
     hacl_hash dice_hash_alg record.l0_binary record.l0_binary_size hash_buf;
     let res = compare dice_digest_len hash_buf record.l0_binary_hash;
-    free_array hash_buf;
+    with s. assert (A.pts_to hash_buf full_perm s);
+    free_array hash_buf #(coerce dice_digest_len s);
     fold engine_record_perm record repr;
     res
   } else {
@@ -99,11 +100,9 @@ fn compute_cdi (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
       pure (cdi_functional_correctness c1 repr))
   )
 {
-    // let uds = new_array 0uy uds_len;
     let uds_digest = new_array 0uy dice_digest_len;
     let l0_digest = new_array 0uy dice_digest_len;
-    // read_uds uds;
-    hacl_hash dice_hash_alg uds uds_len uds_digest;
+    hacl_hash dice_hash_alg uds uds_len uds_digest #full_perm #(coerce uds_len uds_bytes);
 
     unfold engine_record_perm record repr;
     hacl_hash dice_hash_alg record.l0_binary record.l0_binary_size l0_digest;
@@ -125,7 +124,7 @@ fn compute_cdi (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
 #set-options "--print_implicits --print_universes"
 ```pulse
 fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_record_t)
-               (#c0:Ghost.erased (Seq.seq U8.t))
+               (#c0:Ghost.erased (elseq U8.t dice_digest_len))
                (#repr:Ghost.erased engine_record_repr)
   requires (
     uds_is_enabled **
@@ -137,7 +136,7 @@ fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
   ensures (
     engine_record_perm record repr **
     A.pts_to uds full_perm (Seq.create (US.v uds_len) 0uy) **
-    exists (c1:Seq.seq U8.t). (
+    exists (c1:elseq U8.t dice_digest_len). (
       A.pts_to cdi full_perm c1 **
       pure (r = DICE_SUCCESS ==> l0_is_authentic repr /\ cdi_functional_correctness c1 repr)
   ))
@@ -145,14 +144,15 @@ fn engine_main (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
   let b = authenticate_l0_image record;
   if b 
   {
-    compute_cdi cdi uds record;
-    zeroize_array uds_len uds;
+    compute_cdi cdi uds record #repr #(coerce dice_digest_len c0);
+    with s. assert (A.pts_to uds full_perm s);
+    zeroize_array uds_len uds #(coerce_refined uds_len s);
     disable_uds();
     DICE_SUCCESS
   }
   else
   {
-    zeroize_array uds_len uds;
+    zeroize_array uds_len uds #uds_bytes;
     disable_uds ();
     DICE_ERROR
   }

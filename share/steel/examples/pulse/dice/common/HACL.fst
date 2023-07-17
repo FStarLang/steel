@@ -11,8 +11,17 @@ module T = FStar.Tactics
 module US = FStar.SizeT
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
+open Array 
 
-let elseq (a:Type) (l:nat) = s:Ghost.erased (Seq.seq a) { Seq.length s == l }
+// let elseq (a:Type) (l:US.t) = s:Seq.seq a{ Seq.length s == US.v l }
+
+let coerce (l:US.t) (s:Ghost.erased (elseq U8.t l)) : Ghost.erased (Seq.seq U8.t)
+  = let s_ = reveal s in 
+    hide s_
+
+let coerce_refined (l:US.t) (s:Ghost.erased (Seq.seq U8.t){Seq.length (reveal s) == US.v l}) : Ghost.erased (elseq U8.t l)
+  = let s_ = reveal s in 
+    hide s_
 
 assume 
 val u32_to_us (v:U32.t) : US.t

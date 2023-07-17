@@ -381,7 +381,7 @@ fn l0_main
   (deviceIDCSR: A.array U8.t)
   (record: l0_record_t)
   (#repr: Ghost.erased l0_record_repr)
-  (#cdi0: elseq U8.t (US.v dice_digest_len))
+  (#cdi0:Ghost.erased (elseq U8.t dice_digest_len))
   (#aliasKey_pub0 #aliasKey_priv0 #aliasKeyCRT0 #deviceIDCSR0: Ghost.erased (Seq.seq U8.t))
   requires (
     l0_record_perm record repr **
@@ -425,7 +425,8 @@ fn l0_main
   let deviceID_priv = new_array 0uy 32sz;
   derive_DeviceID dice_hash_alg 
     deviceID_pub deviceID_priv cdi 
-    record.deviceID_label_len record.deviceID_label;
+    record.deviceID_label_len record.deviceID_label
+    #(coerce dice_digest_len cdi0);
 
   derive_AliasKey dice_hash_alg
     aliasKey_pub aliasKey_priv cdi 
@@ -464,7 +465,7 @@ fn l0_main
 
   fold l0_record_perm record repr;
 
-  zeroize_array dice_digest_len cdi;
+  zeroize_array dice_digest_len cdi #cdi0;
   ()
 }
 ```

@@ -217,7 +217,9 @@ fn init_engine_ctxt (uds:A.larray U8.t (US.v uds_len))
 
 ```pulse
 fn init_l0_ctxt (cdi:A.larray U8.t (US.v dice_digest_len))
-  requires exists s. A.pts_to cdi full_perm s
+  requires exists (s:elseq U8.t dice_digest_len). 
+    (A.pts_to cdi full_perm s) **
+    pure (A.is_full_array cdi)
   returns _:locked_context_t
   ensures emp
 {
@@ -226,9 +228,12 @@ fn init_l0_ctxt (cdi:A.larray U8.t (US.v dice_digest_len))
 // has something to do with not unwrapping the existential
   // rewrite (exists_ (fun s -> A.pts_to cdi full_perm s)) 
   //   as (exists_ (fun s -> A.pts_to l0_context.cdi full_perm s)); 
-  // rewrite (exists_ (fun s -> A.pts_to l0_context.cdi full_perm s)) as (l0_context_perm l0_context);
-  drop_ (exists_ (fun s -> A.pts_to cdi full_perm s));
-  assume_ (l0_context_perm l0_context);
+  drop_ (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to cdi full_perm s));
+  assume_ (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to l0_context.cdi full_perm s));
+  assume_ (pure(A.is_full_array l0_context.cdi));
+  rewrite (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to l0_context.cdi full_perm s) 
+          `star` pure (A.is_full_array l0_context.cdi)) 
+    as (l0_context_perm l0_context);
   let ctxt = mk_l0_context_t l0_context;
   rewrite (l0_context_perm l0_context) as (context_perm ctxt);
   let ctxt_lk = W.new_lock (context_perm ctxt);
@@ -253,13 +258,16 @@ fn init_l1_ctxt (aliasKey_priv: A.larray U8.t 32) (aliasKeyCRT: A.array U8.t) (d
   //   as (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
   //       exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
   //       exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s)); 
-  // rewrite (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
-  //          exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
-  //          exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s)) as (l1_context_perm l1_context);
   drop_ (exists_ (fun s -> A.pts_to aliasKey_priv full_perm s) `star`
          exists_ (fun s -> A.pts_to aliasKeyCRT full_perm s) `star`
          exists_ (fun s -> A.pts_to deviceIDCSR full_perm s));
-  assume_ (l1_context_perm l1_context);
+  assume_ (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
+           exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
+           exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s));
+  rewrite (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
+           exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
+           exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s)) 
+    as (l1_context_perm l1_context);
   let ctxt = mk_l1_context_t l1_context;
   rewrite (l1_context_perm l1_context) as (context_perm ctxt);
   let ctxt_lk = W.new_lock (context_perm ctxt);
@@ -379,7 +387,7 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
       }
       _ -> {
         // ERROR - bad invocation of DeriveChild
-        zeroize_array uds_len ctxt.uds;
+        zeroize_array uds_len ctxt.uds #uds_bytes;
         disable_uds ();
         free_array ctxt.uds;
 
@@ -405,8 +413,10 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
     drop_ (context_perm cur_ctxt);
     assume_ (l0_context_perm ctxt);
     rewrite (l0_context_perm ctxt) 
-      as (exists_ (fun (s:elseq U8.t (US.v dice_digest_len)) -> A.pts_to ctxt.cdi full_perm s) `star`
+      as (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to ctxt.cdi full_perm s) `star`
           pure (A.is_full_array ctxt.cdi));
+
+    with s. assert (A.pts_to ctxt.cdi full_perm s);
 
     // NOTE: we won't eventually release l0_context_perm because we won't 
     // own it anymore -- we will free the cdi array

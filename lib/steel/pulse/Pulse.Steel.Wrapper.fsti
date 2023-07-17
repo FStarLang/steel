@@ -443,3 +443,9 @@ val with_local
 
 val assert_ (p:vprop)
   : stt_ghost unit emp_inames p (fun _ -> p)
+
+val assume_ (p:vprop)
+  : stt_ghost unit emp_inames emp (fun _ -> p)
+
+val drop_ (p:vprop) 
+  : stt_ghost unit emp_inames p (fun _ -> emp)

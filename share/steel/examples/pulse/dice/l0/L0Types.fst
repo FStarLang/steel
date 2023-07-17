@@ -11,9 +11,10 @@ module T = FStar.Tactics
 module US = FStar.SizeT
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
+open Array
 open HACL
 
-let elseq (a:Type) (l:nat) = s:Ghost.erased (Seq.seq a) { Seq.length s == l }
+// let elseq (a:Type) (l:US.t) = s:Seq.seq a{ Seq.length s == US.v l }
 
 assume
 val x509_version_t : Type0
@@ -38,7 +39,7 @@ noeq
 type l0_context = { cdi: A.larray U8.t (US.v dice_digest_len); }
 
 let l0_context_perm (c:l0_context) : vprop
-  = exists_ (fun (s:elseq U8.t (US.v dice_digest_len)) -> A.pts_to c.cdi full_perm s) `star`
+  = exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to c.cdi full_perm s) `star`
     pure (A.is_full_array c.cdi)
 
 let mk_l0_context cdi : l0_context = {cdi}

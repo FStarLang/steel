@@ -12,6 +12,7 @@ module T = FStar.Tactics
 module US = FStar.SizeT
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
+open Array
 open HACL
 open L0Types
 
