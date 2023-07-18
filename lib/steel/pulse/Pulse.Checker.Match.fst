@@ -15,130 +15,14 @@ let rec zipWith (f : 'a -> 'b -> T.Tac 'c) (l : list 'a) (m : list 'b) : T.Tac (
   | [], [] -> []
   | x::xs, y::ys -> f x y :: zipWith f xs ys
   | _ -> T.fail "zipWith: length mismatch"
-
-val tot_typing_weakening_n
-   (#g:env) (#t:term) (#ty:term)
-   (bs:list binding{all_fresh g bs})
-   (d:tot_typing g t ty)
-   : Tot (tot_typing (extend_env_bs g bs) t ty)
-         (decreases bs)
-let rec tot_typing_weakening_n bs d =
-  match bs with
-  | [] -> d
-  | (x,t)::bs ->
-    let d = Pulse.Typing.Metatheory.tot_typing_weakening x t d in
-    tot_typing_weakening_n bs d
-
-let samepat (b1 b2 : branch) : prop = fst b1 == fst b2
-let samepats (bs1 bs2 : list branch) : prop = L.map fst bs1 == L.map fst bs2
-
-let open_st_term_bs (t:st_term) (bs:list binding) : T.Tac st_term =
-  let rec aux (bs:list binding) (i:nat) : subst =
-    match bs with
-    | [] -> []
-    | b::bs ->
-      (DT i (Pulse.Syntax.Pure.term_of_nvar (ppname_default, fst b))) :: aux bs (i+1)
-  in
-  let ss = aux (List.rev bs) 0 in
-  subst_st_term t ss
-
-val readback_binding : R.binding -> T.Tac binding
-let readback_binding b =
-  assume (host_term == R.term); // fixme! expose this fact
-  match readback_ty b.sort with
-  | Some sort -> (b.uniq, sort)
-  | None ->
-    let sort : term = {t=Tm_FStar b.sort; range=T.range_of_term b.sort} in
-    (b.uniq, sort)
-
+  
+  
 let rec map_opt f l = match l with
   | [] -> Some []
   | x::xs ->
     let? y = f x in
     let? ys = map_opt f xs in
     Some (y::ys)
-
-let rec r_bindings_to_string (bs : list R.binding) : T.Tac string =
-  match bs with
-  | [] -> ""
-  | b::bs ->
-    (T.unseal b.ppname ^ "-" ^ string_of_int b.uniq ^ ":" ^ T.term_to_string b.sort ^ " ") ^ r_bindings_to_string bs
-
-let rec bindings_to_string (bs : list binding) : T.Tac string =
-  match bs with
-  | [] -> ""
-  | b::bs ->
-    (string_of_int (fst b) ^ ":" ^ Pulse.Syntax.Printer.term_to_string (snd b) ^ " ") ^ bindings_to_string bs
-
-let check_branch
-        (g:env)
-        (pre:term)
-        (pre_typing: tot_typing g pre tm_vprop)
-        (post_hint:post_hint_for_env g)
-        (check:check_t)
-        (p0:pattern)
-        (e:st_term)
-        (bs:list R.binding)
-  : T.Tac (p:pattern{p == p0}
-          & e:st_term
-          & c:comp_st{comp_pre c == pre /\ comp_post_matches_hint c (Some post_hint)}
-          & br_typing g p e c)
-  =
-  let bs = T.map readback_binding bs in
-  assume (all_fresh g bs); // why??
-  let g' = extend_env_bs g bs in
-  let e = open_st_term_bs e bs in
-  // TODO: extend with hyp
-  let pre_typing = tot_typing_weakening_n bs pre_typing in
-  let (| e, c, e_d |) = check g' e pre pre_typing (Some post_hint) in
-  if not (stateful_comp c) then
-    fail g (Some e.range) "Branch computation is not stateful";
-  assert (all_fresh g bs);
-  assume (bindings_for_pat_ok g p0 bs); // FIXME
-  let br_d : br_typing g p0 e c = TBR g c p0 e bs e_d in
-  (| p0, e, c, br_d |)
-
-
-let check_branches
-        (g:env)
-        (pre:term)
-        (pre_typing: tot_typing g pre tm_vprop)
-        (post_hint:post_hint_for_env g)
-        (check:check_t)
-        (brs0:list branch)
-        (bnds: list (list R.binding){L.length brs0 == L.length bnds})
-  : T.Tac (brs:list branch{samepats brs0 brs}
-           & c:comp_st{comp_pre c == pre /\ comp_post_matches_hint c (Some post_hint)}
-           & brs_typing g brs c)
-= if L.isEmpty brs0 then fail g None "empty match";
-  let (p0, e0)::rest = brs0 in
-  let bnds0::bnds = bnds in
-  let (| p0, e0, c0, d0 |) = check_branch g pre pre_typing post_hint check p0 e0 bnds0 in
-  let brs_d : (brs_d:list (br:branch & br_typing g (fst br) (snd br) c0){samepats brs0 (L.map dfst brs_d)}) =
-    let tr1 (b:branch) (bs:list R.binding) : T.Tac (br:branch & br_typing g (fst br) (snd br) c0) =
-      let (p, e) = b in
-      let (| p, e, c, d |) = check_branch g pre pre_typing post_hint check p e bs in
-      assume (c == c0); // FIXME: join and weaken
-      (| (p,e), d |)
-    in
-    let r = zipWith tr1 rest bnds in
-    assume (samepats (L.map dfst r) brs0);
-    r
-  in
-  let brs = List.Tot.map dfst brs_d in
-  let _ = List.Tot.Properties.append_l_nil brs in // odd
-  let d : brs_typing g brs c0 =
-    let rec aux (brs : list (br:branch & br_typing g (fst br) (snd br) c0))
-               : brs_typing g (List.Tot.map dfst brs) c0
-    =
-      match brs with
-      | [] -> TBRS_0 g c0
-      | (|(p,e), d|)::rest ->
-        TBRS_1 g c0 p e d (List.Tot.map dfst rest) (aux rest)
-    in
-    aux brs_d
-  in
-  (| brs, c0, d |)
 
 let readback_pat_var (p : R.pattern & bool) : option (list (RT.pp_name_t & bool)) =
   match p with
@@ -229,6 +113,144 @@ let elab_readback_pat (p : R.pattern)
     ()
   | _ -> ()
 
+
+
+val tot_typing_weakening_n
+   (#g:env) (#t:term) (#ty:term)
+   (bs:list binding{all_fresh g bs})
+   (d:tot_typing g t ty)
+   : Tot (tot_typing (push_bindings g bs) t ty)
+         (decreases bs)
+let rec tot_typing_weakening_n bs d =
+  match bs with
+  | [] -> d
+  | (x,t)::bs ->
+    let d = Pulse.Typing.Metatheory.tot_typing_weakening x t d in
+    tot_typing_weakening_n bs d
+
+let samepat (b1 b2 : branch) : prop = fst b1 == fst b2
+let samepats (bs1 bs2 : list branch) : prop = L.map fst bs1 == L.map fst bs2
+
+let open_st_term_bs (t:st_term) (bs:list binding) : T.Tac st_term =
+  let rec aux (bs:list binding) (i:nat) : subst =
+    match bs with
+    | [] -> []
+    | b::bs ->
+      (DT i (Pulse.Syntax.Pure.term_of_nvar (ppname_default, fst b))) :: aux bs (i+1)
+  in
+  let ss = aux (List.rev bs) 0 in
+  subst_st_term t ss
+
+let rec r_bindings_to_string (bs : list R.binding) : T.Tac string =
+  match bs with
+  | [] -> ""
+  | b::bs ->
+    (T.unseal b.ppname ^ "-" ^ string_of_int b.uniq ^ ":" ^ T.term_to_string b.sort ^ " ") ^ r_bindings_to_string bs
+
+let rec bindings_to_string (bs : list binding) : T.Tac string =
+  match bs with
+  | [] -> ""
+  | b::bs ->
+    (string_of_int (fst b) ^ ":" ^ Pulse.Syntax.Printer.term_to_string (snd b) ^ " ") ^ bindings_to_string bs
+
+let check_branch
+        (g:env)
+        (pre:term)
+        (pre_typing: tot_typing g pre tm_vprop)
+        (post_hint:post_hint_for_env g)
+        (check:check_t)
+        (sc_u : universe)
+        (sc_ty:typ)
+        (sc:term)
+        (p0:R.pattern)
+        (e:st_term)
+        (bs:list R.binding)
+  : T.Tac (p:pattern{elab_pat p == p0}
+          & e:st_term
+          & c:comp_st{comp_pre c == pre /\ comp_post_matches_hint c (Some post_hint)}
+          & br_typing g sc_u sc_ty sc p e c)
+  =
+  let p = (match readback_pat p0 with | Some p -> p | None ->
+    fail g (Some e.range) "readback_pat failed")
+  in
+  elab_readback_pat p0;
+  let pulse_bs = L.map readback_binding bs in
+  assume (all_fresh g pulse_bs); // why?? fixme
+  assume (RT.bindings_ok_for_pat bs p0);
+  let g' = push_bindings g pulse_bs in
+  let hyp_var = fresh g' in
+  let elab_p = RT.elaborate_pat p0 bs in
+  if not (Some? elab_p) then
+    fail g (Some e.range) "Failed to elab pattern into term";
+  if (R.Tv_Unknown? (R.inspect_ln (fst (Some?.v elab_p)))) then
+    fail g (Some e.range) "should not happen: pattern elaborated to Tv_Unknown";
+  T.print ("Elaborated pattern = " ^ T.term_to_string (fst (Some?.v elab_p)));
+  let eq_typ = mk_sq_eq2 sc_u sc_ty sc (tm_fstar (fst (Some?.v elab_p)) Range.range_0) in
+  let g' = push_binding g' hyp_var ({name = Sealed.seal "branch equality"; range = Range.range_0 }) eq_typ in
+  let e = open_st_term_bs e pulse_bs in
+  let pre_typing = tot_typing_weakening_n pulse_bs pre_typing in // weaken w/ binders
+  let pre_typing = Pulse.Typing.Metatheory.tot_typing_weakening hyp_var eq_typ pre_typing in // weaken w/ branch eq
+  let (| e, c, e_d |) = check g' e pre pre_typing (Some post_hint) in
+  if not (stateful_comp c) then
+    fail g (Some e.range) "Branch computation is not stateful";
+  //assert (all_fresh g bs);
+  let br_d : br_typing g sc_u sc_ty sc p (close_st_term_n e (L.map fst pulse_bs)) c = TBR g sc_u sc_ty sc c p e bs () () () hyp_var e_d in
+  (| p, close_st_term_n e (L.map fst pulse_bs), c, br_d |)
+
+let check_branches
+        (g:env)
+        (pre:term)
+        (pre_typing: tot_typing g pre tm_vprop)
+        (post_hint:post_hint_for_env g)
+        (check:check_t)
+        (sc_u : universe)
+        (sc_ty : typ)
+        (sc : term)
+        (brs0:list branch)
+        (bnds: list (R.pattern & list R.binding){L.length brs0 == L.length bnds})
+  : T.Tac (brs:list branch
+           & c:comp_st{comp_pre c == pre /\ comp_post_matches_hint c (Some post_hint)}
+           & brs_typing g sc_u sc_ty sc brs c)
+= if L.isEmpty brs0 then fail g None "empty match";
+  let (_, e0)::rest = brs0 in
+  let (p0, bnds0)::bnds = bnds in
+  let (| p0, e0, c0, d0 |) = check_branch g pre pre_typing post_hint check sc_u sc_ty sc p0 e0 bnds0 in
+  let brs_d
+    : (brs_d:list (br:branch & br_typing g sc_u sc_ty sc (fst br) (snd br) c0){samepats brs0 (L.map dfst brs_d)})
+  =
+    let tr1 (b: branch) (pbs:R.pattern & list R.binding)
+      : T.Tac (br:branch & br_typing g sc_u sc_ty sc (fst br) (snd br) c0)
+    =
+      let (_, e) = b in
+      let (p, bs) = pbs in
+      let (| p, e, c, d |) = check_branch g pre pre_typing post_hint check sc_u sc_ty sc p e bs in
+      assume (c == c0); // FIXME: join and weaken
+      (| (p,e), d |)
+    in
+    let r = zipWith tr1 rest bnds in
+    assume (samepats (L.map dfst r) brs0);
+    r
+  in
+  let brs = List.Tot.map dfst brs_d in
+  let _ = List.Tot.Properties.append_l_nil brs in // odd
+  let d : brs_typing g sc_u sc_ty sc brs c0 =
+    let rec aux (brs : list (br:branch & br_typing g sc_u sc_ty sc (fst br) (snd br) c0))
+               : brs_typing g sc_u sc_ty sc (List.Tot.map dfst brs) c0
+    =
+      match brs with
+      | [] -> TBRS_0 c0
+      | (|(p,e), d|)::rest ->
+        TBRS_1 c0 p e d (List.Tot.map dfst rest) (aux rest)
+    in
+    aux brs_d
+  in
+  (| brs, c0, d |)
+
+val zip : (#a:Type) -> (#b:Type) -> list a -> list b -> Tot (list (a * b))
+let rec zip #a #b l1 l2 = match l1, l2 with
+    | x::xs, y::ys -> (x,y) :: (zip xs ys)
+    | _ -> []
+
 let check_match
         (g:env)
         (sc:term)
@@ -239,23 +261,27 @@ let check_match
         (check:check_t)
   : T.Tac (checker_result_t g pre (Some post_hint))
   =
+  let sc_range = sc.range in // save range, it gets lost otherwise
   let orig_brs = brs in
   let (| sc, sc_ty, sc_typing |) = check_term g sc in
+  let sc_u = u_zero in // fixme
   let elab_pats = L.map elab_pat (L.map fst brs) in
 
   let (| elab_pats', bnds', complete_d |) : (pats : list R.pattern & list (list R.binding) & pats_complete g sc sc_ty pats) =
     match T.check_match_complete (elab_env g) (elab_term sc) (elab_term sc_ty) elab_pats with
-    | None -> fail g (Some sc.range) "Could not check that match is correct"
-    | Some (| elab_pats, bnds, tok |) ->
-      (| elab_pats, bnds, PC_Elab _ _ _ _ _ (RT.MC_Tok _ _ _ _ _ tok) |)
+    | None -> fail g (Some sc_range) "Could not check that match is correct/complete"
+    | Some ( elab_pats, bnds ) ->
+      (| elab_pats, bnds, PC_Elab _ _ _ _ _ (RT.MC_Tok _ _ _ _ bnds ()) |)
   in
   let new_pats = map_opt readback_pat elab_pats' in 
   if None? new_pats then
-    fail g (Some sc.range) "failed to readback new patterns";
+    fail g (Some sc_range) "failed to readback new patterns";
   let brs = zipWith (fun p (_, e) -> (p,e)) (Some?.v new_pats) brs in
   assume (L.length brs == L.length bnds');
-  let (| brs, c, brs_d |) = check_branches g pre pre_typing post_hint check brs bnds' in
-  assume (L.map (fun (p, _) -> elab_pat p) brs == elab_pats'); // provable
+  assume (L.length elab_pats' = L.length brs);
+  assume (L.length (zip elab_pats' bnds') == L.length bnds');
+  let (| brs, c, brs_d |) = check_branches g pre pre_typing post_hint check sc_u sc_ty sc brs (zip elab_pats' bnds') in
+  assume (L.map (fun (p, _) -> elab_pat p) brs == elab_pats');
   (| _,
      c,
-     T_Match g sc _ (E sc_typing) c brs brs_d complete_d |)
+     T_Match g sc_u sc_ty sc (magic ()) (E sc_typing) c brs brs_d complete_d |)

@@ -1,4 +1,5 @@
 module Pulse.Typing
+
 module RT = FStar.Reflection.Typing
 module R = FStar.Reflection.V2
 open Pulse.Reflection.Util
@@ -43,6 +44,13 @@ let mk_eq2 (u:universe)
   = tm_pureapp
          (tm_pureapp (tm_pureapp (tm_uinst (as_fv R.eq2_qn) [u]) (Some Implicit) t)
                      None e0) None e1
+
+let mk_sq_eq2 (u:universe)
+           (t:term)
+           (e0 e1:term) 
+  : term
+  = let eq = mk_eq2 u t e0 e1 in
+    (tm_pureapp (tm_uinst (as_fv R.squash_qn) [u]) None eq)
 
 let mk_eq2_prop (u:universe) (t:term) (e0 e1:term)
   : term
@@ -107,10 +115,10 @@ let rec all_fresh (g:env) (xs:list binding) : Tot prop (decreases xs) =
   | [] -> True
   | x::xs -> freshv g (fst x) /\ all_fresh (push_binding g (fst x) ppname_default (snd x)) xs
 
-let rec extend_env_bs (g:env) (bs:list binding{all_fresh g bs}) : Tot (g':env{env_extends g' g}) (decreases bs) =
+let rec push_bindings (g:env) (bs:list binding{all_fresh g bs}) : Tot (g':env{env_extends g' g}) (decreases bs) =
   match bs with
   | [] -> g
-  | (x,t)::bs -> extend_env_bs (push_binding g x ppname_default t) bs
+  | (x,t)::bs -> push_bindings (push_binding g x ppname_default t) bs
 
 let elab_push_binding (g:env) (x:var { ~ (Set.mem x (dom g)) }) (t:typ)
   : Lemma (elab_env (push_binding g x ppname_default t) ==
@@ -535,6 +543,16 @@ type st_comp_typing : env -> st_comp -> Type =
       tot_typing (push_binding g x ppname_default st.res) (open_term st.post x) tm_vprop ->
       st_comp_typing g st
 
+let tr_binding (vt : var & typ) : Tot R.binding =
+  let v, t = vt in
+  { 
+    uniq = v;
+    sort = elab_term t;
+    ppname = ppname_default.name;
+ }
+
+let tr_bindings = L.map tr_binding
+
 [@@ no_auto_projectors]
 noeq
 type comp_typing : env -> comp -> universe -> Type =
@@ -567,19 +585,17 @@ type comp_typing : env -> comp -> universe -> Type =
       st_comp_typing g st ->
       comp_typing g (C_STGhost inames st) st.u
 
-(* Implies freshness *)
-let bindings_for_pat_ok (g:env) (p:pattern) (bs:list binding) : Type0 =
-   match p, bs with
-   | Pat_Constant _, [] -> True
-   | Pat_Var _, [b] -> freshv g (fst b)
-   | Pat_Cons fv vs, bs -> List.length vs == List.length bs /\ all_fresh g bs
-   | _ -> False
-
-(* They are also fresh *)
-let bindings_for_pat (g:env) (p:pattern) = bs:(list binding){bindings_for_pat_ok g p bs}
-
 let prop_validity (g:env) (t:term) =
   FTB.prop_validity_token (elab_env g) (elab_term t)
+
+val readback_binding : R.binding -> binding
+let readback_binding b =
+  assume (host_term == R.term); // fixme! expose this fact
+  match readback_ty b.sort with
+  | Some sort -> (b.uniq, sort)
+  | None ->
+    let sort : term = {t=Tm_FStar b.sort; range=T.range_of_term b.sort} in
+    (b.uniq, sort)
 
 [@@ no_auto_projectors]
 noeq
@@ -682,13 +698,15 @@ type st_typing : env -> st_term -> comp -> Type =
 
   | T_Match :
       g:env ->
+      sc_u:universe ->
+      sc_ty:typ ->
       sc:term ->
-      scty:typ ->
-      tot_typing g sc scty ->
+      tot_typing g sc_ty (tm_type sc_u) ->
+      tot_typing g sc sc_ty ->
       c:comp_st ->
       brs:list (pattern & st_term) ->
-      brs_typing g brs c ->
-      pats_complete g sc scty (L.map (fun (p, _) -> elab_pat p) brs) ->
+      brs_typing g sc_u sc_ty sc brs c ->
+      pats_complete g sc sc_ty (L.map (fun (p, _) -> elab_pat p) brs) ->
       st_typing g (wr (Tm_Match {sc; returns_=None; brs})) c
 
   | T_Frame:
@@ -825,37 +843,47 @@ and pats_complete : env -> term -> typ -> list R.pattern -> Type0 =
   | PC_Elab :
     g:env ->
     sc:term ->
-    scty:typ ->
+    sc_ty:typ ->
     pats:list R.pattern ->
     bnds:list (list R.binding) ->
-    RT.match_is_complete (elab_env g) (elab_term sc) (elab_term scty) pats bnds ->
-    pats_complete g sc scty pats
+    RT.match_is_complete (elab_env g) (elab_term sc) (elab_term sc_ty) pats bnds ->
+    pats_complete g sc sc_ty pats
 
-and brs_typing : env -> list branch -> comp_st -> Type =
+and brs_typing (g:env) (sc_u:universe) (sc_ty:typ) (sc:term) : list branch -> comp_st -> Type =
   | TBRS_0 :
-      g:env ->
       c:comp_st ->
-      brs_typing g [] c
+      brs_typing g sc_u sc_ty sc [] c
 
   | TBRS_1 :
-      g:env ->
       c:comp_st ->
       p:pattern ->
       e:st_term ->
-      br_typing g p e c ->
+      br_typing g sc_u sc_ty sc p e c ->
       rest:list branch ->
-      brs_typing g rest c ->
-      brs_typing g ((p,e)::rest) c
+      brs_typing g sc_u sc_ty sc rest c ->
+      brs_typing g sc_u sc_ty sc ((p,e)::rest) c
 
-and br_typing : env -> pattern -> st_term -> comp_st -> Type =
+and br_typing : env -> universe -> typ -> term -> pattern -> st_term -> comp_st -> Type =
   | TBR :
       g:env ->
+      sc_u : universe ->
+      sc_ty : typ ->
+      sc:term ->
       c:comp_st ->
       p:pattern ->
       e:st_term ->
-      bs:bindings_for_pat g p ->
-      st_typing (extend_env_bs g bs) e c ->
-      br_typing g p e c
+      bs:(list R.binding){RT.bindings_ok_for_pat bs (elab_pat p)} ->
+      _ : squash (all_fresh g (L.map readback_binding bs)) ->
+      _ : squash (Some? (RT.elaborate_pat (elab_pat p) bs)) ->
+      _ : squash (~(R.Tv_Unknown? (R.inspect_ln (fst (Some?.v (RT.elaborate_pat (elab_pat p) bs)))))) -> // should be provable from defn of elaborate_pat
+      hyp:var {freshv (push_bindings g (L.map readback_binding bs)) hyp} ->
+      st_typing (
+         push_binding (push_bindings g (L.map readback_binding bs))
+              hyp
+              ({name=Sealed.seal "branch equality"; range=FStar.Range.range_0})
+              (mk_sq_eq2 sc_u sc_ty sc (tm_fstar (fst (Some?.v (RT.elaborate_pat (elab_pat p) bs))) Range.range_0))
+         ) e c ->
+      br_typing g sc_u sc_ty sc p (close_st_term_n e (L.map fst (L.map readback_binding bs))) c
 
 (* this requires some metatheory on FStar.Reflection.Typing
 
