@@ -1,4 +1,4 @@
-module InferenceParallel
+module Assert
 module PM = Pulse.Main
 open Steel.ST.Util 
 open Steel.ST.Reference
@@ -7,6 +7,34 @@ open FStar.Ghost
 open Pulse.Steel.Wrapper
 
 module U32 = FStar.UInt32
+
+(*
+```pulse
+fn test_assert (r0 r1: ref nat)
+               (#p0 #p1:perm)
+               (#v0:nat)
+    requires 
+        pts_to r0 p0 v0 **
+        (exists v1. pts_to r1 p1 v1)
+    ensures
+        pts_to r0 p0 v0 **
+        (exists v1. pts_to r1 p1 v1)
+{
+    //assert_ (pts_to r1 ?p1 ?v1); would be nice to have a version that also binds witnesses
+    assert_ (pts_to r0 p0 (v0 + 0));
+    ()
+}
+```
+
+```pulse
+fn thread (r: ref nat) (incr: nat) (#v: nat)
+    requires pts_to r full_perm v
+    ensures pts_to r full_perm (v + incr)
+{
+    r := v + incr
+}
+```
+*)
 
 ```pulse
 fn write (r: ref U32.t) (#n: erased U32.t)
@@ -23,57 +51,35 @@ fn write (r: ref U32.t) (#n: erased U32.t)
 
 
 ```pulse
-fn test_par (r1 r2 r3:ref U32.t)
-            (#n1 #n2 #n3:erased U32.t)
+fn test_par (r1 r2 r3 r4:ref U32.t)
+            (#n1 #n2 #n3 #n4:erased U32.t)
   requires 
     (pts_to r1 full_perm n1 **
      pts_to r2 full_perm n2 **
-     pts_to r3 full_perm n3)
+     pts_to r3 full_perm n3 **
+     pts_to r4 full_perm n4)
   ensures
-    (pts_to r1 full_perm n1 **
+    (pts_to r1 full_perm 1ul **
      pts_to r2 full_perm 1ul **
-     pts_to r3 full_perm 1ul)
+     pts_to r3 full_perm 1ul **
+     pts_to r4 full_perm 1ul
+    )
 {
   parallel
     requires (_) and (_)
     ensures  (_) and (_)
   {
-    // context: A * B * C
-     write r1 #n1 // Goes to C_ST
-     //s1; // A -> A (frame B * C)
-     //s2 // B -> B (frame A * C)
-
-     // Algorithm:
-     // 1. Check left branch with full context
-     // 2. Extract common frame F from the typing derivation
-     // 3. Remove this frame from the left
-     // 4. Use this frame to type check right branch
-
-     // exists v. (r -> v * B)
-     // (exists v. r -> v) * B
-
-(*
-     Seq
-     (Frame (B * C) (... s1...))
-     (Frame (A * C) (... s2...))
-    -->
-    Frame C (
-     Seq
-     (Frame B (... s1...))
-     (Frame A (... s2...)))
-
-// Two lemmas needed
-     Seq (Frame C ...) (Frame C ...)
-     ==> Frame C (Seq ... ...)
-
-     Frame (B * C) s
-     ==> Frame C (Frame B s)
-     *)
-
-   }
+     //write r1 #n1 // Goes to C_ST
+    r1 := 1ul; // r3 * r4 (r2)
+    r2 := 1ul; // r3 * r4 (r1)
+    r3 := 1ul
+    // intersection: r3 * r4
+    // difference: r1 * r2
+  }
   {
-     r2 := 1ul;
-     r3 := 1ul
+     //r1 := 1ul;
+     r4 := 2ul;
+     r4 := 1ul
   };
   ()
 }
