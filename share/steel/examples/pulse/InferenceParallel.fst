@@ -1,4 +1,4 @@
-module Assert
+module InferenceParallel
 module PM = Pulse.Main
 open Steel.ST.Util 
 open Steel.ST.Reference
@@ -71,14 +71,15 @@ fn test_par (r1 r2 r3 r4:ref U32.t)
   {
      //write r1 #n1 // Goes to C_ST
     r1 := 1ul; // r3 * r4 (r2)
-    r2 := 1ul; // r3 * r4 (r1)
-    r3 := 1ul
+    r3 := 1ul; // r3 * r4 (r1)
+    //r3 := 1ul
     // intersection: r3 * r4
     // difference: r1 * r2
   }
   {
      //r1 := 1ul;
      r4 := 2ul;
+     r2 := 1ul;
      r4 := 1ul
   };
   ()

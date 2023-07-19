@@ -49,6 +49,7 @@ let st_equiv_to_string (#g: env) #c1 #c2 (level: string) (eq: st_equiv g c1 c2)
   level
   (term_to_string (comp_post c2))
 
+#push-options "--z3rlimit_factor 30"
 let rec st_typing_to_string' (#g:env) (#t:st_term) (#c:comp) (level: string) (ty: st_typing g t c)
 //let rec st_typing_to_string (ty: st_typing)
   : T.Tac string
@@ -90,8 +91,13 @@ let create_st_equiv (g: env) (c: comp_st) (c': comp_st)
 = let x = fresh g in
   assume ( ~(x `Set.mem` freevars (comp_post c)) /\
           ~(x `Set.mem` freevars (comp_post c')) );
-  assume false;
-  ST_VPropEquiv g c c' x (magic()) (magic()) (magic()) (magic()) (magic())
+  assume (st_equiv_pre c c');
+  let tot1: tot_typing g (comp_pre c) tm_vprop = magic() in
+  let tot2: tot_typing g (comp_res c) (tm_type (comp_u c))  = magic() in
+  let tot3: tot_typing (push_binding g x ppname_default (comp_res c)) (open_term (comp_post c) x) tm_vprop = magic() in
+  let equiv_pre: vprop_equiv g (comp_pre c) (comp_pre c') = magic() in
+  let equiv_post: vprop_equiv (push_binding g x ppname_default (comp_res c)) (open_term (comp_post c) x) (open_term (comp_post c') x) = magic() in
+  ST_VPropEquiv g c c' x tot1 tot2 tot3 equiv_pre equiv_post
 
 // This function replaces T_Frame with empty frames by T_Equiv
 let rec replace_frame_emp_with_equiv #g #t #c (ty: st_typing g t c):
@@ -289,7 +295,6 @@ let from_list_to_term (r: range) (l: list host_term): term
   let temp: vprop = with_range Tm_Emp r in
   fold_left (star_with_range r) temp l'
 
-#push-options "--z3rlimit_factor 50"
 let rec extract_common_frame #g #t #c (inter: list host_term) (ty: st_typing g t c):
   T.Tac (st_typing g t c) (decreases ty)
   = match ty with
@@ -298,8 +303,8 @@ let rec extract_common_frame #g #t #c (inter: list host_term) (ty: st_typing g t
   let c1 = add_frame c0 f1 in
   let f2 = from_list_to_term frame.range inter in
   let c2 = add_frame c1 f2 in
-  let tot_ty1: Ghost.erased (tot_typing g f1 tm_vprop) = admit() in
-  let tot_ty2: Ghost.erased (tot_typing g f2 tm_vprop) = admit() in
+  let tot_ty1: Ghost.erased (tot_typing g f1 tm_vprop) = magic() in
+  let tot_ty2: Ghost.erased (tot_typing g f2 tm_vprop) = magic() in
   let ty1 = T_Frame g e c0 f1 tot_ty1 ty' in
   let ty2 = T_Frame g e c1 f2 tot_ty2 ty1 in
   let st_eq: st_equiv g c2 c = create_st_equiv g c2 c in
@@ -327,9 +332,9 @@ let rec bring_frame_top #g #t #c (ty: st_typing g t c):
   = match ty with
   | T_Frame g e c0 frame tot_ty ty' -> // Frame already at the top: Good
   (
-    T.print "Frame already at the top, good";
-    T.print (term_to_string (comp_pre c0));
-    T.print (term_to_string (comp_pre c));
+    //T.print "Frame already at the top, good";
+    //T.print (term_to_string (comp_pre c0));
+    //T.print (term_to_string (comp_pre c));
     Mkdtuple3 c ty (create_st_equiv g c c)
   )
   | T_Equiv _ _ c1 _ ty1 eq1 -> 
@@ -385,26 +390,18 @@ let rec bring_frame_top #g #t #c (ty: st_typing g t c):
 
 // assuming ty is the typing derivation of the left branch
 let get_typing_deriv_and_frame #g #t #c (ty: st_typing g t c):
-  T.Tac (c':comp & st_typing g t c' & vprop)
-  //: T.Tac (c': comp & st_typing g t c' & st_equiv g c' c) (decreases ty)
-  // remove and put an equiv?
+  T.Tac (c':comp & st_typing g t c' & vprop) (decreases ty)
 = let r = bring_frame_top ty in
-let c': comp = r._1 in
-let ty': st_typing g t c' = r._2 in
-(
-  T.print "Bringing frame at the top";
-  T.print (st_typing_to_string ty');
-let eq: st_equiv g c' c = r._3 in
-match ty' with
-| T_Frame _ _ c'' f tot ty' -> 
-(
-  T.print "Weird! Comparing the two preconditions";
-  T.print (term_to_string (comp_pre c'));
-  T.print "Second precondition";
-  T.print (term_to_string (comp_pre c''));
-Mkdtuple3 c'' ty' f)
-| _ -> fail g None "Did not find a frame at the top..."
-)
+  let c': comp = r._1 in
+  let ty': st_typing g t c' = r._2 in
+  (
+    //T.print "Bringing frame at the top";
+    //T.print (st_typing_to_string ty');
+    let eq: st_equiv g c' c = r._3 in
+    match ty' with
+    | T_Frame _ _ c'' f tot ty' -> Mkdtuple3 c'' ty' f
+    | _ -> fail g None "Did not find a frame at the top..."
+  )
 
 
 let check_par
@@ -416,72 +413,29 @@ let check_par
   (post_hint:post_hint_opt g)
   (check':bool -> check_t)
   : T.Tac (checker_result_t g pre post_hint) =
-  (//assume false;
-    let modify_ast = false in
-    // if true: Typechecks the left branch only once, and modifies the type derivation
-    // if false: Typechecks the left branch twice
+  (
     let g = push_context "check_par" t.range g in
     let Tm_Par {pre1=preL; body1=eL; post1=postL; pre2=preR; body2=eR; post2=postR} = t.term in
     // Step 1: Type left branch in full context
-    // The postcondition hint might be misleading, so we ignore it (for the moment)
-    // TODO
+    // The postcondition hint might be misleading, so we ignore it (for the moment; TODO: Can be used in both approaches)
     let (| eL_t, cL_t, eL_typing_t |) = check' allow_inst g eL pre pre_typing None in
     // Step 2: Find the common frame:
     let ty = simplify_st_typing eL_typing_t in
     let inter = compute_intersection_list (collect_frames ty) in
-    // let ((| cL, eL_typing, new_preR |) = (
-    //let ((| eL, cL, eL_typing |), new_preR) = (
-      (*
-      if modify_ast then 
-        let new_preL = remove_from_vprop inter pre in
-        let new_preR = from_list_to_term preR.range inter in
-        let ty' = extract_common_frame inter ty in
-        let r = get_typing_deriv_and_frame ty' in
-        let cL = r._1 in
-        let eL_typing = r._2 in
-        let new_preR = r._3 in
-        admit()
-      else
-      *)
-      // OPTION 2
-      // We find the new left and right preconditions, and simply retypecheck
+    // START APPROACH 1: We modify the type derivation (avoids retypechecking)
+      let r = get_typing_deriv_and_frame (extract_common_frame inter ty) in
+      let (| cL, eL_typing, new_preR |) = r
+    // END APPROACH 1
+    // START APPROACH 2: We find the new left and right preconditions, and simply retypecheck
+    (*
       let new_preL = remove_from_vprop inter pre in
       let new_preR = from_list_to_term preR.range inter in
-      let (| preL, preL_typing |) =
-        check_term_with_expected_type g new_preL tm_vprop in
+      let (| preL, preL_typing |) = check_term_with_expected_type g new_preL tm_vprop in
       let postL_hint = (if Tm_Unknown? postL.t then None else Some (intro_post_hint g None postL)) in
       let (| eL, cL, eL_typing |) = check' allow_inst g eL preL (E preL_typing) postL_hint
-      //(| cL, eL_typing, new_preR |)
-    in
-    //(T.print "Left precondition:";
-    //T.print (term_to_string new_preL);
-    //T.print "Right precondition:";
-    //T.print (term_to_string new_preR);
-    //T.print "Inter:";
-    //T.print (st_typing_to_string ty');
-    //T.print "Bring frame to top:";
-    (*
-      let r = bring_frame_top ty' in
-      let c': comp = r._1 in
-      let ty'': st_typing g t c' = r._2 in
-      T.print (st_typing_to_string ty'')
-    );*)
-    // Option 1
-    (*
-    let (| preL, preL_typing |) =
-      check_term_with_expected_type g new_preL tm_vprop in
-    let (| eL, cL, eL_typing |) =
-      check' allow_inst g eL preL (E preL_typing) postL_hint in
     *)
-    // Option 2
-
-  (*
-    T.print "Option 2";
-    T.print (comp_to_string cL);
-    T.print (term_to_string new_preR);
-    T.print "Now, derivation";
-    T.print (st_typing_to_string eL_typing);
-    T.print "The end!";*)
+    // END APPROACH 2
+  in
   let (| preR, preR_typing |) =
     check_term_with_expected_type g new_preR tm_vprop in
   if C_ST? cL
