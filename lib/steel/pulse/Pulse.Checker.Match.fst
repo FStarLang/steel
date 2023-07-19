@@ -10,13 +10,20 @@ open Pulse.Typing
 open Pulse.Checker.Pure
 open Pulse.Checker.Common
 
-let rec zipWith (f : 'a -> 'b -> T.Tac 'c) (l : list 'a) (m : list 'b) : T.Tac (list 'c) =
+let rec zipWith (f : 'a -> 'b -> T.Tac 'c) (l : list 'a) (m : list 'b)
+  : T.Tac (l':(list 'c){L.length l' == min (L.length l) (L.length m)})
+  =
   match l, m with
   | [], [] -> []
   | x::xs, y::ys -> f x y :: zipWith f xs ys
   | _ -> T.fail "zipWith: length mismatch"
   
-  
+val zip : (#a:Type) -> (#b:Type) -> l1:list a -> l2:list b ->
+  Tot (l:list (a * b){L.length l == min (L.length l1) (L.length l2)})
+let rec zip #a #b l1 l2 = match l1, l2 with
+    | x::xs, y::ys -> (x,y) :: (zip xs ys)
+    | _ -> []
+
 let rec map_opt f l = match l with
   | [] -> Some []
   | x::xs ->
@@ -48,16 +55,35 @@ let rec lemma_map_index (f : 'a -> 'b) (xs : list 'a) (i : nat{i < L.length xs})
     | 0, _ -> ()
     | _, x::xs -> lemma_map_index f xs (i-1)
 
+let rec __lemma_map_opt_lenx (f : 'a -> option 'b) (xs : list 'a) (ys : list 'b)
+  : Lemma (requires map_opt f xs == Some ys)
+          (ensures L.length xs == L.length ys)
+  = match xs, ys with
+    | [], [] -> ()
+    | x::xs, y::ys ->
+      __lemma_map_opt_lenx f xs ys
+    | _ ->
+      assert False
+
 let lemma_map_opt_lenx (f : 'a -> option 'b) (xs : list 'a)
   : Lemma (requires Some? (map_opt f xs))
           (ensures L.length xs == L.length (Some?.v (map_opt f xs)))
           [SMTPat (map_opt f xs)]
-  = admit ()
+  = let Some ys = map_opt f xs in
+    __lemma_map_opt_lenx f xs ys
+
+let rec __lemma_map_opt_index (f : 'a -> option 'b) (xs : list 'a) (ys : list 'b) (i:nat{i < L.length xs})
+  : Lemma (requires map_opt f xs == Some ys)
+          (ensures f (xs `L.index` i) == Some (ys `L.index` i))
+  = match xs, ys, i with
+    | _, _, 0 -> ()
+    | x::xs, y::ys, _ ->
+     __lemma_map_opt_index f xs ys (i-1)
 
 let lemma_map_opt_index (f : 'a -> option 'b) (xs : list 'a) (ys : list 'b)
   : Lemma (requires map_opt f xs == Some ys)
           (ensures forall i. f (xs `L.index` i) == Some (ys `L.index` i))
-  = admit ()
+  = Classical.forall_intro (Classical.move_requires (__lemma_map_opt_index f xs ys))
 
 let readback_pat (p : R.pattern) : option pattern =
   match p with
@@ -80,33 +106,33 @@ let elab_readback_pat (p : R.pattern)
           (ensures elab_pat (Some?.v (readback_pat p)) == p)
   = match p with
   | R.Pat_Cons fv us_opt args ->
-    admit()
-    (* assert (R.pack_fv (R.inspect_fv fv) == fv); *)
-    (* let Some rd_pat_vars = map_opt readback_pat_var args in *)
-    (* let R.Pat_Cons fv' us_opt' args' = elab_pat (Some?.v (readback_pat p)) in *)
-    (* lemma_map_opt_index readback_pat_var args rd_pat_vars; *)
-    (* let aux1 (i:nat{i < L.length args'}) *)
-    (* : Lemma (args `L.index` i == (L.map elab_pat_arg rd_pat_vars) `L.index` i) *)
-    (* = *)
-    (*   calc (==) { *)
-    (*     L.map elab_pat_arg rd_pat_vars `L.index` i; *)
-    (*     == { lemma_map_index elab_pat_arg rd_pat_vars i } *)
-    (*     elab_pat_arg (rd_pat_vars `L.index` i); *)
-    (*     == { () } *)
-    (*     elab_pat_arg (Some?.v (readback_pat_var (args `L.index` i))); *)
-    (*     == { Sealed.sealed_singl (Sealed.seal RT.tun) (R.Pat_Var?.sort (fst (args `L.index` i))) } *)
-    (*     args `L.index` i; *)
-    (*   } *)
-    (* in *)
-    (* Classical.forall_intro aux1; *)
-    (* FStar.List.Tot.Properties.index_extensionality  *)
-    (*     (L.map elab_pat_arg rd_pat_vars) *)
-    (*     args; *)
+    admit ()
+    // assert (R.pack_fv (R.inspect_fv fv) == fv); 
+    // let Some rd_pat_vars = map_opt readback_pat_var args in 
+    // let R.Pat_Cons fv' us_opt' args' = elab_pat (Some?.v (readback_pat p)) in 
+    // lemma_map_opt_index readback_pat_var args rd_pat_vars; 
+    // let aux1 (i:nat{i < L.length args'}) 
+    // : Lemma (args `L.index` i == (L.map elab_pat_arg rd_pat_vars) `L.index` i) 
+    // = 
+    //   calc (==) { 
+    //     L.map elab_pat_arg rd_pat_vars `L.index` i; 
+    //     == { lemma_map_index elab_pat_arg rd_pat_vars i } 
+    //     elab_pat_arg (rd_pat_vars `L.index` i); 
+    //     == { () } 
+    //     elab_pat_arg (Some?.v (readback_pat_var (args `L.index` i))); 
+    //     == { Sealed.sealed_singl (Sealed.seal RT.tun) (R.Pat_Var?.sort (fst (args `L.index` i))) } 
+    //     args `L.index` i; 
+    //   } 
+    // in 
+    // Classical.forall_intro aux1; 
+    // FStar.List.Tot.Properties.index_extensionality  
+    //     (L.map elab_pat_arg rd_pat_vars) 
+    //     args; 
 
-    (* assert (fv == fv'); *)
-    (* assume (us_opt == us_opt'); *)
-    (* assert (args == args'); *)
-    (* () *)
+    // assert (fv == fv'); 
+    // assume (us_opt == us_opt'); 
+    // assert (args == args'); 
+    // () 
   | R.Pat_Constant c -> ()
   | R.Pat_Var st nm ->
     Sealed.sealed_singl st (Sealed.seal RT.tun);
@@ -246,10 +272,7 @@ let check_branches
   in
   (| brs, c0, d |)
 
-val zip : (#a:Type) -> (#b:Type) -> list a -> list b -> Tot (list (a * b))
-let rec zip #a #b l1 l2 = match l1, l2 with
-    | x::xs, y::ys -> (x,y) :: (zip xs ys)
-    | _ -> []
+#push-options "--z3rlimit 20"
 
 let check_match
         (g:env)
@@ -263,25 +286,50 @@ let check_match
   =
   let sc_range = sc.range in // save range, it gets lost otherwise
   let orig_brs = brs in
-  let (| sc, sc_ty, sc_typing |) = check_term g sc in
-  let sc_u = u_zero in // fixme
+  let nbr = L.length brs in
+
+  let (| sc, sc_u, sc_ty, sc_ty_typing, sc_typing |) = check_term_and_type g sc in
   let elab_pats = L.map elab_pat (L.map fst brs) in
 
-  let (| elab_pats', bnds', complete_d |) : (pats : list R.pattern & list (list R.binding) & pats_complete g sc sc_ty pats) =
+  lemma_map_len fst brs;
+  assert (L.length brs == L.length (L.map fst brs));
+  assert (L.length brs == L.length (L.map elab_pat (L.map fst brs)));
+  lemma_map_len elab_pat (L.map fst brs);
+
+  assert (L.length elab_pats == L.length brs);
+
+  let (| elab_pats', bnds', complete_d |)
+    : (pats : (list R.pattern){L.length pats == nbr}
+        & bnds : (list (list R.binding)){L.length bnds == nbr}
+        & pats_complete g sc sc_ty pats)
+  =
     match T.check_match_complete (elab_env g) (elab_term sc) (elab_term sc_ty) elab_pats with
     | None -> fail g (Some sc_range) "Could not check that match is correct/complete"
-    | Some ( elab_pats, bnds ) ->
-      (| elab_pats, bnds, PC_Elab _ _ _ _ _ (RT.MC_Tok _ _ _ _ bnds ()) |)
+    | Some (elab_pats', bnds) ->
+      assume (L.length elab_pats' == L.length elab_pats); // FIXME: enhance F* api to ensure this
+      assume (L.length bnds       == L.length elab_pats); // FIXME: enhance F* api to ensure this
+      (| elab_pats', bnds, PC_Elab _ _ _ _ _ (RT.MC_Tok _ _ _ _ bnds ()) |)
   in
   let new_pats = map_opt readback_pat elab_pats' in 
   if None? new_pats then
     fail g (Some sc_range) "failed to readback new patterns";
   let brs = zipWith (fun p (_, e) -> (p,e)) (Some?.v new_pats) brs in
-  assume (L.length brs == L.length bnds');
-  assume (L.length elab_pats' = L.length brs);
-  assume (L.length (zip elab_pats' bnds') == L.length bnds');
+  
+  assume (L.map fst brs == Some?.v new_pats);
+  
+  lemma_map_opt_lenx readback_pat elab_pats';
+
+  // Making sure lengths match.
+  assert (L.length elab_pats == nbr);
+  assert (L.length elab_pats == nbr);
+  assert (L.length elab_pats' == nbr);
+  assert (L.length (Some?.v new_pats) == nbr);
+  assert (L.length bnds' == nbr);
+  assert (L.length elab_pats' == nbr);
+  assert (L.length (zip elab_pats' bnds') == nbr);
+
   let (| brs, c, brs_d |) = check_branches g pre pre_typing post_hint check sc_u sc_ty sc brs (zip elab_pats' bnds') in
   assume (L.map (fun (p, _) -> elab_pat p) brs == elab_pats');
   (| _,
      c,
-     T_Match g sc_u sc_ty sc (magic ()) (E sc_typing) c brs brs_d complete_d |)
+     T_Match g sc_u sc_ty sc sc_ty_typing (E sc_typing) c brs brs_d complete_d |)
