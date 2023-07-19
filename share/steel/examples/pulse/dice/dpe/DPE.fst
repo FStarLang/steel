@@ -25,6 +25,10 @@ friend Pulse.Steel.Wrapper
 
 (* L1 Context -- to be moved *)
 
+//
+// I think we should also store public keys,
+//   and device ID keys in the context
+//
 noeq
 type l1_context = { aliasKey_priv: A.larray U8.t 32;
                     aliasKeyCRT: A.array U8.t;
@@ -69,6 +73,17 @@ type repr_t =
   | Engine_repr : r:engine_record_repr -> repr_t
   | L0_repr     : r:l0_record_repr -> repr_t
 
+//
+// An alternative style here would be to write it as:
+// let record_perm (t_rec : record_t) : vprop =
+//   match t_rec with
+//   | Engine_record r ->
+//     (exists s. pts_to r.l0_image_header s) *
+//     ...
+//
+// I wonder what are the pros and cons
+// Perhaps a record repr makes it easier to keep pure invariants?
+//
 let record_perm (t_rec:record_t) (t_rep:repr_t) : vprop = 
   match t_rec with
   | Engine_record r -> (
@@ -98,6 +113,12 @@ fn alloc_ht (#s:ht_sig)
   returns _:ht_ref_t s
   ensures emp
 {
+  //
+  // since the table is imperative,
+  // we will just call create table here,
+  //   which will return us a table and its permission
+  // we will add the permission to the lock as we are doing below
+  //
   let ht = new_table #s;
   let ht_ref = W.alloc #(ht_t s) ht;
   let lk = W.new_lock (exists_ (fun _ht -> R.pts_to ht_ref full_perm _ht));
@@ -176,6 +197,11 @@ fn close_session (sid:nat)
   W.acquire #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
   let cht = !(dfst cht_ref);
 
+  //
+  // in the imperative table spec,
+  // we will call destroy (releasing memory) and then the permissions will go away
+  // so we won't have to call W.release
+  //
   destroy cht;
   W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
 
@@ -184,7 +210,12 @@ fn close_session (sid:nat)
 }
 ```
 
-// TODO: 
+//
+// TODO:
+//
+// we should type it as a stateful function,
+// else the solver may reason that it will always return the same value
+// 
 assume val prng (_:unit) : nat
 
 ```pulse
@@ -280,9 +311,21 @@ fn init_l1_ctxt (aliasKey_priv: A.larray U8.t 32) (aliasKeyCRT: A.array U8.t) (d
   Create a context in the initial state (engine context) and store the context
   in the current session's context table. 
 *)
+
+//
+// I think we should copy the array in DPE state,
+//   i.e. create a new UDS array, copy the contents,
+//   and store the new array on our state
+//
+// I am thinking cases  when DPE is running inside isolated
+//   environments
+//
+// (If we do so, we only need read-only permission on the input array.)
+//
+
 ```pulse
 fn initialize_context (sid:nat) (uds:A.larray U8.t (US.v uds_len))
-  requires (
+  requires 
     A.pts_to uds full_perm uds_bytes ** 
     uds_is_enabled **
     pure (A.is_full_array uds)

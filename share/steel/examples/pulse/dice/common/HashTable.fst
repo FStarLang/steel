@@ -28,25 +28,49 @@ type ht_sig = {
 
 let mk_ht_sig sz kt vt hashf = { sz; kt; vt; hashf }
 
-noeq
-type ht_t (s:ht_sig) = {
-  contents : A.larray (cell s.kt s.vt) s.sz;
-}
+// No functional correctness specs yet
+
+assume val ht_t (s:ht_sig) : Type0
+
+assume val ht_perm (#s:ht_sig) (tbl:ht_t s) : vprop
+
+// when we add functional correctness the lock permission will reflect it
+type ht_ref_t (s:ht_sig) = tbl:ht_t s & L.lock (ht_perm s)
+
+// noeq
+// type ht_t (s:ht_sig) = {
+//   contents : A.larray (cell s.kt s.vt) s.sz;
+// }
 
 // check out ephemeral ht itf
-type ht_ref_t (s:ht_sig) = r:R.ref (ht_t s) & L.lock (exists_ (fun ht -> R.pts_to r full_perm ht))
+// type ht_ref_t (s:ht_sig) = r:R.ref (ht_t s) & L.lock (exists_ (fun ht -> R.pts_to r full_perm ht))
 
 // Hash table interface
 
-assume val new_table (#s:ht_sig) : ht_t s
+assume val new_table (s:ht_sig)
+  : stt (ht_t s) emp (ht_perm #s)
 
-assume val store (#s:ht_sig) (ht:ht_t s) (k:s.kt) (v:s.vt) : unit
+assume val store (#s:ht_sig) (tbl:ht_t s) (k:s.kt) (v:s.vt)
+  : stt unit (ht_perm tbl) (ht_perm tbl)
 
-assume val get (#s:ht_sig) (ht:ht_t s) (k:s.kt) : s.vt
+assume val get #s (tbl:ht_t s) (k:s.kt)
+  : stt (option s.vt) (ht_perm tbl) (ht_perm tbl)
 
-assume val delete (#s:ht_sig) (ht:ht_t s) (k:s.kt) : unit
+assume val delete #s (tbl:ht_t s) (k:s.kt)
+  : stt unit (ht_perm tbl) (ht_perm tbl)
 
-assume val destroy (#s:ht_sig) (ht:ht_t s) : unit
+assume val destroy #s (tbl:ht_t s)
+  : stt unit (ht_perm tbl) (fun _ -> emp)
+
+// assume val new_table (#s:ht_sig) : ht_t s
+
+// assume val store (#s:ht_sig) (ht:ht_t s) (k:s.kt) (v:s.vt) : unit
+
+// assume val get (#s:ht_sig) (ht:ht_t s) (k:s.kt) : s.vt
+
+// assume val delete (#s:ht_sig) (ht:ht_t s) (k:s.kt) : unit
+
+// assume val destroy (#s:ht_sig) (ht:ht_t s) : unit
 
 // Session ID types
 
