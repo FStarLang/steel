@@ -31,7 +31,12 @@ fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
   )
 {
   let mut i = 0sz;
-  while (let vi = !i; if US.(vi <^ l) { let v1 = op_Array_Access a1 vi #(coerce l s1) #p1; let v2 = op_Array_Access a2 vi #(coerce l s2) #p2; (v1 = v2) } else { false } )
+  while (let vi = !i; 
+    if US.(vi <^ l) { 
+      let v1 = op_Array_Access a1 vi #(coerce l s1) #p1; 
+      let v2 = op_Array_Access a2 vi #(coerce l s2) #p2; 
+      (v1 = v2) } 
+    else { false } )
   invariant b. exists (vi:US.t). ( 
     R.pts_to i full_perm vi **
     A.pts_to a1 p1 s1 **
@@ -44,6 +49,43 @@ fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
   )
   {
     let vi = !i; 
+    i := US.(vi +^ 1sz);
+    ()
+  };
+  let vi = !i;
+  let res = vi = l;
+  res
+}
+```
+
+```pulse 
+fn memcpy (#t:eqtype) (l:US.t) (src dst:A.larray t (US.v l))
+          (#p:perm) (#src0 #dst0:Ghost.erased (elseq t l))
+  requires (
+    A.pts_to src p src0 **
+    A.pts_to dst full_perm dst0
+  )
+  ensures (
+    A.pts_to src p src0 **
+    A.pts_to dst full_perm src0
+  )
+{
+  let mut i = 0sz;
+  while (let vi = !i; US.(vi <^ l) )
+  invariant b. exists (vi:US.t) (s:elseq t l). ( 
+    R.pts_to i full_perm vi **
+    A.pts_to src p src0 **
+    A.pts_to dst full_perm s **
+    pure (
+      US.v vi <= US.v l /\
+      b == (US.(vi <^ l)) /\
+      (forall (i:nat). i < US.v vi ==> Seq.index src0 i == Seq.index s i)
+    )
+  )
+  {
+    let vi = !i;
+    let x = op_Array_Access src vi #src0 #p;
+    (dst.(vi) <- x);
     i := US.(vi +^ 1sz);
     ()
   };
