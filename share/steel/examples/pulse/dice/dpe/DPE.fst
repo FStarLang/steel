@@ -26,19 +26,17 @@ friend Pulse.Steel.Wrapper
 (* L1 Context -- to be moved *)
 
 noeq
-type l1_context = { aliasKey_priv: A.larray U8.t (US.v v32us);
-                    aliasKey_pub: A.larray U8.t (US.v v32us);
+type l1_context = { aliasKey_priv: A.larray U8.t 32;
                     aliasKeyCRT: A.array U8.t;
                     deviceIDCSR: A.array U8.t; }
 
 let l1_context_perm (c:l1_context)
   : vprop
   = exists_ (fun s -> A.pts_to c.aliasKey_priv full_perm s) `star`
-    exists_ (fun s -> A.pts_to c.aliasKey_pub full_perm s) `star`
     exists_ (fun s -> A.pts_to c.aliasKeyCRT full_perm s) `star`
     exists_ (fun s -> A.pts_to c.deviceIDCSR full_perm s)
 
-let mk_l1_context aliasKey_priv aliasKey_pub aliasKeyCRT deviceIDCSR = { aliasKey_priv; aliasKey_pub; aliasKeyCRT; deviceIDCSR }
+let mk_l1_context aliasKey_priv aliasKeyCRT deviceIDCSR = { aliasKey_priv; aliasKeyCRT; deviceIDCSR }
 
 (* Context *)
 noeq
@@ -197,13 +195,11 @@ fn init_engine_ctxt (uds:A.larray U8.t (US.v uds_len))
     pure (A.is_full_array uds)
   )
   returns _:locked_context_t
-  ensures A.pts_to uds full_perm uds_bytes
+  ensures emp
 {
-  let uds_buf = new_array 0uy uds_len;
-  memcpy uds_len uds uds_buf;
-  let engine_context = mk_engine_context uds_buf;
+  let engine_context = mk_engine_context uds;
 
-  rewrite (A.pts_to uds_buf full_perm uds_bytes) 
+  rewrite (A.pts_to uds full_perm uds_bytes) 
     as (A.pts_to engine_context.uds full_perm uds_bytes);
   rewrite (A.pts_to engine_context.uds full_perm uds_bytes `star` 
            uds_is_enabled `star`
@@ -222,20 +218,17 @@ fn init_engine_ctxt (uds:A.larray U8.t (US.v uds_len))
 ```pulse
 fn init_l0_ctxt (cdi:A.larray U8.t (US.v dice_digest_len))
   requires exists (s:elseq U8.t dice_digest_len). 
-    A.pts_to cdi full_perm s **
+    (A.pts_to cdi full_perm s) **
     pure (A.is_full_array cdi)
   returns _:locked_context_t
-  ensures exists (s:elseq U8.t dice_digest_len). 
-    A.pts_to cdi full_perm s
+  ensures emp
 {
-  let cdi_buf = new_array 0uy dice_digest_len;
-  memcpy dice_digest_len cdi cdi_buf;
-  let l0_context = mk_l0_context cdi_buf;
+  let l0_context = mk_l0_context cdi;
 // FIXME: pulse can't prove equality in the following two rewrites 
 // has something to do with not unwrapping the existential
-  // rewrite (exists_ (fun s -> A.pts_to cdi_buf full_perm s)) 
+  // rewrite (exists_ (fun s -> A.pts_to cdi full_perm s)) 
   //   as (exists_ (fun s -> A.pts_to l0_context.cdi full_perm s)); 
-  drop_ (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to cdi_buf full_perm s));
+  drop_ (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to cdi full_perm s));
   assume_ (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to l0_context.cdi full_perm s));
   assume_ (pure(A.is_full_array l0_context.cdi));
   rewrite (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to l0_context.cdi full_perm s) 
@@ -248,33 +241,15 @@ fn init_l0_ctxt (cdi:A.larray U8.t (US.v dice_digest_len))
 }
 ```
 
-assume val coerce_seq_create (l:US.t) (s:(Seq.seq U8.t){s == Seq.create (US.v l) 0uy}) : elseq U8.t l
-
 ```pulse
-fn init_l1_ctxt (deviceIDCSR_len: US.t) (aliasKeyCRT_len: US.t) 
-                (aliasKey_priv: A.larray U8.t (US.v v32us)) (aliasKey_pub: A.larray U8.t (US.v v32us)) 
-                (deviceIDCSR: A.larray U8.t (US.v deviceIDCSR_len)) (aliasKeyCRT: A.larray U8.t (US.v aliasKeyCRT_len))
-  requires exists (s1:elseq U8.t v32us). A.pts_to aliasKey_priv full_perm s1 ** 
-           exists (s2:elseq U8.t v32us). A.pts_to aliasKey_pub full_perm s2 ** 
-           exists (s3:erased (elseq U8.t deviceIDCSR_len)). A.pts_to deviceIDCSR full_perm s3 **
-           exists (s4:erased (elseq U8.t aliasKeyCRT_len)). A.pts_to aliasKeyCRT full_perm s4
+fn init_l1_ctxt (aliasKey_priv: A.larray U8.t 32) (aliasKeyCRT: A.array U8.t) (deviceIDCSR: A.array U8.t)
+  requires exists s. A.pts_to aliasKey_priv full_perm s ** 
+    exists s. A.pts_to aliasKeyCRT full_perm s **
+    exists s. A.pts_to deviceIDCSR full_perm s
   returns _:locked_context_t
-  ensures 
-    exists s. A.pts_to aliasKey_priv full_perm s ** 
-    exists s. A.pts_to aliasKey_pub full_perm s ** 
-    exists s. A.pts_to deviceIDCSR full_perm s **
-    exists s. A.pts_to aliasKeyCRT full_perm s
+  ensures emp
 {
-  let aliasKey_priv_buf = new_array 0uy v32us;
-  let aliasKey_pub_buf = new_array 0uy v32us;
-  let deviceIDCSR_buf = new_array 0uy deviceIDCSR_len;
-  let aliasKeyCRT_buf = new_array 0uy aliasKeyCRT_len;
-  memcpy v32us aliasKey_priv aliasKey_priv_buf;
-  memcpy v32us aliasKey_pub aliasKey_pub_buf;
-  memcpy deviceIDCSR_len deviceIDCSR deviceIDCSR_buf;
-  memcpy aliasKeyCRT_len aliasKeyCRT aliasKeyCRT_buf;
-// FIXME: copy these arrays into local bufs and store those in the context
-  let l1_context = mk_l1_context aliasKey_priv_buf aliasKey_pub_buf aliasKeyCRT_buf deviceIDCSR_buf;
+  let l1_context = mk_l1_context aliasKey_priv aliasKeyCRT deviceIDCSR;
 // FIXME: pulse can't prove equality in the following two rewrites 
 // has something to do with not unwrapping the existential
   // rewrite (exists_ (fun s -> A.pts_to aliasKey_priv full_perm s) `star`
@@ -283,16 +258,13 @@ fn init_l1_ctxt (deviceIDCSR_len: US.t) (aliasKeyCRT_len: US.t)
   //   as (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
   //       exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
   //       exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s)); 
-  drop_ (exists_ (fun s -> A.pts_to aliasKey_priv_buf full_perm s) `star`
-         exists_ (fun s -> A.pts_to aliasKey_pub_buf full_perm s) `star`
-         exists_ (fun s -> A.pts_to aliasKeyCRT_buf full_perm s) `star`
-         exists_ (fun s -> A.pts_to deviceIDCSR_buf full_perm s));
+  drop_ (exists_ (fun s -> A.pts_to aliasKey_priv full_perm s) `star`
+         exists_ (fun s -> A.pts_to aliasKeyCRT full_perm s) `star`
+         exists_ (fun s -> A.pts_to deviceIDCSR full_perm s));
   assume_ (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
-           exists_ (fun s -> A.pts_to l1_context.aliasKey_pub full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s));
   rewrite (exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
-           exists_ (fun s -> A.pts_to l1_context.aliasKey_pub full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s)) 
     as (l1_context_perm l1_context);
@@ -316,7 +288,7 @@ fn initialize_context (sid:nat) (uds:A.larray U8.t (US.v uds_len))
     pure (A.is_full_array uds)
   )
   returns _:nat
-  ensures A.pts_to uds full_perm uds_bytes
+  ensures emp
 {
   let locked_context = init_engine_ctxt uds;
   let ctxt_hndl = prng ();
@@ -399,8 +371,6 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
         free_array ctxt.uds;
 
         let new_locked_context = init_l0_ctxt cdi;
-        with s. assert (A.pts_to cdi full_perm s);
-        free_array cdi #(coerce dice_digest_len s);
         
         delete cht ctxt_hndl;
         store cht new_ctxt_hndl new_locked_context;
@@ -467,10 +437,10 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
         let deviceIDCSR_len = length_of_deviceIDCSR deviceIDCRI_len;
         let aliasKeyCRT_len = length_of_aliasKeyCRT aliasKeyTBS_len;
 
-        let aliasKey_pub = new_array 0uy v32us;
-        let aliasKey_priv = new_array 0uy v32us;
-        let deviceIDCSR = new_array 0uy deviceIDCSR_len;
-        let aliasKeyCRT = new_array 0uy aliasKeyCRT_len;
+        let aliasKey_pub = new_array 0uy 32sz;
+        let aliasKey_priv = new_array 0uy 32sz;
+        let deviceIDCSR = new_array 0uy (u32_to_us deviceIDCSR_len);
+        let aliasKeyCRT = new_array 0uy (u32_to_us aliasKeyCRT_len);
 
         // FIXME: Pulse match doesn't handle
         // rewrite (record_perm record repr) as (l0_record_perm r r0); 
@@ -483,16 +453,9 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
                         aliasKeyTBS_len aliasKeyCRT_len aliasKeyCRT 
                         deviceIDCRI_len deviceIDCSR_len deviceIDCSR r;
         free_array ctxt.cdi;
-
-        with (s1:elseq U8.t v32us). assert (A.pts_to aliasKey_priv full_perm s1);
-        let new_locked_context = init_l1_ctxt deviceIDCSR_len aliasKeyCRT_len 
-                                              aliasKey_priv aliasKey_pub 
-                                              deviceIDCSR aliasKeyCRT;
-
         free_array aliasKey_pub;
-        free_array aliasKey_priv;
-        free_array deviceIDCSR;
-        free_array aliasKeyCRT;
+
+        let new_locked_context = init_l1_ctxt aliasKey_priv deviceIDCSR aliasKeyCRT;
         
         delete cht ctxt_hndl;
         store cht new_ctxt_hndl new_locked_context;
