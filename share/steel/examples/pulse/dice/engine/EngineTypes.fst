@@ -53,8 +53,8 @@ type engine_record_repr = {
     l0_image_header      : Seq.seq U8.t;
     l0_image_header_sig  : Seq.seq U8.t;
     l0_binary            : Seq.seq U8.t;
-    l0_binary_hash       : (s:Seq.seq U8.t{ Seq.length s = US.v dice_digest_len });
-    l0_image_auth_pubkey : Seq.seq U8.t;
+    l0_binary_hash       : elseq U8.t dice_digest_len;
+    l0_image_auth_pubkey : elseq U8.t 32sz;
 }
 
 let mk_engine_repr  l0_image_header_size l0_image_header l0_image_header_sig

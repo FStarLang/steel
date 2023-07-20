@@ -14,8 +14,6 @@ module U32 = FStar.UInt32
 open Array
 open HACL
 
-// let elseq (a:Type) (l:US.t) = s:Seq.seq a{ Seq.length s == US.v l }
-
 assume
 val x509_version_t : Type0
 
@@ -26,13 +24,13 @@ assume
 val deviceIDCRI_t : Type0
 
 assume
-val deviceIDCSR_t (len: U32.t) : Type0
+val deviceIDCSR_t (len: US.t) : Type0
 
 assume
 val aliasKeyTBS_t : Type0
 
 assume
-val aliasKeyCRT_t (len: U32.t) : Type0
+val aliasKeyCRT_t (len: US.t) : Type0
 
 (* L0 Context *)
 noeq
@@ -72,10 +70,10 @@ type aliasKeyCRT_ingredients_t = {
 
 noeq
 type l0_record_t = {
-  fwid: A.larray U8.t 32;
-  deviceID_label_len: hkdf_lbl_len; (* should be U32 *)
+  fwid: A.larray U8.t (US.v v32us);
+  deviceID_label_len: hkdf_lbl_len;
   deviceID_label: A.larray U8.t (US.v deviceID_label_len); (* public bytes *)
-  aliasKey_label_len: hkdf_lbl_len; (* should be U32 *)
+  aliasKey_label_len: hkdf_lbl_len;
   aliasKey_label: A.larray U8.t (US.v aliasKey_label_len); (* public bytes *)
   deviceIDCSR_ingredients: deviceIDCSR_ingredients_t;
   aliasKeyCRT_ingredients: aliasKeyCRT_ingredients_t;
