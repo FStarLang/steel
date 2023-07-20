@@ -795,17 +795,6 @@ let (close_st_term :
 let (close_comp :
   Pulse_Syntax_Base.comp -> Pulse_Syntax_Base.var -> Pulse_Syntax_Base.comp)
   = fun t -> fun v -> close_comp' t v Prims.int_zero
-let (close_term_n :
-  Pulse_Syntax_Base.term ->
-    Pulse_Syntax_Base.var Prims.list -> Pulse_Syntax_Base.term)
-  =
-  fun t ->
-    fun vs ->
-      let rec aux i vs1 t1 =
-        match vs1 with
-        | [] -> t1
-        | v::vs2 -> aux (i + Prims.int_one) vs2 (close_term' t1 v i) in
-      aux Prims.int_zero (FStar_List_Tot_Base.rev vs) t
 let (close_st_term_n :
   Pulse_Syntax_Base.st_term ->
     Pulse_Syntax_Base.var Prims.list -> Pulse_Syntax_Base.st_term)

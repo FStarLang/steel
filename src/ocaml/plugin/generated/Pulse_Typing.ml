@@ -21,21 +21,21 @@ let (debug_log :
                          (FStar_Sealed.seal
                             (Obj.magic
                                (FStar_Range.mk_range "Pulse.Typing.fst"
-                                  (Prims.of_int (16)) (Prims.of_int (15))
-                                  (Prims.of_int (16)) (Prims.of_int (64)))))
+                                  (Prims.of_int (15)) (Prims.of_int (15))
+                                  (Prims.of_int (15)) (Prims.of_int (64)))))
                          (FStar_Sealed.seal
                             (Obj.magic
                                (FStar_Range.mk_range "Pulse.Typing.fst"
-                                  (Prims.of_int (16)) (Prims.of_int (7))
-                                  (Prims.of_int (16)) (Prims.of_int (64)))))
+                                  (Prims.of_int (15)) (Prims.of_int (7))
+                                  (Prims.of_int (15)) (Prims.of_int (64)))))
                          (Obj.magic
                             (FStar_Tactics_Effect.tac_bind
                                (FStar_Sealed.seal
                                   (Obj.magic
                                      (FStar_Range.mk_range "Pulse.Typing.fst"
-                                        (Prims.of_int (16))
+                                        (Prims.of_int (15))
                                         (Prims.of_int (57))
-                                        (Prims.of_int (16))
+                                        (Prims.of_int (15))
                                         (Prims.of_int (63)))))
                                (FStar_Sealed.seal
                                   (Obj.magic
@@ -141,21 +141,6 @@ let (mk_eq2 :
                   (FStar_Pervasives_Native.Some Pulse_Syntax_Base.Implicit) t)
                FStar_Pervasives_Native.None e0) FStar_Pervasives_Native.None
             e1
-let (mk_sq_eq2 :
-  Pulse_Syntax_Base.universe ->
-    Pulse_Syntax_Base.term ->
-      Pulse_Syntax_Base.term ->
-        Pulse_Syntax_Base.term -> Pulse_Syntax_Base.term)
-  =
-  fun u ->
-    fun t ->
-      fun e0 ->
-        fun e1 ->
-          let eq = mk_eq2 u t e0 e1 in
-          Pulse_Syntax_Pure.tm_pureapp
-            (Pulse_Syntax_Pure.tm_uinst
-               (Pulse_Syntax_Base.as_fv FStar_Reflection_Const.squash_qn) 
-               [u]) FStar_Pervasives_Native.None eq
 let (mk_eq2_prop :
   Pulse_Syntax_Base.universe ->
     Pulse_Syntax_Base.term ->
@@ -287,7 +272,7 @@ let (elab_env : Pulse_Typing_Env.env -> FStar_Reflection_Types.env) =
     extend_env_l (Pulse_Typing_Env.fstar_env e) (Pulse_Typing_Env.bindings e)
 type ('g, 'x) freshv = unit
 type ('g, 'xs) all_fresh = Obj.t
-let rec (push_bindings :
+let rec (extend_env_bs :
   Pulse_Typing_Env.env ->
     Pulse_Typing_Env.binding Prims.list -> Pulse_Typing_Env.env)
   =
@@ -296,7 +281,7 @@ let rec (push_bindings :
       match bs with
       | [] -> g
       | (x, t)::bs1 ->
-          push_bindings
+          extend_env_bs
             (Pulse_Typing_Env.push_binding g x
                Pulse_Syntax_Base.ppname_default t) bs1
 let (add_frame :
@@ -765,24 +750,6 @@ type ('dummyV0, 'dummyV1) st_comp_typing =
   Pulse_Syntax_Base.var * unit * unit * unit 
 let uu___is_STC uu___1 uu___ uu___2 =
   match uu___2 with | STC _ -> true | _ -> false
-let (tr_binding :
-  (Pulse_Syntax_Base.var * Pulse_Syntax_Base.typ) ->
-    FStar_Reflection_V2_Data.binding)
-  =
-  fun vt ->
-    let uu___ = vt in
-    match uu___ with
-    | (v, t) ->
-        {
-          FStar_Reflection_V2_Data.uniq1 = v;
-          FStar_Reflection_V2_Data.sort3 = (Pulse_Elaborate_Pure.elab_term t);
-          FStar_Reflection_V2_Data.ppname3 =
-            (Pulse_Syntax_Base.ppname_default.Pulse_Syntax_Base.name)
-        }
-let (tr_bindings :
-  (Pulse_Syntax_Base.var * Pulse_Syntax_Base.typ) Prims.list ->
-    FStar_Reflection_V2_Data.binding Prims.list)
-  = FStar_List_Tot_Base.map tr_binding
 type ('dummyV0, 'dummyV1, 'dummyV2) comp_typing =
   | CT_Tot of Pulse_Typing_Env.env * Pulse_Syntax_Base.term *
   Pulse_Syntax_Base.universe * unit 
@@ -804,22 +771,6 @@ type ('g, 'p, 'bs) bindings_for_pat_ok = Obj.t
 type ('g, 'p) bindings_for_pat = Pulse_Typing_Env.binding Prims.list
 type ('g, 't) prop_validity =
   (unit, unit) FStar_Tactics_V2_Builtins.prop_validity_token
-let (readback_binding :
-  FStar_Reflection_V2_Data.binding -> Pulse_Typing_Env.binding) =
-  fun b ->
-    match Pulse_Readback.readback_ty b.FStar_Reflection_V2_Data.sort3 with
-    | FStar_Pervasives_Native.Some sort ->
-        ((b.FStar_Reflection_V2_Data.uniq1), sort)
-    | FStar_Pervasives_Native.None ->
-        let sort =
-          {
-            Pulse_Syntax_Base.t =
-              (Pulse_Syntax_Base.Tm_FStar (b.FStar_Reflection_V2_Data.sort3));
-            Pulse_Syntax_Base.range1 =
-              (FStar_Reflection_V2_Builtins.range_of_term
-                 b.FStar_Reflection_V2_Data.sort3)
-          } in
-        ((b.FStar_Reflection_V2_Data.uniq1), sort)
 type ('dummyV0, 'dummyV1, 'dummyV2) st_typing =
   | T_Abs of Pulse_Typing_Env.env * Pulse_Syntax_Base.var *
   Pulse_Syntax_Base.qualifier FStar_Pervasives_Native.option *
@@ -852,11 +803,10 @@ type ('dummyV0, 'dummyV1, 'dummyV2) st_typing =
   Pulse_Syntax_Base.comp_st * Pulse_Syntax_Base.universe *
   Pulse_Syntax_Base.var * unit * (unit, unit, unit) st_typing * (unit, 
   unit, unit) st_typing * unit 
-  | T_Match of Pulse_Typing_Env.env * Pulse_Syntax_Base.universe *
-  Pulse_Syntax_Base.typ * Pulse_Syntax_Base.term * unit * unit *
-  Pulse_Syntax_Base.comp_st * (Pulse_Syntax_Base.pattern *
-  Pulse_Syntax_Base.st_term) Prims.list * (unit, unit, unit, unit, unit,
-  unit) brs_typing * (unit, unit, unit, unit) pats_complete 
+  | T_Match of Pulse_Typing_Env.env * Pulse_Syntax_Base.term *
+  Pulse_Syntax_Base.typ * unit * Pulse_Syntax_Base.comp_st *
+  (Pulse_Syntax_Base.pattern * Pulse_Syntax_Base.st_term) Prims.list * (
+  unit, unit, unit) brs_typing * (unit, unit, unit, unit) pats_complete 
   | T_Frame of Pulse_Typing_Env.env * Pulse_Syntax_Base.st_term *
   Pulse_Syntax_Base.comp_st * Pulse_Syntax_Base.term * unit * (unit, 
   unit, unit) st_typing 
@@ -895,19 +845,16 @@ and ('dummyV0, 'dummyV1, 'dummyV2, 'dummyV3) pats_complete =
   Pulse_Syntax_Base.typ * FStar_Reflection_V2_Data.pattern Prims.list *
   FStar_Reflection_V2_Data.binding Prims.list Prims.list * (unit, unit, 
   unit, unit, unit) FStar_Reflection_Typing.match_is_complete 
-and ('g, 'scuu, 'scuty, 'sc, 'dummyV0, 'dummyV1) brs_typing =
-  | TBRS_0 of Pulse_Syntax_Base.comp_st 
-  | TBRS_1 of Pulse_Syntax_Base.comp_st * Pulse_Syntax_Base.pattern *
-  Pulse_Syntax_Base.st_term * (unit, unit, unit, unit, unit, unit, unit)
-  br_typing * Pulse_Syntax_Base.branch Prims.list * (unit, unit, unit, 
-  unit, unit, unit) brs_typing 
-and ('dummyV0, 'dummyV1, 'dummyV2, 'dummyV3, 'dummyV4, 'dummyV5,
-  'dummyV6) br_typing =
-  | TBR of Pulse_Typing_Env.env * Pulse_Syntax_Base.universe *
-  Pulse_Syntax_Base.typ * Pulse_Syntax_Base.term * Pulse_Syntax_Base.comp_st
-  * Pulse_Syntax_Base.pattern * Pulse_Syntax_Base.st_term *
-  FStar_Reflection_V2_Data.binding Prims.list * unit * unit * unit *
-  Pulse_Syntax_Base.var * (unit, unit, unit) st_typing 
+and ('dummyV0, 'dummyV1, 'dummyV2) brs_typing =
+  | TBRS_0 of Pulse_Typing_Env.env * Pulse_Syntax_Base.comp_st 
+  | TBRS_1 of Pulse_Typing_Env.env * Pulse_Syntax_Base.comp_st *
+  Pulse_Syntax_Base.pattern * Pulse_Syntax_Base.st_term * (unit, unit, 
+  unit, unit) br_typing * Pulse_Syntax_Base.branch Prims.list * (unit, 
+  unit, unit) brs_typing 
+and ('dummyV0, 'dummyV1, 'dummyV2, 'dummyV3) br_typing =
+  | TBR of Pulse_Typing_Env.env * Pulse_Syntax_Base.comp_st *
+  Pulse_Syntax_Base.pattern * Pulse_Syntax_Base.st_term * (unit, unit)
+  bindings_for_pat * (unit, unit, unit) st_typing 
 let uu___is_T_Abs uu___2 uu___1 uu___ uu___3 =
   match uu___3 with | T_Abs _ -> true | _ -> false
 let uu___is_T_STApp uu___2 uu___1 uu___ uu___3 =
@@ -948,12 +895,12 @@ let uu___is_T_Admit uu___2 uu___1 uu___ uu___3 =
   match uu___3 with | T_Admit _ -> true | _ -> false
 let uu___is_PC_Elab uu___3 uu___2 uu___1 uu___ uu___4 =
   match uu___4 with | PC_Elab _ -> true | _ -> false
-let uu___is_TBRS_0 uu___5 uu___4 uu___3 uu___2 uu___1 uu___ uu___6 =
-  match uu___6 with | TBRS_0 _ -> true | _ -> false
-let uu___is_TBRS_1 uu___5 uu___4 uu___3 uu___2 uu___1 uu___ uu___6 =
-  match uu___6 with | TBRS_1 _ -> true | _ -> false
-let uu___is_TBR uu___6 uu___5 uu___4 uu___3 uu___2 uu___1 uu___ uu___7 =
-  match uu___7 with | TBR _ -> true | _ -> false
+let uu___is_TBRS_0 uu___2 uu___1 uu___ uu___3 =
+  match uu___3 with | TBRS_0 _ -> true | _ -> false
+let uu___is_TBRS_1 uu___2 uu___1 uu___ uu___3 =
+  match uu___3 with | TBRS_1 _ -> true | _ -> false
+let uu___is_TBR uu___3 uu___2 uu___1 uu___ uu___4 =
+  match uu___4 with | TBR _ -> true | _ -> false
 
 
 

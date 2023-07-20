@@ -8,7 +8,7 @@ open Pulse.Checker.Common
 open Pulse.Typing.Metatheory
 open Pulse.Checker.VPropEquiv
 
-module T = FStar.Tactics.V2
+module T = FStar.Tactics
 
 module PS = Pulse.Prover.Substs
 
@@ -43,8 +43,8 @@ val continuation_elaborator_with_bind (#g:env) (ctxt:term)
   (#e1:st_term)
   (e1_typing:st_typing g e1 c1)
   (ctxt_pre1_typing:tot_typing g (tm_star ctxt (comp_pre c1)) tm_vprop)
-  (x:var { None? (lookup g x) })
-  : T.Tac (continuation_elaborator
+  : T.Tac (x:var { None? (lookup g x) } &
+           continuation_elaborator
              g                                (tm_star ctxt (comp_pre c1))
              (push_binding g x ppname_default (comp_res c1)) (tm_star (open_term (comp_post c1) x) ctxt))
 
@@ -72,8 +72,7 @@ val add_elims (#g:env) (#ctxt:term) (#frame:term)
   (f:vprop -> T.Tac bool)
   (mk:mk_t)
   (ctxt_typing:tot_typing g (tm_star ctxt frame) tm_vprop)
-  (uvs:env { disjoint uvs g })
-   : T.Tac (g':env { env_extends g' g /\ disjoint uvs g' } &
+   : T.Tac (g':env { env_extends g' g } &
             ctxt':term &
             tot_typing g' (tm_star ctxt' frame) tm_vprop &
             continuation_elaborator g (tm_star ctxt frame) g' (tm_star ctxt' frame))
@@ -88,10 +87,15 @@ noeq type preamble = {
   goals : vprop;
 }
 
-let op_Array_Access (ss:PS.ss_t) (t:term) =
-  PS.ss_term t ss
+let op_Array_Access (ss:PS.t) (t:term) =
+  PS.subst_term t ss
 
 let op_Star = tm_star
+
+let well_typed_ss (ss:PS.t) (uvs g:env) =
+  forall (x:var).
+  PS.contains ss x ==> (Set.mem x (dom uvs) /\
+                        tot_typing g (PS.sel ss x) (ss.(Some?.v (lookup uvs x))))
 
 noeq type prover_state (preamble:preamble) = {
   pg : g:env { g `env_extends` preamble.g0 };
@@ -100,16 +104,17 @@ noeq type prover_state (preamble:preamble) = {
   remaining_ctxt_frame_typing : vprop_typing pg (list_as_vprop remaining_ctxt * preamble.frame);
 
   uvs : uvs:env { disjoint uvs pg };
-  ss : PS.ss_t;
+  ss : ss:PS.t { well_typed_ss ss uvs pg};
 
   solved : vprop;
   unsolved : list vprop;
+
+  solved_typing : vprop_typing pg ss.(solved);
 
   k : continuation_elaborator preamble.g0 (preamble.ctxt * preamble.frame)
                               pg ((list_as_vprop remaining_ctxt * preamble.frame) * ss.(solved));
 
   goals_inv : vprop_equiv (push_env pg uvs) preamble.goals (list_as_vprop unsolved * solved);
-  solved_inv : squash (freevars ss.(solved) `Set.subset` dom pg);
 }
 
 let is_terminal (#preamble:_) (st:prover_state preamble) =
@@ -128,23 +133,21 @@ let extend_post_hint_opt_g (g:env) (post_hint:post_hint_opt g) (g1:env { g1 `env
 
 let st_typing_subst (g:env) (uvs:env { disjoint uvs g }) (t:st_term) (c:comp_st)
   (d:st_typing (push_env g uvs) t c)
-  (ss:PS.ss_t)
+  (ss:PS.t { well_typed_ss ss uvs g })
 
-  : T.Tac (option (st_typing g (PS.ss_st_term t ss) (PS.ss_comp c ss))) =
+  : T.Tac (option (st_typing g (PS.subst_st_term t ss) (PS.subst_comp c ss))) =
 
-  let nts_opt = PS.ss_to_nt_substs g uvs ss in
-  match nts_opt with
-  | None -> None
-  | Some nts ->
-    let g' = mk_env (fstar_env g) in
-    assert (equal (push_env uvs g') uvs);
-    let d = PS.st_typing_nt_substs g uvs g' d nts in
-    assume (equal (push_env g (PS.nt_subst_env g' nts)) g);
-    Some d
+  let b = PS.check_well_typedness g uvs ss in
+  if not b then None
+  else let g' = mk_env (fstar_env g) in
+       assert (equal (push_env uvs g') uvs);
+       let d = PS.st_typing_nt_substs g uvs g' d (PS.as_nt_substs ss) in
+       assume (equal (push_env g (PS.nt_subst_env g' (PS.as_nt_substs ss))) g);
+       Some d
 
 let st_typing_weakening
   (g:env) (g':env { disjoint g g' })
-  (t:st_term) (c:comp) (d:st_typing (push_env g g') t c)
+  (t:st_term) (c:comp_st) (d:st_typing (push_env g g') t c)
   (g1:env { g1 `env_extends` g /\ disjoint g1 g' })
   : st_typing (push_env g1 g') t c =
 
@@ -152,12 +155,6 @@ let st_typing_weakening
   let d = st_typing_weakening g g' t c d g2 in
   assert (equal (push_env (push_env g g2) g') (push_env g1 g'));
   d
-
-let st_typing_weakening_end
-  (g:env) (g':env { disjoint g g' })
-  (t:st_term) (c:comp) (d:st_typing (push_env g g') t c)
-  (g'':env { g'' `env_extends` g' /\ disjoint g'' g })
-  : st_typing (push_env g g'') t c = admit ()
 
 let veq_weakening
   (g:env) (g':env { disjoint g g' })
@@ -170,7 +167,8 @@ let veq_weakening
   assert (equal (push_env (push_env g g2) g') (push_env g1 g'));
   d
 
-let ss_extends (ss1 ss2:PS.ss_t) =
+
+let ss_extends (ss1 ss2:PS.t) =
   Set.subset (PS.dom ss2) (PS.dom ss1) /\
   (forall (x:var). PS.contains ss2 x ==> PS.sel ss1 x == PS.sel ss2 x)
 
@@ -184,3 +182,77 @@ type prover_t =
   pst1:prover_state preamble ->
   T.Tac (pst2:prover_state preamble { pst2 `pst_extends` pst1 /\
                                       is_terminal pst2 }) 
+
+// noeq
+// type preamble = {
+//   g0 : env;
+
+//   ctxt : vprop;
+//   ctxt_typing : vprop_typing g0 ctxt;
+
+//   t : st_term;
+//   c : comp_st;
+
+//   uvs : uvs:env { disjoint uvs g0 }
+// }
+
+// let pst_env (#g0:env) (uvs:env { disjoint uvs g0 }) (ss:Psubst.t g0) =
+//   push_env g0 (psubst_env (filter_ss uvs ss) ss)
+
+// noeq
+// type prover_state (preamble:preamble) = {
+//   ss : ss:Psubst.t preamble.g0 {
+//     well_typed_ss preamble.uvs ss
+//   };
+
+//   solved_goals : term;
+
+//   unsolved_goals : list term;
+
+//   remaining_ctxt : list term;
+
+//   steps : st_term;
+
+//   t_typing
+//     : st_typing (pst_env preamble.uvs ss)
+//                 (Psubst.subst_st_term ss preamble.t)
+//                 (Psubst.subst_comp ss preamble.c);
+
+//   unsolved_goals_typing
+//     : vprop_typing (pst_env preamble.uvs ss)
+//                    (list_as_vprop unsolved_goals);
+
+//   remaining_ctxt_typing
+//     : vprop_typing preamble.g0 (list_as_vprop remaining_ctxt);
+  
+//   steps_typing
+//     : st_typing (pst_env preamble.uvs ss)
+//                 steps
+//                 (ghost_comp
+//                    preamble.ctxt
+//                    (tm_star (list_as_vprop remaining_ctxt) solved_goals));
+
+//   c_pre_inv
+//     : vprop_equiv (pst_env preamble.uvs ss)
+//                   (Psubst.subst_term ss (comp_pre preamble.c))
+//                   (tm_star (list_as_vprop unsolved_goals) solved_goals);
+
+//   solved_goals_closed : squash (freevars solved_goals `Set.subset`
+//                                 dom preamble.g0);
+// }
+
+// let pst_extends (#preamble:_) (p1 p2:prover_state preamble) =
+//   p1.ss `Psubst.subst_extends` p2.ss
+
+// type prover_t =
+//   #preamble:_ ->
+//   p:prover_state preamble ->
+//   T.Tac (option (p':prover_state preamble { p' `pst_extends` p /\
+//                                             p'.unsolved_goals == [] }))
+
+// type prover_step_t =
+//   #preamble:_ ->
+//   p:prover_state preamble ->
+//   prover:prover_t ->
+//   T.Tac (option (p':prover_state preamble { p' `pst_extends` p }))
+

@@ -435,7 +435,7 @@ let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
     };
     comp_typing_freevars ct
 
-    | T_Match _ _ _ _ _ _ _ _ _ _ ->
+    | T_Match _ _ _ _ _ _ _ _ ->
       admit ()
 
    | T_Frame _ _ _ _ df dc ->
