@@ -1,8 +1,5 @@
 module MatchBasic
 
-#set-options "--warn_error -249"
-#set-options "--error_contexts true"
-
 module T = FStar.Tactics
 module PM = Pulse.Main
 open Steel.ST.Util
@@ -54,8 +51,7 @@ fn test3 (n:nat)
 ```
 
 // FIXME: Need to qualifiy the constructors or otherwise they desugar to
-// the (not yet in scope) type below.
-[@@expect_failure]
+// the (not yet in scope) type below. Only in batch mode apparently.
 ```pulse
 fn test3_5 (n:option int) (z:bool)
   requires emp
@@ -63,8 +59,8 @@ fn test3_5 (n:option int) (z:bool)
   ensures emp
 {
   match n {
-    None -> { (-1) }
-    Some x -> { x }
+    Pervasives.None -> { (-1) }
+    Pervasives.Some x -> { x }
   }
 }
 ```
@@ -99,8 +95,6 @@ fn test5 (n:option int) (z:bool)
   }
 }
 ```
-
-#set-options "--debug_level proof_states"
 
 ```pulse
 fn listid (xs : list int)
@@ -137,6 +131,57 @@ fn tl (xs : list int)
   match xs {
     Nil -> { Nil #int }
     Cons hd tl -> { tl }
+  }
+}
+```
+
+[@@expect_failure [228]]
+```pulse
+fn incomplete (xs : list int)
+  requires emp
+  returns r:int
+  ensures emp
+{
+  match xs {
+    Nil -> { 1 }
+  }
+}
+```
+
+```pulse
+fn partial_complete (xs : (xs:list int{List.length xs == 0}))
+  requires emp
+  returns r:int
+  ensures emp
+{
+  match xs {
+    Nil -> { 1 }
+  }
+}
+```
+
+```pulse
+fn breq_1 (xs : list int)
+  requires emp
+  returns r:int
+  ensures emp
+{
+  match xs {
+    Nil -> { assert (pure (List.Tot.length xs == 0)); 0 } // works because of branch eq
+    Cons _ _ -> { 1 } // assert (pure (isCons xs)); cons_hd xs }
+  }
+}
+```
+
+```pulse
+fn breq_2 (xs : list int)
+  requires emp
+  returns r:int
+  ensures emp
+{
+  match xs {
+    Nil -> { assert (pure (List.Tot.length xs == 0)); 0 }
+    Cons _ _ -> { Cons?.hd xs }
   }
 }
 ```
