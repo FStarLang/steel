@@ -378,6 +378,8 @@ let aliasKeyCRT_post
 ```pulse
 fn l0_main
   (cdi: A.larray U8.t (US.v dice_digest_len))
+  (deviceID_pub: A.larray U8.t (US.v v32us))
+  (deviceID_priv: A.larray U8.t (US.v v32us))
   (aliasKey_pub: A.larray U8.t (US.v v32us))
   (aliasKey_priv: A.larray U8.t (US.v v32us))
   (aliasKeyTBS_len:US.t)
@@ -389,12 +391,14 @@ fn l0_main
   (record: l0_record_t)
   (#repr: erased l0_record_repr)
   (#cdi0:erased (elseq U8.t dice_digest_len))
-  (#aliasKey_pub0 #aliasKey_priv0:erased (elseq U8.t v32us)) 
+  (#deviceID_pub0 #deviceID_priv0 #aliasKey_pub0 #aliasKey_priv0:erased (elseq U8.t v32us)) 
   (#aliasKeyCRT0: elseq U8.t aliasKeyCRT_len)
   (#deviceIDCSR0: elseq U8.t deviceIDCSR_len)
   requires (
     l0_record_perm record repr **
     A.pts_to cdi full_perm cdi0 **
+    A.pts_to deviceID_pub full_perm deviceID_pub0 **
+    A.pts_to deviceID_priv full_perm deviceID_priv0 **
     A.pts_to aliasKey_pub full_perm aliasKey_pub0 **
     A.pts_to aliasKey_priv full_perm aliasKey_priv0 **
     A.pts_to aliasKeyCRT full_perm aliasKeyCRT0 **
@@ -407,9 +411,11 @@ fn l0_main
   ensures (
       l0_record_perm record repr **
       A.pts_to cdi full_perm (Seq.create (US.v dice_digest_len) 0uy) **
-      exists (aliasKey_pub1 aliasKey_priv1:elseq U8.t v32us) 
+      exists (deviceID_pub1 deviceID_priv1 aliasKey_pub1 aliasKey_priv1:elseq U8.t v32us) 
              (aliasKeyCRT1:elseq U8.t aliasKeyCRT_len)
              (deviceIDCSR1:elseq U8.t deviceIDCSR_len). (
+        A.pts_to deviceID_pub full_perm deviceID_pub1 **
+        A.pts_to deviceID_priv full_perm deviceID_priv1 **
         A.pts_to aliasKey_pub full_perm aliasKey_pub1 **
         A.pts_to aliasKey_priv full_perm aliasKey_priv1 **
         A.pts_to aliasKeyCRT full_perm aliasKeyCRT1 **
@@ -432,8 +438,8 @@ fn l0_main
 {
   unfold l0_record_perm record repr;
 
-  let deviceID_pub = new_array 0uy v32us;
-  let deviceID_priv = new_array 0uy v32us;
+  // let deviceID_pub = new_array 0uy v32us;
+  // let deviceID_priv = new_array 0uy v32us;
   derive_DeviceID dice_hash_alg 
     deviceID_pub deviceID_priv cdi 
     record.deviceID_label_len record.deviceID_label
@@ -468,12 +474,12 @@ fn l0_main
     aliasKeyCRT_len aliasKeyCRT
     record.aliasKeyCRT_ingredients;
   
-  with s1. assert (A.pts_to deviceID_pub full_perm s1);
-  with s2. assert (A.pts_to deviceID_priv full_perm s2);
+  // with s1. assert (A.pts_to deviceID_pub full_perm s1);
+  // with s2. assert (A.pts_to deviceID_priv full_perm s2);
   with s3. assert (A.pts_to deviceIDCRI full_perm s3);
   with s4. assert (A.pts_to aliasKeyTBS full_perm s4);
-  free_array deviceID_pub #(coerce v32us s1);
-  free_array deviceID_priv #(coerce v32us s2);
+  // free_array deviceID_pub #(coerce v32us s1);
+  // free_array deviceID_priv #(coerce v32us s2);
   free_array authKeyID;
   free_array deviceIDCRI #(coerce deviceIDCRI_len s3);
   free_array aliasKeyTBS #(coerce aliasKeyTBS_len s4);
