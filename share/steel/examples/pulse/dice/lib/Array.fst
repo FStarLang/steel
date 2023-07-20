@@ -16,52 +16,52 @@ let coerce (#t:Type) (l:US.t) (s:Ghost.erased (elseq t l)) : Ghost.erased (Seq.s
   = let s_ = reveal s in 
     hide s_
 
-// ```pulse
-// fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
-//            (#p1 #p2:perm) (#s1 #s2:Ghost.erased (elseq t l))
-//   requires (
-//     A.pts_to a1 p1 s1 **
-//     A.pts_to a2 p2 s2
-//   )
-//   returns res:bool
-//   ensures (
-//     A.pts_to a1 p1 s1 **
-//     A.pts_to a2 p2 s2 **
-//     (pure (res <==> Seq.equal s1 s2))
-//   )
-// {
-//   let mut i = 0sz;
-//   while (let vi = !i; 
-//     if US.(vi <^ l) { 
-//       let v1 = op_Array_Access a1 vi #(coerce l s1) #p1; 
-//       let v2 = op_Array_Access a2 vi #(coerce l s2) #p2; 
-//       (v1 = v2) } 
-//     else { false } )
-//   invariant b. exists (vi:US.t). ( 
-//     R.pts_to i full_perm vi **
-//     A.pts_to a1 p1 s1 **
-//     A.pts_to a2 p2 s2 **
-//     pure (
-//       US.v vi <= US.v l /\
-//       (b == (US.(vi <^ l) && Seq.index s1 (US.v vi) = Seq.index s2 (US.v vi))) /\
-//       (forall (i:nat). i < US.v vi ==> Seq.index s1 i == Seq.index s2 i)
-//     )
-//   )
-//   {
-//     let vi = !i; 
-//     i := US.(vi +^ 1sz);
-//     ()
-//   };
-//   let vi = !i;
-//   let res = vi = l;
-//   res
-// }
-// ```
+```pulse
+fn compare (#t:eqtype) (l:US.t) (a1 a2:A.larray t (US.v l))
+           (#p1 #p2:perm) (#s1 #s2:Ghost.erased (elseq t l))
+  requires (
+    A.pts_to a1 p1 s1 **
+    A.pts_to a2 p2 s2
+  )
+  returns res:bool
+  ensures (
+    A.pts_to a1 p1 s1 **
+    A.pts_to a2 p2 s2 **
+    (pure (res <==> Seq.equal s1 s2))
+  )
+{
+  let mut i = 0sz;
+  while (let vi = !i; 
+    if US.(vi <^ l) { 
+      let v1 = op_Array_Access a1 vi #(coerce l s1) #p1; 
+      let v2 = op_Array_Access a2 vi #(coerce l s2) #p2; 
+      (v1 = v2) } 
+    else { false } )
+  invariant b. exists (vi:US.t). ( 
+    R.pts_to i full_perm vi **
+    A.pts_to a1 p1 s1 **
+    A.pts_to a2 p2 s2 **
+    pure (
+      US.v vi <= US.v l /\
+      (b == (US.(vi <^ l) && Seq.index s1 (US.v vi) = Seq.index s2 (US.v vi))) /\
+      (forall (i:nat). i < US.v vi ==> Seq.index s1 i == Seq.index s2 i)
+    )
+  )
+  {
+    let vi = !i; 
+    i := US.(vi +^ 1sz);
+    ()
+  };
+  let vi = !i;
+  let res = vi = l;
+  res
+}
+```
 
 let lemma_seq_equal (#t:eqtype) (l:US.t) (s1 s2: elseq t l)
   : Lemma (requires forall (i:nat). i < US.v l ==> Seq.index s1 i == Seq.index s2 i)
           (ensures s1 `Seq.equal` s2)
-  = admit()
+  = ()
 
 ```pulse 
 fn memcpy (#t:eqtype) (l:US.t) (src dst:A.larray t (US.v l))
@@ -101,44 +101,44 @@ fn memcpy (#t:eqtype) (l:US.t) (src dst:A.larray t (US.v l))
 }
 ```
 
-// ```pulse
-// fn fill_array (#t:Type0) (l:US.t) (a:(a:A.array t{ US.v l == A.length a })) (v:t)
-//               (#s:Ghost.erased (elseq t l))
-//   requires (A.pts_to a full_perm s)
-//   ensures exists (s:Seq.seq t). (
-//     A.pts_to a full_perm s **
-//     pure (s `Seq.equal` Seq.create (US.v l) v)
-//   )
-// {
-//    let mut i = 0sz;
-//    while (let vi = !i; US.(vi <^ l))
-//    invariant b. exists (s:Seq.seq t) (vi:US.t). ( 
-//       A.pts_to a full_perm s **
-//       R.pts_to i full_perm vi **
-//       pure ((b == US.(vi <^ l)) /\
-//             US.v vi <= US.v l /\
-//             Seq.length s == A.length a /\
-//             (forall (i:nat). i < US.v vi ==> Seq.index s i == v))
-//    )
-//    {
-//       let vi = !i; 
-//       (a.(vi) <- v);
-//       i := US.(vi +^ 1sz);
-//       ()
-//    };
-//    ()
-// }
-// ```
+```pulse
+fn fill_array (#t:Type0) (l:US.t) (a:(a:A.array t{ US.v l == A.length a })) (v:t)
+              (#s:Ghost.erased (elseq t l))
+  requires (A.pts_to a full_perm s)
+  ensures exists (s:Seq.seq t). (
+    A.pts_to a full_perm s **
+    pure (s `Seq.equal` Seq.create (US.v l) v)
+  )
+{
+   let mut i = 0sz;
+   while (let vi = !i; US.(vi <^ l))
+   invariant b. exists (s:Seq.seq t) (vi:US.t). ( 
+      A.pts_to a full_perm s **
+      R.pts_to i full_perm vi **
+      pure ((b == US.(vi <^ l)) /\
+            US.v vi <= US.v l /\
+            Seq.length s == A.length a /\
+            (forall (i:nat). i < US.v vi ==> Seq.index s i == v))
+   )
+   {
+      let vi = !i; 
+      (a.(vi) <- v);
+      i := US.(vi +^ 1sz);
+      ()
+   };
+   ()
+}
+```
 
-// ```pulse
-// fn zeroize_array (l:US.t) (a:(a:A.array U8.t{ US.v l == A.length a }))
-//                  (#s:Ghost.erased (elseq U8.t l))
-//   requires A.pts_to a full_perm s
-//   ensures exists (s:Seq.seq U8.t). (
-//     A.pts_to a full_perm s **
-//     pure (s `Seq.equal` Seq.create (US.v l) 0uy)
-//   )
-// {
-//   fill_array l a 0uy
-// }
-// ```
+```pulse
+fn zeroize_array (l:US.t) (a:(a:A.array U8.t{ US.v l == A.length a }))
+                 (#s:Ghost.erased (elseq U8.t l))
+  requires A.pts_to a full_perm s
+  ensures exists (s:Seq.seq U8.t). (
+    A.pts_to a full_perm s **
+    pure (s `Seq.equal` Seq.create (US.v l) 0uy)
+  )
+{
+  fill_array l a 0uy
+}
+```

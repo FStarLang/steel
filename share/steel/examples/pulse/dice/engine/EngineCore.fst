@@ -52,7 +52,7 @@ fn authenticate_l0_image (record:engine_record_t) (#repr:Ghost.erased engine_rec
   let mut b = false;
   if valid_header_sig {
     let hash_buf = new_array 0uy dice_digest_len;
-    hacl_hash dice_hash_alg record.l0_binary record.l0_binary_size hash_buf;
+    hacl_hash dice_hash_alg record.l0_binary_size record.l0_binary hash_buf;
     let res = compare dice_digest_len hash_buf record.l0_binary_hash;
     with s. assert (A.pts_to hash_buf full_perm s);
     free_array hash_buf #(coerce dice_digest_len s);
@@ -102,10 +102,10 @@ fn compute_cdi (cdi:cdi_t) (uds:A.larray U8.t (US.v uds_len)) (record:engine_rec
 {
     let uds_digest = new_array 0uy dice_digest_len;
     let l0_digest = new_array 0uy dice_digest_len;
-    hacl_hash dice_hash_alg uds uds_len uds_digest #full_perm #(coerce uds_len uds_bytes);
+    hacl_hash dice_hash_alg uds_len uds uds_digest #full_perm #(coerce uds_len uds_bytes);
 
     unfold engine_record_perm record repr;
-    hacl_hash dice_hash_alg record.l0_binary record.l0_binary_size l0_digest;
+    hacl_hash dice_hash_alg record.l0_binary_size record.l0_binary l0_digest;
     fold engine_record_perm record repr;
 
     dice_digest_len_is_hashable;
