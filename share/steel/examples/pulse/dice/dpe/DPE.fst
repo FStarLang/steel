@@ -42,7 +42,8 @@ let l1_context_perm (c:l1_context)
     exists_ (fun s -> A.pts_to c.aliasKeyCRT full_perm s) `star`
     exists_ (fun s -> A.pts_to c.deviceIDCSR full_perm s)
 
-let mk_l1_context deviceID_priv deviceID_pub aliasKey_priv aliasKey_pub aliasKeyCRT deviceIDCSR = { aliasKey_priv; aliasKey_pub; aliasKeyCRT; deviceIDCSR }
+let mk_l1_context deviceID_priv deviceID_pub aliasKey_priv aliasKey_pub aliasKeyCRT deviceIDCSR 
+  = { deviceID_priv; deviceID_pub; aliasKey_priv; aliasKey_pub; aliasKeyCRT; deviceIDCSR }
 
 (* Context *)
 noeq
@@ -256,14 +257,19 @@ assume val coerce_seq_create (l:US.t) (s:(Seq.seq U8.t){s == Seq.create (US.v l)
 
 ```pulse
 fn init_l1_ctxt (deviceIDCSR_len: US.t) (aliasKeyCRT_len: US.t) 
+                (deviceID_priv: A.larray U8.t (US.v v32us)) (deviceID_pub: A.larray U8.t (US.v v32us))
                 (aliasKey_priv: A.larray U8.t (US.v v32us)) (aliasKey_pub: A.larray U8.t (US.v v32us)) 
                 (deviceIDCSR: A.larray U8.t (US.v deviceIDCSR_len)) (aliasKeyCRT: A.larray U8.t (US.v aliasKeyCRT_len))
-  requires exists (s1:elseq U8.t v32us). A.pts_to aliasKey_priv full_perm s1 ** 
-           exists (s2:elseq U8.t v32us). A.pts_to aliasKey_pub full_perm s2 ** 
-           exists (s3:erased (elseq U8.t deviceIDCSR_len)). A.pts_to deviceIDCSR full_perm s3 **
-           exists (s4:erased (elseq U8.t aliasKeyCRT_len)). A.pts_to aliasKeyCRT full_perm s4
+  requires exists (s1:elseq U8.t v32us). A.pts_to deviceID_priv full_perm s1 ** 
+           exists (s2:elseq U8.t v32us). A.pts_to deviceID_pub full_perm s2 ** 
+           exists (s3:elseq U8.t v32us). A.pts_to aliasKey_priv full_perm s3 ** 
+           exists (s4:elseq U8.t v32us). A.pts_to aliasKey_pub full_perm s4 ** 
+           exists (s5:erased (elseq U8.t deviceIDCSR_len)). A.pts_to deviceIDCSR full_perm s5 **
+           exists (s6:erased (elseq U8.t aliasKeyCRT_len)). A.pts_to aliasKeyCRT full_perm s6
   returns _:locked_context_t
   ensures 
+    exists s. A.pts_to deviceID_priv full_perm s ** 
+    exists s. A.pts_to deviceID_pub full_perm s **
     exists s. A.pts_to aliasKey_priv full_perm s ** 
     exists s. A.pts_to aliasKey_pub full_perm s ** 
     exists s. A.pts_to deviceIDCSR full_perm s **
@@ -297,14 +303,14 @@ fn init_l1_ctxt (deviceIDCSR_len: US.t) (aliasKeyCRT_len: US.t)
          exists_ (fun s -> A.pts_to aliasKey_pub_buf full_perm s) `star`
          exists_ (fun s -> A.pts_to aliasKeyCRT_buf full_perm s) `star`
          exists_ (fun s -> A.pts_to deviceIDCSR_buf full_perm s));
-  assume_ (exists_ (fun s -> A.pts_to l1_context.deviceID_priv_buf full_perm s) `star`
-           exists_ (fun s -> A.pts_to l1_context.deviceID_pub_buf full_perm s) `star`
+  assume_ (exists_ (fun s -> A.pts_to l1_context.deviceID_priv full_perm s) `star`
+           exists_ (fun s -> A.pts_to l1_context.deviceID_pub full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKey_pub full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.deviceIDCSR full_perm s));
-  rewrite (exists_ (fun s -> A.pts_to l1_context.deviceID_priv_buf full_perm s) `star`
-           exists_ (fun s -> A.pts_to l1_context.deviceID_pub_buf full_perm s) `star`
+  rewrite (exists_ (fun s -> A.pts_to l1_context.deviceID_priv full_perm s) `star`
+           exists_ (fun s -> A.pts_to l1_context.deviceID_pub full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKey_priv full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKey_pub full_perm s) `star`
            exists_ (fun s -> A.pts_to l1_context.aliasKeyCRT full_perm s) `star`
@@ -387,10 +393,7 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
 
   match cur_ctxt {
   Engine_context ctxt -> {
-    // FIXME: Pulse match doesn't handle
-    // rewrite (context_perm cur_ctxt) as (engine_context_perm ctxt);
-    drop_ (context_perm cur_ctxt);
-    assume_ (engine_context_perm ctxt);
+    rewrite (context_perm cur_ctxt) as (engine_context_perm ctxt);
     rewrite (engine_context_perm ctxt) 
       as (A.pts_to ctxt.uds full_perm uds_bytes `star` 
           uds_is_enabled `star`
@@ -403,10 +406,7 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
     Engine_record r -> {
       match repr {
       Engine_repr r0 -> {       
-        // FIXME: Pulse match doesn't handle
-        // rewrite (record_perm record repr) as (engine_record_perm r r0); 
-        drop_ (record_perm record repr);
-        assume_ (engine_record_perm r r0);
+        rewrite (record_perm record repr) as (engine_record_perm r r0); 
 
         let cdi = new_array 0uy dice_digest_len;
         EngineCore.engine_main cdi ctxt.uds r; // FIXME: match on dice return type
@@ -419,10 +419,7 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
         delete cht ctxt_hndl;
         store cht new_ctxt_hndl new_locked_context;
 
-        // FIXME: Pulse match doesn't handle
-        // rewrite (engine_record_perm r r0) as (record_perm record repr);
-        drop_ (engine_record_perm r r0);
-        assume_ (record_perm record repr);
+        rewrite (engine_record_perm r r0) as (record_perm record repr);
 
         W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
         W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
@@ -452,10 +449,7 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
     }}
   }
   L0_context ctxt -> {
-    // FIXME: Pulse match doesn't handle
-    // rewrite (context_perm cur_ctxt) as (engine_context_perm ctxt);
-    drop_ (context_perm cur_ctxt);
-    assume_ (l0_context_perm ctxt);
+    rewrite (context_perm cur_ctxt) as (l0_context_perm ctxt);
     rewrite (l0_context_perm ctxt) 
       as (exists_ (fun (s:elseq U8.t dice_digest_len) -> A.pts_to ctxt.cdi full_perm s) `star`
           pure (A.is_full_array ctxt.cdi));
@@ -481,28 +475,30 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
         let deviceIDCSR_len = length_of_deviceIDCSR deviceIDCRI_len;
         let aliasKeyCRT_len = length_of_aliasKeyCRT aliasKeyTBS_len;
 
+        let deviceID_pub = new_array 0uy v32us;
+        let deviceID_priv = new_array 0uy v32us;
         let aliasKey_pub = new_array 0uy v32us;
         let aliasKey_priv = new_array 0uy v32us;
         let deviceIDCSR = new_array 0uy deviceIDCSR_len;
         let aliasKeyCRT = new_array 0uy aliasKeyCRT_len;
 
-        // FIXME: Pulse match doesn't handle
-        // rewrite (record_perm record repr) as (l0_record_perm r r0); 
-        drop_ (record_perm record repr);
-        assume_ (l0_record_perm r r0);
+        rewrite (record_perm record repr) as (l0_record_perm r r0); 
 
         assume_ (pure(valid_hkdf_ikm_len (digest_len dice_hash_alg)));
         
-        L0Core.l0_main  ctxt.cdi aliasKey_pub aliasKey_priv 
+        L0Core.l0_main  ctxt.cdi deviceID_pub deviceID_priv 
+                        aliasKey_pub aliasKey_priv 
                         aliasKeyTBS_len aliasKeyCRT_len aliasKeyCRT 
                         deviceIDCRI_len deviceIDCSR_len deviceIDCSR r;
         free_array ctxt.cdi;
 
         with (s1:elseq U8.t v32us). assert (A.pts_to aliasKey_priv full_perm s1);
         let new_locked_context = init_l1_ctxt deviceIDCSR_len aliasKeyCRT_len 
+                                              deviceID_priv deviceID_pub
                                               aliasKey_priv aliasKey_pub 
                                               deviceIDCSR aliasKeyCRT;
-
+        free_array deviceID_pub;
+        free_array deviceID_priv;
         free_array aliasKey_pub;
         free_array aliasKey_priv;
         free_array deviceIDCSR;
@@ -511,10 +507,7 @@ fn derive_child (sid:nat) (ctxt_hndl:nat) (record:record_t) (repr:repr_t)
         delete cht ctxt_hndl;
         store cht new_ctxt_hndl new_locked_context;
 
-        // FIXME: Pulse match doesn't handle
-        // rewrite (l0_record_perm r r0) as (record_perm record repr);
-        drop_ (l0_record_perm r r0);
-        assume_ (record_perm record repr);
+        rewrite (l0_record_perm r r0) as (record_perm record repr);
 
         W.release #(exists_ (fun n -> R.pts_to (dfst cht_ref) full_perm n)) l_cht;
         W.release #(exists_ (fun n -> R.pts_to (dfst sht_ref) full_perm n)) l_sht;
