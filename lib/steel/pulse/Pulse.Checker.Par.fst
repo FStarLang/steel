@@ -18,6 +18,85 @@ open FStar.Printf
 module FV = Pulse.Typing.FV
 module MT = Pulse.Typing.Metatheory
 
+open FStar.Algebra.CommMonoid.Equiv
+open FStar.Squash
+// Instantiation of the comm monoid interface for vprop
+(*
+type equiv (a:Type) =
+  | EQ :
+    eq:(a -> a -> Type0) -> 
+    reflexivity:(x:a -> Lemma (x `eq` x)) ->
+    symmetry:(x:a -> y:a -> Lemma (requires (x `eq` y)) (ensures (y `eq` x))) ->
+    transitivity:(x:a -> y:a -> z:a -> Lemma (requires (x `eq` y /\ y `eq` z)) (ensures (x `eq` z))) ->
+    equiv a
+*)
+
+let ve_assoc_rev #g t0 t1 t2:
+  vprop_equiv g (tm_star (tm_star t0 t1) t2) (tm_star t0 (tm_star t1 t2))
+= VE_Sym g _ _ (VE_Assoc _ t0 t1 t2)
+
+let symmetry_vprop_equiv g x y:
+  Lemma (requires (vprop_equiv g x y)) (ensures (vprop_equiv g y x))
+= let xy: squash (vprop_equiv g x y) = () in
+bind_squash xy (fun eq_xy -> return_squash (VE_Sym g x y eq_xy))
+
+let transitivity_vprop_equiv g x y z:
+  Lemma (requires (vprop_equiv g x y /\ vprop_equiv g y z))
+  (ensures (vprop_equiv g x z))
+= let xy: squash (vprop_equiv g x y) = () in
+let yz: squash (vprop_equiv g y z) = () in
+bind_squash xy (fun eq_xy -> bind_squash yz
+(fun eq_yz -> return_squash (VE_Trans g x y z eq_xy eq_yz)))
+
+let vprop_equiv_equiv (g: env): equiv vprop
+= EQ (vprop_equiv g)
+(fun x -> Squash.return_squash (VE_Refl g x))
+(symmetry_vprop_equiv g)
+(transitivity_vprop_equiv g)
+
+(*
+type cm (a:Type) (eq:equiv a) =
+  | CM :
+    unit:a ->
+    mult:(a -> a -> a) ->
+    identity : (x:a -> Lemma ((unit `mult` x) `EQ?.eq eq` x)) ->
+    associativity : (x:a -> y:a -> z:a ->
+                      Lemma ((x `mult` y `mult` z) `EQ?.eq eq` (x `mult` (y `mult` z)))) ->
+    commutativity:(x:a -> y:a -> Lemma ((x `mult` y) `EQ?.eq eq` (y `mult` x))) ->
+    congruence:(x:a -> y:a -> z:a -> w:a -> Lemma (requires (x `EQ?.eq eq` z /\ y `EQ?.eq eq` w)) (ensures ((mult x y) `EQ?.eq eq` (mult z w)))) ->
+    cm a eq
+*)
+let vprop_equiv_identity g x:
+  Lemma (vprop_equiv g (tm_star tm_emp x) x)
+= return_squash (VE_Unit g x)
+
+let vprop_equiv_associativity g x y z:
+  Lemma (vprop_equiv g (tm_star (tm_star x y) z) (tm_star x (tm_star y z)))
+= return_squash (VE_Sym g _ _ (VE_Assoc g x y z))
+
+let vprop_equiv_commutativity g x y:
+  Lemma (vprop_equiv g (tm_star x y) (tm_star y x))
+= return_squash (VE_Comm g x y)
+
+let vprop_equiv_congruence g x y z w:
+  Lemma (requires (vprop_equiv g x z /\ vprop_equiv g y w))
+  (ensures (vprop_equiv g (tm_star x y) (tm_star z w)))
+= let xz: squash (vprop_equiv g x z) = () in
+  let yw: squash (vprop_equiv g y w) = () in
+  bind_squash xz (fun eqxz -> bind_squash yw (
+    fun eqyw -> return_squash (VE_Ctxt g x y z w eqxz eqyw)
+  ))
+
+let vprop_monoid g:
+  cm vprop (vprop_equiv_equiv g)
+= CM tm_emp tm_star
+(vprop_equiv_identity g)
+(vprop_equiv_associativity g)
+(vprop_equiv_commutativity g)
+(vprop_equiv_congruence g)
+
+// End: Instantiation of vprop_equiv g and star as commutative monoid
+
 let print_term (t: term): T.Tac unit
   = T.print (term_to_string t)
 
@@ -225,9 +304,9 @@ let rec term_to_list (t: term): list host_term
   = match t.t with
   | Tm_FStar ft -> [ft]
   | Tm_Star l r -> term_to_list l @ term_to_list r
-  | _ -> []
+  | _ -> admit() //T.fail "Could not convert the term to a list"
 
-let compute_intersection_list (l: list term): list host_term
+let compute_intersection_list (l: list term): T.Tac (list host_term)
   = match map term_to_list l with
   | [] -> []
   | t::q -> fold_left compute_intersection t q
@@ -258,14 +337,60 @@ let rec remove_from_vprop (l: list host_term) (t: term): T.Tac term =
 let adapt_st_comp (c: st_comp) (pre: vprop) (post: vprop): st_comp =
   { u = c.u; res = c.res; pre = pre; post = post }
 
-let add_range r t = with_range (Tm_FStar t) r
+let add_range t = with_range (Tm_FStar t) (Range.range_0)
 
-let star_with_range r a b = with_range (Tm_Star a b) r
+//let star_with_range r a b = with_range (Tm_Star a b) r
 
-let from_list_to_term (r: range) (l: list host_term): term
-  = let l': list vprop = map (add_range r) l in
-  let temp: vprop = with_range Tm_Emp r in
-  fold_left (star_with_range r) temp l'
+let from_list_to_term (l: list host_term): term
+  = let l': list vprop = map add_range l in
+  let temp: vprop = tm_emp in
+  fold_left tm_star temp l'
+
+let ve_unit_rev (g: env) (t:term): vprop_equiv g (tm_star t tm_emp) t
+  = let eq1: vprop_equiv g (tm_star tm_emp t) t = VE_Unit _ t in
+  let eq2: vprop_equiv g (tm_star t tm_emp) (tm_star tm_emp t)
+  = VE_Comm _ _ _ in
+  VE_Trans _ _ _ _ eq2 eq1
+
+  // need to show that appending is OK?
+let rec append_from_list_to_term_equiv (g: env) (l1 l2: list host_term):
+  vprop_equiv g
+  (tm_star (from_list_to_term l1) (from_list_to_term l2))
+  (from_list_to_term (l1 @ l2))
+= 
+assert (from_list_to_term (l1 @ l2) == tm_star (from_list_to_term l1) (tl (from_list_to_term l2)));
+admit()
+(*
+= match l2 with
+| [] -> ve_unit_rev _ (from_list_to_term l1)
+| t2::q2 -> assert (
+from_list_to_term ()
+
+);
+admit()
+*)
+
+
+let rec term_to_list_vprop_equiv (g: env) (t: term):
+  T.Tac (vprop_equiv g t (from_list_to_term (term_to_list t)))
+= match t.t with
+  | Tm_FStar ft ->
+  VE_Sym g _ _ (VE_Unit _ (add_range ft))
+  | Tm_Star l r -> 
+  let eql = term_to_list_vprop_equiv g l in
+  let eqr = term_to_list_vprop_equiv g r in
+  let ll = term_to_list l in
+  let rr = term_to_list r in
+  let eqlr: vprop_equiv g (tm_star l r) (tm_star (from_list_to_term ll) (from_list_to_term rr))
+  = VE_Ctxt g _ _ _ _ eql eqr in
+  let eq_append: vprop_equiv g _ (from_list_to_term (term_to_list t))
+  = append_from_list_to_term_equiv g ll rr in
+  VE_Trans g _ _ _ eqlr eq_append
+  | _ -> fail g None "Could not convert term to an equivalent list representation"
+
+
+
+
 
 let rec extract_common_frame #g #t #c (inter: list host_term) (ty: st_typing g t c):
   T.Tac (st_typing g t c) (decreases ty)
@@ -274,6 +399,7 @@ let rec extract_common_frame #g #t #c (inter: list host_term) (ty: st_typing g t
   let f1 = remove_from_vprop inter frame in
   let c1 = add_frame c0 f1 in
   let f2 = from_list_to_term frame.range inter in
+  // Should be proven by the postcondition of remove and from_list_to...
   let eqf12: vprop_equiv g frame (tm_star f1 f2) = magic() in
   let c2 = add_frame c1 f2 in
   let tot_ty1: Ghost.erased (tot_typing g f1 tm_vprop) = magic() in
