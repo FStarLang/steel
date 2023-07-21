@@ -63,17 +63,14 @@ let rec st_typing_to_string' (#g:env) (#t:st_term) (#c:comp) (level: string) (ty
       (st_typing_to_string' (indent level) ty1)
       (st_typing_to_string' (indent level) ty2)
     | T_TotBind g e1 e2 t1 c2 x _ ty' ->
-      admit ();
       sprintf "T_TotBind (%s)"
       (st_typing_to_string' (indent level) ty')
     | T_Frame g e c frame _ ty' ->
-      admit ();
       sprintf "T_Frame (frame=%s) (\n%s%s)"
       (term_to_string frame)
       level
       (st_typing_to_string' (indent level) ty')
     | T_Equiv g e c c' ty' equiv ->
-      admit ();
       sprintf "T_Equiv (%s) (\n%s%s)"
       //(st_equiv_to_string level equiv)
       "..."
@@ -272,8 +269,7 @@ let from_list_to_term (r: range) (l: list host_term): term
 
 let rec extract_common_frame #g #t #c (inter: list host_term) (ty: st_typing g t c):
   T.Tac (st_typing g t c) (decreases ty)
-  = admit();
-  match ty with
+  = match ty with
   | T_Frame g e c0 frame tot_ty ty' ->
   let f1 = remove_from_vprop inter frame in
   let c1 = add_frame c0 f1 in
@@ -361,13 +357,10 @@ let rec bring_frame_top #g #t #c (ty: st_typing g t c):
 // should allow to change the computation, as long as it's equivalent
 // we put back the equiv at the end? Not really needed
   T.Tac (c': comp & st_typing g t c' & st_equiv g c' c) //(decreases ty)
-  = admit();
+  =
   match ty with
   | T_Frame g e c0 frame tot_ty ty' -> // Frame already at the top: Good
   (
-    //T.print "Frame already at the top, good";
-    //T.print (term_to_string (comp_pre c0));
-    //T.print (term_to_string (comp_pre c));
     Mkdtuple3 c ty (create_st_equiv g c c (VE_Refl _ _))
   )
   | T_Equiv _ _ c1 _ ty1 eq1 -> 
@@ -408,43 +401,7 @@ let rec bring_frame_top #g #t #c (ty: st_typing g t c):
       let (ty1:st_typing g e1 c1'{T_Frame? ty1}) = ty1 in
       let (ty2:st_typing (push_binding g x ppname_default (comp_res c1')) (open_st_term_nv e2 (b'.binder_ppname, x)) c2'{T_Frame? ty2}) = ty2 in
       let bcomp2:(bind_comp g x c1 c2 c') = bcomp2 in
-      //let r =
       bring_frame_top_bind #g #e1 #c1' #e2 b' x ty1 ty2 bcomp2 eq1 eq2
-      //admit())
-
-      (*
-      let T_Frame _ e1 c1' f1 totf1 ty1 = ty1 in
-      let ty1: st_typing g e1 c1' = ty1 in
-      let b':(b':binder{Mkbinder?.binder_ty b' == comp_res c1'}) =
-        {
-          binder_ty = comp_res c1'; binder_ppname = b.binder_ppname
-        } in
-      let T_Frame g2 e2 c2' f2 totf2 ty2 = ty2 in
-      (
-      (
-        assert (None? (lookup g x));
-        //assert false;
-        assume (~(FStar.Set.mem x (Pulse.Syntax.Naming.freevars_st e2)));
-        //assume (None? (Pulse.Typing.Env.lookup g x) /\ ~(FStar.Set.mem x (Pulse.Syntax.Naming.freevars_st e2)));
-        //assume (f1 == f2); // To prove. Why not needed?
-        assume (bind_comp_compatible c1' c2');
-        //assert false;
-        let c': comp_st = bind_comp_out c1' c2' in
-        let tot_ty1: Ghost.erased (tot_typing g f1 tm_vprop) = magic() in
-        //let tot_ty2: bind_comp g2 x c1' c2' c' = bcomp2 in // this line is bad...
-        //assume false;
-        //assert b.binder_ty == comp_res c1 }->
-        admit();
-        let ty': st_typing _ _ _ = T_Bind g e1 e2 c1' c2' b' x c' ty1 tot_ty1 ty2 bcomp2 in
-        let e: st_term = {range = t.range; term = Tm_Bind {binder=b; head=e1; body=e2}} in
-        let c'': comp_st = add_frame c' f1 in
-        let ty'': st_typing g t c'' = T_Frame g e c' f1 totf1 ty' in
-        let eq: st_equiv g c'' c = (assert (comp_pre c == comp_pre c1) ; create_st_equiv g c'' c (magic())) in
-        // c'' = c' * f1
-        // c = c 
-        Mkdtuple3 c'' ty'' eq
-      ))
-      *)
       )
     else
       fail g None "Should not have happened..."
@@ -481,8 +438,6 @@ let check_par
   : T.Tac (checker_result_t g pre post_hint) =
   (
     let g = push_context "check_par" t.range g in
-    admit()
-    (*
     let Tm_Par {pre1=preL; body1=eL; post1=postL; pre2=preR; body2=eR; post2=postR} = t.term in
     // Step 1: Type left branch in full context
     // The postcondition hint might be misleading, so we ignore it (for the moment; TODO: Can be used in both approaches)
@@ -528,6 +483,5 @@ let check_par
       repack (try_frame_pre pre_typing d) post_hint
     else fail g (Some eR.range) "par: cR is not stt"
   else fail g (Some eL.range) "par: cL is not stt"
-  *)
   )
 #pop-options
