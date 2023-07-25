@@ -455,8 +455,8 @@ type bind_comp  : env -> var -> comp -> comp -> comp -> Type =
       g:env ->
       x:var { None? (lookup g x) } ->
       c1:comp_st ->
-      c2:comp_st {bind_comp_pre x c1 c2} ->
-      universe_of g (comp_res c2) (comp_u c2) ->
+      c2:comp_st {bind_comp_pre x c1 c2} -> // this implies that x does not appear in the postcondition of c2
+      universe_of g (comp_res c2) (comp_u c2) -> // x cannot be free in comp_res c2
       //or in the result post; free var check isn't enough; we need typability
       y:var { None? (lookup g y) /\ ~(y `Set.mem` freevars (comp_post c2)) } ->      
       tot_typing (push_binding g y ppname_default (comp_res c2)) (open_term (comp_post c2) y) tm_vprop ->
@@ -607,12 +607,15 @@ type st_typing : env -> st_term -> comp -> Type =
       c1:comp_st ->
       c2:comp_st ->
       b:binder { b.binder_ty == comp_res c1 }->
+      // independent of pre/post of c1
       x:var { None? (lookup g x)  /\ ~(x `Set.mem` freevars_st e2) } ->
       c:comp ->
       st_typing g e1 c1 ->
       tot_typing g (comp_res c1) (tm_type (comp_u c1)) -> //type-correctness; would be nice to derive it instead      
+      // independent of pre/post of c1
       st_typing (push_binding g x ppname_default (comp_res c1)) (open_st_term_nv e2 (b.binder_ppname, x)) c2 ->
       bind_comp g x c1 c2 c ->
+      // might depend on pre/post of c1
       st_typing g (wr (Tm_Bind { binder=b; head=e1; body=e2 })) c
 
   | T_TotBind:
