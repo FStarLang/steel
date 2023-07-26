@@ -624,8 +624,60 @@ let lem1 g x c1 c2 c (d : bind_comp g x c1 c2 c)
    | Bind_comp_ghost_l _ _ _ _ _ r _ _ -> r
    | Bind_comp_ghost_r _ _ _ _ _ r _ _ -> r
 
+// wrapper to make lemma below clearer
+let comp_st_typing (g:env) (c:comp_st) : Type =
+  st_comp_typing g (st_comp_of_comp c)
 
+let cong_bind_l
+  (g:env)
+  (l1 l2 : comp_st)
+  (d : st_equiv g l1 l2)
+  (x : var)
+  (r : comp_st{bind_comp_compatible l1 r})
+  (rd : comp_st_typing g r)
+  : T.Tac (st_equiv g (bind_comp_out l1 r) (bind_comp_out l2 r))
+  =
+    let c1 = bind_comp_out l1 r in
+    let c2 = bind_comp_out l2 r in
+    let xt = comp_res l1 in
+    assert(bind_comp_compatible l1 r <==> bind_comp_compatible l2 r);
+    let ST_VPropEquiv _ _ _ x l1_pre_typing l1_res_typing l1_post_typing
+                      pre_equiv
+                      post_equiv = d
+    in
+    let STC _ _ z r_res_typing r_pre_typing r_post_typing = rd in
+    let y = fresh (push_binding g x ppname_default xt) in
+    assume (~ (y `Set.mem` freevars (comp_post r))); // should be easily provable by extending argument above
 
+    ST_VPropEquiv g c1 c2
+     z l1_pre_typing r_res_typing r_post_typing pre_equiv (VE_Refl _ _)
+
+let cong_bind_r
+  (g:env)
+  (l : comp_st)
+  (ld : comp_st_typing g l)
+  (x : var)
+  (r1 : comp_st{bind_comp_compatible l r1})
+  (r2 : comp_st{bind_comp_compatible l r2})
+  (d : st_equiv g r1 r2)
+  : T.Tac (st_equiv g (bind_comp_out l r1) (bind_comp_out l r2))
+  = let c1 = bind_comp_out l r1 in
+    let c2 = bind_comp_out l r2 in
+    let xt = comp_res l in
+    let STC _ _ x l_res_typing l_pre_typing l_post_typing = ld in
+    let ST_VPropEquiv _ _ _ x r1_pre_typing r1_res_typing r1_post_typing
+                      pre_equiv
+                      post_equiv = d
+    in
+    ST_VPropEquiv g c1 c2
+      x
+      l_pre_typing
+      r1_res_typing
+      r1_post_typing
+      (VE_Refl _ _)
+      post_equiv
+
+(*
 // Up to equivalence...
 let rec bring_frame_top' #g #t #c (ty: st_typing g t c):
 // should allow to change the computation, as long as it's equivalent
