@@ -69,8 +69,7 @@ let rec term_to_string' (level:string) (t:term)
     | Tm_Inames -> "inames"
     | Tm_EmpInames -> "emp_inames"
     | Tm_Unknown -> "_"
-    | Tm_FStar t ->
-      T.term_to_string t
+    | Tm_FStar t -> "FStar term!" ^ T.term_to_string t
 let term_to_string t = term_to_string' "" t
 
 let binder_to_string (b:binder)

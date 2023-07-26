@@ -189,6 +189,11 @@ atomicVprop:
       let app = mkApp head (map (fun (x,y) -> (y,x)) args) (rr2 $loc(head) $loc(args)) in
       PulseSugar.(as_vprop (VPropTerm app) (rr $loc))
     }
+  | UNDERSCORE
+    {
+      let u = mk_term Wild (rr $loc) Expr in
+      PulseSugar.(as_vprop (VPropTerm u) (rr $loc))
+    }
 
 %inline
 starOp:
