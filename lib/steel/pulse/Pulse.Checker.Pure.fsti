@@ -35,6 +35,9 @@ val check_term_and_type (g:env) (t:term)
 val check_term_with_expected_type (g:env) (e:term) (t:term)
   : T.Tac (e:term & typing g e t)
 
+val check_ghost_term_with_expected_type (g:env) (e:term) (t:typ)
+  : T.Tac (e:term & ghost_typing g e t)
+
 val core_check_term (g:env) (t:term)
   : T.Tac (ty:term &
            typing g t ty)

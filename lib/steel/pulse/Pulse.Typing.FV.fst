@@ -1,12 +1,15 @@
 module Pulse.Typing.FV
-module RT = FStar.Reflection.Typing
-module R = FStar.Reflection.V2
-module L = FStar.List.Tot
+
 open FStar.List.Tot
 open Pulse.Syntax
 open Pulse.Typing
 open Pulse.Elaborate
 open Pulse.Soundness.Common
+
+module T = FStar.Tactics.Types
+module RT = FStar.Reflection.Typing
+module R = FStar.Reflection.V2
+module L = FStar.List.Tot
 
 let vars_of_rt_env (g:R.env) = Set.intension (fun x -> Some? (RT.lookup_bvar g x))
 
@@ -174,8 +177,8 @@ let contains_r (g:R.env) (x:var) = Some? (RT.lookup_bvar g x)
 let vars_of_env_r (g:R.env) = Set.intension (contains_r g)
 
 assume
-val refl_typing_freevars (#g:R.env) (#e:R.term) (#t:R.term) 
-                         (_:RT.tot_typing g e t)
+val refl_typing_freevars (#g:R.env) (#e:R.term) (#t:R.term) (#eff:T.tot_or_ghost)
+                         (_:RT.typing g e (eff, t))
   : Lemma 
     (ensures RT.freevars e `Set.subset` (vars_of_env_r g) /\
              RT.freevars t `Set.subset` (vars_of_env_r g))
@@ -215,6 +218,17 @@ let tot_typing_freevars (#g:_) (#t:_) (#ty:_)
              freevars ty `Set.subset` vars_of_env g)
   = elab_freevars t;
     elab_freevars ty;      
+    let E d = d in
+    refl_typing_freevars d;
+    assert (vars_of_env_r (elab_env g) `Set.equal` (vars_of_env g))
+
+let ghost_typing_freevars (#g:_) (#t:_) (#ty:_)
+                          (d:ghost_typing g t ty)
+  : Lemma 
+    (ensures freevars t `Set.subset` vars_of_env g /\
+             freevars ty `Set.subset` vars_of_env g)
+  = elab_freevars t;
+    elab_freevars ty;
     let E d = d in
     refl_typing_freevars d;
     assert (vars_of_env_r (elab_env g) `Set.equal` (vars_of_env g))
@@ -468,7 +482,7 @@ let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
    | T_IntroExists _ u b p w dt dv dw ->
      tot_typing_freevars dt;
      tot_typing_freevars dv;
-     tot_typing_freevars dw;
+     ghost_typing_freevars dw;
      assert (freevars_st t `Set.subset` vars_of_env g);
      calc (Set.subset) {
         freevars_comp c;
@@ -489,30 +503,30 @@ let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
          freevars p);
      }
 
-   | T_IntroExistsErased _ u b p w dt dv dw ->
-     tot_typing_freevars dt;
-     tot_typing_freevars dv;
-     tot_typing_freevars dw;
-     assert (freevars_st t `Set.subset` vars_of_env g);
-     freevars_mk_reveal u b.binder_ty w;
-     calc (Set.subset) {
-        freevars_comp c;
-      (Set.equal) {}
-        freevars_comp (comp_intro_exists_erased u b p w);
-      (Set.equal) {}
-        freevars tm_emp_inames `Set.union`
-        (freevars tm_unit `Set.union`
-        (freevars (open_term' p (Pulse.Typing.mk_reveal u b.binder_ty w) 0) `Set.union`
-         freevars (tm_exists_sl u b p)));
-      (Set.equal) {} 
-        (freevars (open_term' p (Pulse.Typing.mk_reveal u b.binder_ty w) 0) `Set.union`
-         freevars (tm_exists_sl u b p));
-      (Set.subset) { freevars_open_term p (Pulse.Typing.mk_reveal u b.binder_ty w) 0 }
-        (freevars p `Set.union` 
-         freevars w `Set.union`
-         freevars_st t `Set.union`
-         freevars p);
-     }
+  //  | T_IntroExistsErased _ u b p w dt dv dw ->
+  //    tot_typing_freevars dt;
+  //    tot_typing_freevars dv;
+  //    tot_typing_freevars dw;
+  //    assert (freevars_st t `Set.subset` vars_of_env g);
+  //    freevars_mk_reveal u b.binder_ty w;
+  //    calc (Set.subset) {
+  //       freevars_comp c;
+  //     (Set.equal) {}
+  //       freevars_comp (comp_intro_exists_erased u b p w);
+  //     (Set.equal) {}
+  //       freevars tm_emp_inames `Set.union`
+  //       (freevars tm_unit `Set.union`
+  //       (freevars (open_term' p (Pulse.Typing.mk_reveal u b.binder_ty w) 0) `Set.union`
+  //        freevars (tm_exists_sl u b p)));
+  //     (Set.equal) {} 
+  //       (freevars (open_term' p (Pulse.Typing.mk_reveal u b.binder_ty w) 0) `Set.union`
+  //        freevars (tm_exists_sl u b p));
+  //     (Set.subset) { freevars_open_term p (Pulse.Typing.mk_reveal u b.binder_ty w) 0 }
+  //       (freevars p `Set.union` 
+  //        freevars w `Set.union`
+  //        freevars_st t `Set.union`
+  //        freevars p);
+  //    }
 
    | T_Equiv _ _ _ _ d2 deq ->
      st_typing_freevars d2;

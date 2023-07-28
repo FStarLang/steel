@@ -447,6 +447,9 @@ let typing (g:env) (e:term) (t:term) =
 let tot_typing (g:env) (e:term) (t:term) =
     my_erased (typing g e t)
 
+let ghost_typing (g:env) (e:term) (t:term) =
+  my_erased (RT.ghost_typing (elab_env g) (elab_term e) (elab_term t))
+
 let universe_of (g:env) (t:term) (u:universe) =
     tot_typing g t (tm_type u)
 
@@ -754,25 +757,24 @@ type st_typing : env -> st_term -> comp -> Type =
       e:term ->
       tot_typing g b.binder_ty (tm_type u) ->
       tot_typing g (tm_exists_sl u b p) tm_vprop ->
-      tot_typing g e b.binder_ty ->
-      st_typing g (wr (Tm_IntroExists { erased = false;
-                                        p = tm_exists_sl u b p;
+      ghost_typing g e b.binder_ty ->
+      st_typing g (wr (Tm_IntroExists { p = tm_exists_sl u b p;
                                         witnesses= [e] }))
                   (comp_intro_exists u b p e)
       
-  | T_IntroExistsErased:
-      g:env ->
-      u:universe ->
-      b:binder ->
-      p:term ->
-      e:term ->
-      tot_typing g b.binder_ty (tm_type u) ->
-      tot_typing g (tm_exists_sl u b p) tm_vprop ->
-      tot_typing g e (mk_erased u b.binder_ty)  ->
-      st_typing g (wr (Tm_IntroExists { erased = true;
-                                        p = tm_exists_sl u b p;
-                                        witnesses= [e] }))
-                  (comp_intro_exists_erased u b p e)
+  // | T_IntroExistsErased:
+  //     g:env ->
+  //     u:universe ->
+  //     b:binder ->
+  //     p:term ->
+  //     e:term ->
+  //     tot_typing g b.binder_ty (tm_type u) ->
+  //     tot_typing g (tm_exists_sl u b p) tm_vprop ->
+  //     tot_typing g e (mk_erased u b.binder_ty)  ->
+  //     st_typing g (wr (Tm_IntroExists { erased = true;
+  //                                       p = tm_exists_sl u b p;
+  //                                       witnesses= [e] }))
+  //                 (comp_intro_exists_erased u b p e)
 
   | T_While:
       g:env ->

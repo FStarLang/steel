@@ -49,11 +49,11 @@ let rtb_instantiate_implicits g f t =
   debug g (fun _ -> "Returned from instantiate_implicits");
   res
 
-let rtb_core_check_term_at_type g f e t =
+let rtb_core_check_term_at_type g f e t eff =
   debug g (fun _ -> Printf.sprintf "Calling core_check_term on %s and %s"
                                        (T.term_to_string e)
                                        (T.term_to_string t));
-  let res = RTB.core_check_term f e t T.E_Total in
+  let res = RTB.core_check_term f e t eff in
   res
 
 let mk_squash t =
@@ -192,9 +192,8 @@ let check_term_and_type (g:env) (t:term)
         let (| u, uty |) = check_universe g ty in
         (| t, u, ty, uty, tok |)
 
-
-let check_term_with_expected_type (g:env) (e:term) (t:term)
-  : T.Tac (e:term & typing g e t) =
+let check_term_with_expected_type_aux (g:env) (e:term) (t:term) (eff:T.tot_or_ghost)
+  : T.Tac (e:term & RT.typing (elab_env g) (elab_term e) (eff, elab_term t)) =
 
   let e, _ = instantiate_term_implicits g e in 
   
@@ -206,12 +205,19 @@ let check_term_with_expected_type (g:env) (e:term) (t:term)
     catch_all (fun _ -> 
     rtb_core_check_term_at_type 
       (push_context g "check_term_with_expected_type" (range_of_term rt))
-       fg re rt) in
+       fg re rt eff) in
   T.log_issues issues;
   match topt with
   | None ->
     fail g (Some e.range) (ill_typed_term e (Some t) None)
   | Some tok -> (| e, RT.T_Token _ _ _ (FStar.Squash.return_squash tok) |)
+
+let check_term_with_expected_type g e t =
+  check_term_with_expected_type_aux g e t T.E_Total
+
+let check_ghost_term_with_expected_type g e t =
+  let (| e, d |) = check_term_with_expected_type_aux g e t T.E_Ghost in
+  (| e, E d |)
 
 let tc_with_core g (f:R.env) (e:R.term) 
   : T.Tac (option (t:R.term & RT.tot_typing f e t) & issues)
@@ -246,7 +252,7 @@ let core_check_term_with_expected_type g e t =
     catch_all (fun _ ->
      rtb_core_check_term_at_type
       (push_context g "core_check_term_with_expected_type" (range_of_term rt))
-       fg re rt) in
+       fg re rt T.E_Total) in
   T.log_issues issues;
   match topt with
   | None ->

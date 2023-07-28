@@ -288,8 +288,8 @@ let rec soundness (g:stt_env)
     | T_IntroExists _ _ _ _ _ _ _ _ ->
       Exists.intro_exists_soundness d
 
-    | T_IntroExistsErased _ _ _ _ _ _ _ _ ->
-      Exists.intro_exists_erased_soundness d
+    // | T_IntroExistsErased _ _ _ _ _ _ _ _ ->
+    //   Exists.intro_exists_erased_soundness d
 
     | T_While _ _ _ _ _ _ _ ->
       While.while_soundness d soundness

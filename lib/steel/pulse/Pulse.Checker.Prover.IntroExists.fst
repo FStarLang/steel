@@ -18,14 +18,13 @@ let coerce_eq (#a #b:Type) (x:a) (_:squash (a == b)) : y:b{y == x} = x
 let k_intro_exists (#g:env) (#u:universe) (#b:binder) (#p:vprop)
   (ex_typing:tot_typing g (tm_exists_sl u b p) tm_vprop)
   (#e:term)
-  (e_typing:tot_typing g e b.binder_ty)
+  (e_typing:ghost_typing g e b.binder_ty)
   (#frame:vprop)
   (frame_typing:tot_typing g frame tm_vprop)
   : T.Tac (continuation_elaborator g (frame * subst_term p [ DT 0 e ])
                                    g (frame * tm_exists_sl u b p)) =
   
-  let t = wr (Tm_IntroExists { erased = false;
-                               p = tm_exists_sl u b p;
+  let t = wr (Tm_IntroExists { p = tm_exists_sl u b p;
                                witnesses = [e] }) in
 
   let c = comp_intro_exists u b p e in

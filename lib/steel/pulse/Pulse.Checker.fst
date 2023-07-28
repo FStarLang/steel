@@ -73,13 +73,13 @@ let rec gen_names_for_unknowns (g:env) (t:term) (ws:list term)
 let instantiate_unknown_witnesses (g:env) (t:st_term { Tm_IntroExists? t.term })
   : T.Tac (option st_term) =
 
-  let Tm_IntroExists { erased; p; witnesses=ws } = t.term in
+  let Tm_IntroExists { p; witnesses=ws } = t.term in
 
   let new_names, opened_p, new_ws = gen_names_for_unknowns g p ws in
   match new_names with
   | [] -> None
   | _ ->
-    let e2 = {t with term=Tm_IntroExists {erased; p; witnesses=new_ws }} in
+    let e2 = {t with term=Tm_IntroExists {p; witnesses=new_ws }} in
     let e1 =
       let hint_type = ASSERT in
       let binders = [] in
@@ -97,35 +97,36 @@ let instantiate_unknown_witnesses (g:env) (t:st_term { Tm_IntroExists? t.term })
     ) new_names e1 in
     Some t
 
-let maybe_intro_exists_erased (t:st_term { Exists.intro_exists_witness_singleton t })
-  : t':st_term { Exists.intro_exists_witness_singleton t' } =
+// let maybe_intro_exists_erased (t:st_term { Exists.intro_exists_witness_singleton t })
+//   : t':st_term { Exists.intro_exists_witness_singleton t' } =
 
-  let Tm_IntroExists { erased; p; witnesses=[w] } = t.term in
-  match unreveal w with
-  | Some w ->
-    let t' = Tm_IntroExists {erased=true;p;witnesses=[w]} in
-    {t with term=t'}
-  | _ -> t
+//   let Tm_IntroExists { erased; p; witnesses=[w] } = t.term in
+//   match unreveal w with
+//   | Some w ->
+//     let t' = Tm_IntroExists {erased=true;p;witnesses=[w]} in
+//     {t with term=t'}
+//   | _ -> t
 
-let rec transform_to_unary_intro_exists (g:env) (t:term) (ws:list term)
+let rec transform_to_unary_intro_exists (g:env) (t:term) (ws:list term) (r:Range.range)
   : T.Tac st_term =
   
   match ws with
   | [] -> fail g (Some t.range) "intro exists with empty witnesses"
   | [w] ->
     if Tm_ExistsSL? t.t
-    then wr (Tm_IntroExists {erased=false;p=t;witnesses=[w]})
+    then { term = Tm_IntroExists {p=t;witnesses=[w]}; range = r }
     else fail g (Some t.range) "intro exists with non-existential"
   | w::ws ->
     match t.t with
     | Tm_ExistsSL u b body ->
       let body = subst_term body [ DT 0 w ] in
-      let st = transform_to_unary_intro_exists g body ws in
+      let st = transform_to_unary_intro_exists g body ws r in
       // w is the witness
-      let intro = wr (Tm_IntroExists {erased=true;p=t;witnesses=[w]}) in
-      wr (Tm_Bind {binder=null_binder tm_unit;
-                      head=st;
-                      body= intro})
+      let intro = wr (Tm_IntroExists {p=t;witnesses=[w]}) in
+      { term = Tm_Bind {binder=null_binder tm_unit;
+                        head=st;
+                        body= intro};
+        range = r }
 
     | _ -> fail g (Some t.range) "intro exists with non-existential"
 
@@ -162,6 +163,7 @@ let rec check
       Exists.check_elim_exists g pre pre_typing post_hint res_ppname t
 
     | Tm_IntroExists { p; witnesses } ->
+      let r = t.range in
       (match instantiate_unknown_witnesses g t with
        | Some t ->
          check g pre pre_typing post_hint res_ppname t
@@ -169,9 +171,9 @@ let rec check
          match witnesses with
          | [] -> fail g (Some t.range) "intro exists with empty witnesses"
          | [_] ->
-           Exists.check_intro_exists g pre pre_typing post_hint res_ppname (maybe_intro_exists_erased t) None 
+           Exists.check_intro_exists g pre pre_typing post_hint res_ppname t None 
          | _ ->
-           let t = transform_to_unary_intro_exists g p witnesses in
+           let t = transform_to_unary_intro_exists g p witnesses r in
            check g pre pre_typing post_hint res_ppname t)
     | Tm_Bind _ ->
       Bind.check_bind g pre pre_typing post_hint res_ppname t check

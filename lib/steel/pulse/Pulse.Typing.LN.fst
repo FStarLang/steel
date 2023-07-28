@@ -1,10 +1,12 @@
 module Pulse.Typing.LN
-module RT = FStar.Reflection.Typing
-module R = FStar.Reflection.V2
-module L = FStar.List.Tot
+
 open FStar.List.Tot
 open Pulse.Syntax
 open Pulse.Typing
+
+module RT = FStar.Reflection.Typing
+module R = FStar.Reflection.V2
+module L = FStar.List.Tot
 
 //
 // TODO: this is needed only for the E_Total flag,
@@ -12,10 +14,10 @@ open Pulse.Typing
 //
 module T = FStar.Tactics.V2
 
-let well_typed_terms_are_ln (g:R.env) (e:R.term) (t:R.term) (d:RT.tot_typing g e t)
+let well_typed_terms_are_ln (g:R.env) (e:R.term) (t:R.term) (#eff:T.tot_or_ghost) (d:RT.typing g e (eff, t))
   : Lemma (ensures RT.ln e /\ RT.ln t) =
 
-  RT.well_typed_terms_are_ln g e (T.E_Total, t) d
+  RT.well_typed_terms_are_ln g e (eff, t) d
 
 assume
 val elab_ln_inverse (e:term)
@@ -715,7 +717,16 @@ let tot_typing_ln (#g:_) (#e:_) (#t:_)
     well_typed_terms_are_ln _ _ _ dt;
     elab_ln_inverse e;
     elab_ln_inverse t
-  
+
+let ghost_typing_ln (#g:_) (#e:_) (#t:_)
+                    (d:ghost_typing g e t)
+  : Lemma 
+    (ensures ln e /\ ln t)
+  = let E dt = d in
+    well_typed_terms_are_ln _ _ _ dt;
+    elab_ln_inverse e;
+    elab_ln_inverse t
+
 let rec vprop_equiv_ln (#g:_) (#t0 #t1:_) (v:vprop_equiv g t0 t1)
   : Lemma (ensures ln t0 <==> ln t1)
           (decreases v)
@@ -899,15 +910,15 @@ let rec st_typing_ln (#g:_) (#t:_) (#c:_)
     | T_IntroExists _ u t p e dt dv dw ->
       tot_typing_ln dt;
       tot_typing_ln dv;
-      tot_typing_ln dw;
+      ghost_typing_ln dw;
       open_term_ln_inv' p e 0
 
-    | T_IntroExistsErased _ u b p e dt dv dw ->
-      tot_typing_ln dt;
-      tot_typing_ln dv;
-      tot_typing_ln dw;
-      ln_mk_reveal u b.binder_ty e (-1);
-      open_term_ln_inv' p (Pulse.Typing.mk_reveal u b.binder_ty e) 0
+    // | T_IntroExistsErased _ u b p e dt dv dw ->
+    //   tot_typing_ln dt;
+    //   tot_typing_ln dv;
+    //   tot_typing_ln dw;
+    //   ln_mk_reveal u b.binder_ty e (-1);
+    //   open_term_ln_inv' p (Pulse.Typing.mk_reveal u b.binder_ty e) 0
 
     | T_Equiv _ _ _ _ d2 deq ->
       st_typing_ln d2;
