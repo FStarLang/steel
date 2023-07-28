@@ -394,6 +394,12 @@ let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
      tot_typing_freevars at;
      freevars_open_comp res arg 0;
      freevars_tm_arrow (as_binder ty) q res
+
+   | T_STGhostApp _ head ty q res arg st _ at ->
+     tot_typing_freevars st;
+     ghost_typing_freevars at;
+     freevars_open_comp res arg 0;
+     freevars_tm_arrow (as_binder ty) q res
    
    | T_Return _ c use_eq u t e post x t_typing e_typing post_typing ->
      tot_typing_freevars t_typing;

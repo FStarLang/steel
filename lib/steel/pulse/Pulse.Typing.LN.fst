@@ -849,6 +849,15 @@ let rec st_typing_ln (#g:_) (#t:_) (#c:_)
       assume (ln_c' res 0);
       open_comp_ln_inv' res arg 0;
       Pulse.Elaborate.elab_ln_comp (open_comp_with res arg) (-1)
+    
+    | T_STGhostApp _ _ _ _ res arg st _ at ->
+      tot_typing_ln st;
+      ghost_typing_ln at;
+      // We have RT.ln' (elab_comp res),
+      //   from that we need to derive the following
+      assume (ln_c' res 0);
+      open_comp_ln_inv' res arg 0;
+      Pulse.Elaborate.elab_ln_comp (open_comp_with res arg) (-1)
 
     | T_Lift _ _ _ _ d1 l ->
       st_typing_ln d1;

@@ -120,22 +120,34 @@ let check
     
     if qual = bqual
     then
-      let (| arg, darg |) = check_term_with_expected_type g arg formal in
-      match comp_typ with
-      | C_ST res
-      | C_STAtomic _ res
-      | C_STGhost _ res ->
-        // This is a real ST application
-        let d : st_typing _ _ (open_comp_with comp_typ arg) =
-          T_STApp g head formal qual comp_typ arg (E dhead) (E darg) in
-        let d = canonicalize_st_typing d in
-        let t = { term = Tm_STApp {head; arg_qual=qual; arg}; range } in
-        let c = (canon_comp (open_comp_with comp_typ arg)) in
-        let d : st_typing g t c = d in
+      let (| t, c, d |) =
+        match comp_typ with
+        | C_ST res
+        | C_STAtomic _ res ->
+          // This is a real ST application
+          let (| arg, darg |) = check_term_with_expected_type g arg formal in
+          let d = T_STApp g head formal qual comp_typ arg (E dhead) (E darg) in
+          (| _, _, canonicalize_st_typing d |)
+        | C_STGhost _ res ->
+          let (| arg, darg |) = check_ghost_term_with_expected_type g arg formal in
+          let erasable_token = T.check_type_erasable (elab_env g) (elab_term ty_head) in
+          (match erasable_token with
+           | None, issues ->
+             T.log_issues issues;
+             fail g (Some t.range)
+               (Printf.sprintf "Unexpected error: check_erasable for ghost function %s returned None"
+                  (P.term_to_string ty_head))
+           | Some token, _ ->
+             let d = T_STGhostApp g head formal qual comp_typ arg (E dhead) (FStar.Squash.return_squash token) darg in
+             (| _, _, canonicalize_st_typing d |))
+          
+        | _ ->
+          fail g (Some t.range)
+            "Expected an effectful application; got a pure term (could it be partially applied by mistake?)"
 
-        Prover.prove_post_hint (Prover.try_frame_pre_uvs ctxt_typing uvs d res_ppname) post_hint t.range
-      | _ ->
-        fail g (Some t.range) "Expected an effectful application; got a pure term (could it be partially applied by mistake?)"
+      in
+
+      Prover.prove_post_hint (Prover.try_frame_pre_uvs ctxt_typing uvs d res_ppname) post_hint t.range
     else fail g (Some t.range) (Printf.sprintf "Unexpected qualifier in head type %s of stateful application: head = %s, arg = %s"
                 (P.term_to_string ty_head)
                 (P.term_to_string head)

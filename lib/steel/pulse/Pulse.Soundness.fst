@@ -78,11 +78,10 @@ let frame_soundness
   Frame.elab_frame_typing g _ _ frame frame_typing r_e_typing
 
 let stapp_soundness
-  (g:stt_env)
-  (t:st_term)
-  (c:comp)
+  (#g:stt_env)
+  (#t:st_term)
+  (#c:comp)
   (d:st_typing g t c{T_STApp? d})
-  (soundness:soundness_t d)
   : GTot (RT.tot_typing (elab_env g) (elab_st_typing d) (elab_comp c)) =
 
   let T_STApp _ head formal q res arg head_typing arg_typing = d in
@@ -99,6 +98,29 @@ let stapp_soundness
                  _
                  r_head_typing
                  r_arg_typing
+
+let stghostapp_soundness
+  (#g:stt_env)
+  (#t:st_term)
+  (#c:comp)
+  (d:st_typing g t c { T_STGhostApp? d })
+  : GTot (RT.tot_typing (elab_env g) (elab_st_typing d) (elab_comp c)) =
+
+  let T_STGhostApp _ head formal q res arg head_typing erasable_token arg_typing = d in
+  let r_head = elab_term head in
+  let r_arg = elab_term arg in
+  let r_head_typing
+    : RT.tot_typing _ r_head
+        (elab_term (tm_arrow {binder_ty=formal;binder_ppname=ppname_default} q res))
+    = tot_typing_soundness head_typing
+  in
+  let r_arg_typing = ghost_typing_soundness arg_typing in
+  RT.T_Erasable_App _ _ _
+    (binder_of_t_q_s (elab_term formal) (elab_qual q) RT.pp_name_default)
+    (elab_comp res)
+    r_head_typing
+    erasable_token
+    r_arg_typing
 
 let stequiv_soundness
   (g:stt_env)
@@ -253,7 +275,10 @@ let rec soundness (g:stt_env)
       mk_t_abs q ppname_default t_typing body_typing    
 
     | T_STApp _ _ _ _ _ _ _ _ ->
-      stapp_soundness _ _ _ d soundness
+      stapp_soundness d
+  
+    | T_STGhostApp _ _ _ _ _ _ _ _ _ ->
+      stghostapp_soundness d
 
     | T_Bind _ _e1 _e2 _c1 _c2 _b _x _c _e1_typing _t_typing _e2_typing _bc ->
       bind_soundness d soundness mk_t_abs

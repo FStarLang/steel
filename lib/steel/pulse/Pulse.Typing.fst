@@ -627,6 +627,19 @@ type st_typing : env -> st_term -> comp -> Type =
       st_typing g (wr (Tm_STApp {head; arg_qual=q; arg}))
                   (open_comp_with res arg)
 
+  | T_STGhostApp :
+      g:env ->
+      head:term ->
+      ty:term ->
+      q:option qualifier ->
+      res:comp_st ->
+      arg:term ->
+      tot_typing g head (tm_arrow (as_binder ty) q res) ->
+      squash (T.erasable_token (elab_env g) (elab_term (tm_arrow (as_binder ty) q res))) ->
+      ghost_typing g arg ty ->
+      st_typing g (wr (Tm_STApp {head; arg_qual=q; arg}))
+                  (open_comp_with res arg)
+
   | T_Return:
       g:env ->
       c:ctag ->

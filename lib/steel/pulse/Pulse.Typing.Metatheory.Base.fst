@@ -156,6 +156,9 @@ let rec st_typing_weakening g g' t c d g1
   | T_STApp _ head ty q res arg _ _ ->
     T_STApp _ head ty q res arg (magic ()) (magic ())
 
+  | T_STGhostApp _ head ty q res arg _ _ _ ->
+    T_STGhostApp _ head ty q res arg (magic ()) (magic ()) (magic ())
+
   | T_Return _ c use_eq u t e post x_old _ _ _ ->
     let x = fresh (push_env (push_env g g1) g') in
     assume (~ (x `Set.mem` freevars post));
@@ -494,6 +497,16 @@ let rec st_typing_subst g x t g' #e e_typing #e1 #c1 e1_typing
               (subst_term arg ss)
               (magic ())
               (magic ())
+  
+  | T_STGhostApp _ head ty q res arg _ _ _ ->
+    T_STGhostApp _ (subst_term head ss)
+                   (subst_term ty ss)
+                   q
+                   (subst_comp res ss)
+                   (subst_term arg ss)
+                   (magic ())
+                   (magic ())
+                   (magic ())
 
   | T_Return _ c use_eq u t e post x _ _ _ ->
     T_Return _ c use_eq u
