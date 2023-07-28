@@ -263,6 +263,14 @@ let rec (elab_st_typing :
               let arg1 = Pulse_Elaborate_Pure.elab_term arg in
               FStar_Reflection_V2_Derived.mk_app head1
                 [(arg1, (Pulse_Elaborate_Pure.elab_qual qual))]
+          | Pulse_Typing.T_STGhostApp
+              (uu___, head, _formal, qual, _res, arg, head_typing, uu___1,
+               arg_typing)
+              ->
+              let head1 = Pulse_Elaborate_Pure.elab_term head in
+              let arg1 = Pulse_Elaborate_Pure.elab_term arg in
+              FStar_Reflection_V2_Derived.mk_app head1
+                [(arg1, (Pulse_Elaborate_Pure.elab_qual qual))]
           | Pulse_Typing.T_Return
               (uu___, c1, use_eq, u, ty, t1, post, uu___1, uu___2, uu___3,
                uu___4)

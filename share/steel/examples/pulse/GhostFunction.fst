@@ -48,3 +48,12 @@ fn caller_of_some_ghost_fn (r:GR.ref int) (n:erased int)
     some_ghost_fn r n
 }
 ```
+
+```pulse
+fn another_caller_of_some_ghost_fn (r:GR.ref int) (n:int)
+  requires GR.pts_to r full_perm n
+  ensures GR.pts_to r full_perm n
+{
+    some_ghost_fn r n
+}
+```
