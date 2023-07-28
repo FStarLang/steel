@@ -714,6 +714,7 @@ let (comp_admit :
 type ('g, 'e, 't) typing =
   (unit, unit, unit) FStar_Reflection_Typing.tot_typing
 type ('g, 'e, 't) tot_typing = unit
+type ('g, 'e, 't) ghost_typing = unit
 type ('g, 't, 'u) universe_of = unit
 type ('g, 'u, 't) non_informative_t =
   (Pulse_Syntax_Base.term, unit) Prims.dtuple2
@@ -869,9 +870,6 @@ type ('dummyV0, 'dummyV1, 'dummyV2) st_typing =
   | T_IntroExists of Pulse_Typing_Env.env * Pulse_Syntax_Base.universe *
   Pulse_Syntax_Base.binder * Pulse_Syntax_Base.term * Pulse_Syntax_Base.term
   * unit * unit * unit 
-  | T_IntroExistsErased of Pulse_Typing_Env.env * Pulse_Syntax_Base.universe
-  * Pulse_Syntax_Base.binder * Pulse_Syntax_Base.term *
-  Pulse_Syntax_Base.term * unit * unit * unit 
   | T_While of Pulse_Typing_Env.env * Pulse_Syntax_Base.term *
   Pulse_Syntax_Base.st_term * Pulse_Syntax_Base.st_term * unit * (unit, 
   unit, unit) st_typing * (unit, unit, unit) st_typing 
@@ -932,8 +930,6 @@ let uu___is_T_ElimExists uu___2 uu___1 uu___ uu___3 =
   match uu___3 with | T_ElimExists _ -> true | _ -> false
 let uu___is_T_IntroExists uu___2 uu___1 uu___ uu___3 =
   match uu___3 with | T_IntroExists _ -> true | _ -> false
-let uu___is_T_IntroExistsErased uu___2 uu___1 uu___ uu___3 =
-  match uu___3 with | T_IntroExistsErased _ -> true | _ -> false
 let uu___is_T_While uu___2 uu___1 uu___ uu___3 =
   match uu___3 with | T_While _ -> true | _ -> false
 let uu___is_T_Par uu___2 uu___1 uu___ uu___3 =

@@ -1938,7 +1938,7 @@ let rec (st_term_to_string' :
                  (fun uu___1 ->
                     Prims.strcat "elim_exists " (Prims.strcat uu___ "")))
       | Pulse_Syntax_Base.Tm_IntroExists
-          { Pulse_Syntax_Base.erased = false; Pulse_Syntax_Base.p2 = p;
+          { Pulse_Syntax_Base.p2 = p;
             Pulse_Syntax_Base.witnesses = witnesses;_}
           ->
           FStar_Tactics_Effect.tac_bind
@@ -2013,95 +2013,6 @@ let rec (st_term_to_string' :
                                                     (Prims.strcat
                                                        (Prims.strcat
                                                           "introduce\n"
-                                                          (Prims.strcat
-                                                             (indent level)
-                                                             ""))
-                                                       (Prims.strcat uu___1
-                                                          "\n"))
-                                                    (Prims.strcat x "with "))
-                                                 (Prims.strcat x1 "")))))
-                             (fun uu___1 ->
-                                FStar_Tactics_Effect.lift_div_tac
-                                  (fun uu___2 -> uu___1 level))))
-                       (fun uu___1 ->
-                          FStar_Tactics_Effect.lift_div_tac
-                            (fun uu___2 -> uu___1 uu___)))) uu___)
-      | Pulse_Syntax_Base.Tm_IntroExists
-          { Pulse_Syntax_Base.erased = true; Pulse_Syntax_Base.p2 = p;
-            Pulse_Syntax_Base.witnesses = witnesses;_}
-          ->
-          FStar_Tactics_Effect.tac_bind
-            (FStar_Sealed.seal
-               (Obj.magic
-                  (FStar_Range.mk_range "Pulse.Syntax.Printer.fst"
-                     (Prims.of_int (212)) (Prims.of_int (8))
-                     (Prims.of_int (212)) (Prims.of_int (43)))))
-            (FStar_Sealed.seal
-               (Obj.magic
-                  (FStar_Range.mk_range "Pulse.Syntax.Printer.fst"
-                     (Prims.of_int (208)) (Prims.of_int (6))
-                     (Prims.of_int (212)) (Prims.of_int (43)))))
-            (Obj.magic (term_list_to_string " " witnesses))
-            (fun uu___ ->
-               (fun uu___ ->
-                  Obj.magic
-                    (FStar_Tactics_Effect.tac_bind
-                       (FStar_Sealed.seal
-                          (Obj.magic
-                             (FStar_Range.mk_range "Pulse.Syntax.Printer.fst"
-                                (Prims.of_int (208)) (Prims.of_int (6))
-                                (Prims.of_int (212)) (Prims.of_int (43)))))
-                       (FStar_Sealed.seal
-                          (Obj.magic
-                             (FStar_Range.mk_range "Pulse.Syntax.Printer.fst"
-                                (Prims.of_int (208)) (Prims.of_int (6))
-                                (Prims.of_int (212)) (Prims.of_int (43)))))
-                       (Obj.magic
-                          (FStar_Tactics_Effect.tac_bind
-                             (FStar_Sealed.seal
-                                (Obj.magic
-                                   (FStar_Range.mk_range
-                                      "Pulse.Syntax.Printer.fst"
-                                      (Prims.of_int (208)) (Prims.of_int (6))
-                                      (Prims.of_int (212))
-                                      (Prims.of_int (43)))))
-                             (FStar_Sealed.seal
-                                (Obj.magic
-                                   (FStar_Range.mk_range
-                                      "Pulse.Syntax.Printer.fst"
-                                      (Prims.of_int (208)) (Prims.of_int (6))
-                                      (Prims.of_int (212))
-                                      (Prims.of_int (43)))))
-                             (Obj.magic
-                                (FStar_Tactics_Effect.tac_bind
-                                   (FStar_Sealed.seal
-                                      (Obj.magic
-                                         (FStar_Range.mk_range
-                                            "Pulse.Syntax.Printer.fst"
-                                            (Prims.of_int (210))
-                                            (Prims.of_int (8))
-                                            (Prims.of_int (210))
-                                            (Prims.of_int (42)))))
-                                   (FStar_Sealed.seal
-                                      (Obj.magic
-                                         (FStar_Range.mk_range
-                                            "FStar.Printf.fst"
-                                            (Prims.of_int (121))
-                                            (Prims.of_int (8))
-                                            (Prims.of_int (123))
-                                            (Prims.of_int (44)))))
-                                   (Obj.magic
-                                      (term_to_string' (indent level) p))
-                                   (fun uu___1 ->
-                                      FStar_Tactics_Effect.lift_div_tac
-                                        (fun uu___2 ->
-                                           fun x ->
-                                             fun x1 ->
-                                               Prims.strcat
-                                                 (Prims.strcat
-                                                    (Prims.strcat
-                                                       (Prims.strcat
-                                                          "introduce (erased)\n"
                                                           (Prims.strcat
                                                              (indent level)
                                                              ""))
