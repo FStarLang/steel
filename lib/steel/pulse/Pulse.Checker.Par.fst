@@ -1,558 +1,108 @@
 module Pulse.Checker.Par
 
 module T = FStar.Tactics.V2
-module RT = FStar.Reflection.Typing
+module MT = Pulse.Typing.Metatheory
 
-open FStar.List.Tot
 open Pulse.Syntax
 open Pulse.Typing
 open Pulse.Checker.Pure
 open Pulse.Checker.Common
 open Pulse.Checker.Comp
-open Pulse.Syntax.Printer
 
-open FStar.Reflection.V2.TermEq
+open Pulse.Checker.ExtractFrame
 
-open FStar.Printf
-
-module FV = Pulse.Typing.FV
-module MT = Pulse.Typing.Metatheory
-
-open FStar.Algebra.CommMonoid.Equiv
-open FStar.Squash
-// Instantiation of the comm monoid interface for vprop
-(*
-type equiv (a:Type) =
-  | EQ :
-    eq:(a -> a -> Type0) -> 
-    reflexivity:(x:a -> Lemma (x `eq` x)) ->
-    symmetry:(x:a -> y:a -> Lemma (requires (x `eq` y)) (ensures (y `eq` x))) ->
-    transitivity:(x:a -> y:a -> z:a -> Lemma (requires (x `eq` y /\ y `eq` z)) (ensures (x `eq` z))) ->
-    equiv a
-*)
-
-let ve_assoc_rev #g t0 t1 t2:
-  vprop_equiv g (tm_star (tm_star t0 t1) t2) (tm_star t0 (tm_star t1 t2))
-= VE_Sym g _ _ (VE_Assoc _ t0 t1 t2)
-
-let symmetry_vprop_equiv g x y:
-  Lemma (requires (vprop_equiv g x y)) (ensures (vprop_equiv g y x))
-= let xy: squash (vprop_equiv g x y) = () in
-bind_squash xy (fun eq_xy -> return_squash (VE_Sym g x y eq_xy))
-
-let transitivity_vprop_equiv g x y z:
-  Lemma (requires (vprop_equiv g x y /\ vprop_equiv g y z))
-  (ensures (vprop_equiv g x z))
-= let xy: squash (vprop_equiv g x y) = () in
-let yz: squash (vprop_equiv g y z) = () in
-bind_squash xy (fun eq_xy -> bind_squash yz
-(fun eq_yz -> return_squash (VE_Trans g x y z eq_xy eq_yz)))
-
-let vprop_equiv_equiv (g: env): equiv vprop
-= EQ (vprop_equiv g)
-(fun x -> Squash.return_squash (VE_Refl g x))
-(symmetry_vprop_equiv g)
-(transitivity_vprop_equiv g)
-
-(*
-type cm (a:Type) (eq:equiv a) =
-  | CM :
-    unit:a ->
-    mult:(a -> a -> a) ->
-    identity : (x:a -> Lemma ((unit `mult` x) `EQ?.eq eq` x)) ->
-    associativity : (x:a -> y:a -> z:a ->
-                      Lemma ((x `mult` y `mult` z) `EQ?.eq eq` (x `mult` (y `mult` z)))) ->
-    commutativity:(x:a -> y:a -> Lemma ((x `mult` y) `EQ?.eq eq` (y `mult` x))) ->
-    congruence:(x:a -> y:a -> z:a -> w:a -> Lemma (requires (x `EQ?.eq eq` z /\ y `EQ?.eq eq` w)) (ensures ((mult x y) `EQ?.eq eq` (mult z w)))) ->
-    cm a eq
-*)
-let vprop_equiv_identity g x:
-  Lemma (vprop_equiv g (tm_star tm_emp x) x)
-= return_squash (VE_Unit g x)
-
-let vprop_equiv_associativity g x y z:
-  Lemma (vprop_equiv g (tm_star (tm_star x y) z) (tm_star x (tm_star y z)))
-= return_squash (VE_Sym g _ _ (VE_Assoc g x y z))
-
-let vprop_equiv_commutativity g x y:
-  Lemma (vprop_equiv g (tm_star x y) (tm_star y x))
-= return_squash (VE_Comm g x y)
-
-let vprop_equiv_congruence g x y z w:
-  Lemma (requires (vprop_equiv g x z /\ vprop_equiv g y w))
-  (ensures (vprop_equiv g (tm_star x y) (tm_star z w)))
-= let xz: squash (vprop_equiv g x z) = () in
-  let yw: squash (vprop_equiv g y w) = () in
-  bind_squash xz (fun eqxz -> bind_squash yw (
-    fun eqyw -> return_squash (VE_Ctxt g x y z w eqxz eqyw)
+#push-options "--z3rlimit 20 --print_full_names"
+let check_par_compute_preconditions
+  (allow_inst:bool)
+  (g:env)
+  //(t:st_term{Tm_Par? t.term})
+  (pre:term)
+  (pre_typing:tot_typing g pre tm_vprop)
+  (eL: st_term)
+  (preL: vprop)
+  (preR: vprop)
+  (postL_hint:post_hint_opt g)
+  (check':bool -> check_t)
+  (modify_type_derivation: bool)
+: 
+T.Tac (t: st_term & c:comp{stateful_comp c /\ ~modify_type_derivation ==> comp_post_matches_hint c postL_hint} &
+      frame:vprop & tot_typing g frame tm_vprop & st_typing g t c)
+= (
+  // this case cannot happen:
+  // if Tm_Unknown? preL.t && not (Tm_Unknown? preR.t) then
+  // 3 cases
+    // 1. (_) and (_)
+    // 2. (something) and (_)
+    // 3. (something) and (something)
+    // the fourth case (_) and (something) has been reduced to case 2
+  if (Tm_Unknown? preL.t && Tm_Unknown? preR.t) then
+      // case 1: (_) and (_)
+      // we infer the left precondition, and use the inferred frame as the right precondition
+      let (| eL, cL, preR, preR_typing, (eL_typing, _) |) = infer_frame_and_typecheck allow_inst eL pre_typing postL_hint check' modify_type_derivation in
+      (| eL, cL, preR, preR_typing, eL_typing |)
+    else 
+    (
+      // cases 2 and 3: (something) and (?)
+      let (| preL, preL_typing |) = check_term_with_expected_type g preL tm_vprop in
+      let (| eL, cL, eL_typing |) = check' allow_inst g eL preL (E preL_typing) postL_hint in
+      let (| preR, preR_typing |): (frame:vprop & tot_typing g frame tm_vprop)
+      = (
+        if Tm_Unknown? preR.t then
+          // case 2: (something) and (_)
+          // we compute the right precondition as `context - left precondition`
+          let (| preR, preR_typing, _ |) = remove_from_vprop preL pre_typing in
+          (| preR, preR_typing |)
+        else 
+          // case 3: (something) and (something)
+          // nothing to infer
+          let (| preR, preR_typing |) = check_term_with_expected_type g preR tm_vprop in
+          (| preR, E preR_typing |)
+      ) in
+      (| eL, cL, preR, preR_typing, eL_typing |)
   ))
 
-let vprop_monoid g:
-  cm vprop (vprop_equiv_equiv g)
-= CM tm_emp tm_star
-(vprop_equiv_identity g)
-(vprop_equiv_associativity g)
-(vprop_equiv_commutativity g)
-(vprop_equiv_congruence g)
+let modify_type_derivation () = true
 
-// End: Instantiation of vprop_equiv g and star as commutative monoid
-
-let print_term (t: term): T.Tac unit
-  = T.print (term_to_string t)
-
-let rec print_list_terms' (l: list term): T.Tac unit
-= match l with
-| [] -> T.print "]"
-| t::q -> (T.print ", "; print_term t; print_list_terms' q)
-
-let print_list_terms (l: list term): T.Tac unit
-  = match l with
-  | [] -> T.print "[]"
-  | t::q -> (T.print "["; print_term t; print_list_terms' q)
-
-let indent (level:string) = level ^ " "
-
-let st_equiv_to_string (#g: env) #c1 #c2 (level: string) (eq: st_equiv g c1 c2)
-  : T.Tac string
-  = (*if comp_pre c1 = comp_pre c2 && comp_post c1 = comp_post c2
-    then T.print "Trivial equivalence!"
-    else T.print "Somehow non-trivial equivalence...";*)
-    sprintf "st_equiv\n%s pre1: %s\n%s pre2: %s\n%s post1: %s\n%s post2: %s"
-  //pre: (%s) (%s)) (post: (%s) (%s))"
-  level
-  (term_to_string (comp_pre c1))
-  level
-  (term_to_string (comp_pre c2))
-  level
-  (term_to_string (comp_post c1))
-  level
-  (term_to_string (comp_post c2))
-
-#push-options "--z3rlimit 10"
-let rec st_typing_to_string' (#g:env) (#t:st_term) (#c:comp) (level: string) (ty: st_typing g t c)
-//let rec st_typing_to_string (ty: st_typing)
-  : T.Tac string
-  = match ty with
-    | T_Abs g x q b u body c _ _ -> "T_Abs"
-    | T_STApp g head _ q res arg _ _ -> "T_STapp"
-    | T_Return g c use_eq u t e post x _ _ _ -> "T_Return"
-    | T_Lift g e c1 c2 _ _ -> "T_Lift"
-    | T_Bind g e1 e2 c1 c2 b _ c ty1 _ ty2 _ ->
-      sprintf "T_Bind \n (%s); \n (%s)"
-      (st_typing_to_string' (indent level) ty1)
-      (st_typing_to_string' (indent level) ty2)
-    | T_TotBind g e1 e2 t1 c2 x _ ty' ->
-      sprintf "T_TotBind (%s)"
-      (st_typing_to_string' (indent level) ty')
-    | T_Frame g e c frame _ ty' ->
-      sprintf "T_Frame (frame=%s) (\n%s%s)"
-      (term_to_string frame)
-      level
-      (st_typing_to_string' (indent level) ty')
-    | T_Equiv g e c c' ty' equiv ->
-      sprintf "T_Equiv (%s) (\n%s%s)"
-      //(st_equiv_to_string level equiv)
-      "..."
-      level
-      (st_typing_to_string' (indent level) ty')
-    | T_Par g eL cL eR cR x _ _ ty1 ty2 -> "T_Par"
-    | _ -> "Unsupported"
-    // TODO: If
-
-let st_typing_to_string (#g:env) (#t:st_term) (#c:comp) (ty: st_typing g t c)
-  = st_typing_to_string' #g #t #c "" ty
-//let st_typing_to_string #g #t #c (ty: st_typing g t c) = st_typing_to_string' "" ty
-
-// Would need a stronger postcondition
-// Like pre and post are equiv
-let create_st_equiv
-  (g: env)
-  (c: comp_st)
-  (c': comp_st{st_equiv_pre c c'})
-  (equiv_pre: vprop_equiv g (comp_pre c) (comp_pre c'))
-  //(x:var{fresh....})
-  //(equiv_post: x:var -> vprop_equiv g (comp_post c) (comp_post c'))
-: st_equiv g c c'
-= let x = fresh g in
-  assume ( ~(x `Set.mem` freevars (comp_post c)) /\
-          ~(x `Set.mem` freevars (comp_post c')) );
-  //assume (st_equiv_pre c c');
-  let tot1: tot_typing g (comp_pre c) tm_vprop = magic() in
-  let tot2: tot_typing g (comp_res c) (tm_type (comp_u c))  = magic() in
-  let tot3: tot_typing (push_binding g x ppname_default (comp_res c)) (open_term (comp_post c) x) tm_vprop = magic() in
-  let equiv_post: vprop_equiv (push_binding g x ppname_default (comp_res c)) (open_term (comp_post c) x) (open_term (comp_post c') x) = magic() in
-  ST_VPropEquiv g c c' x tot1 tot2 tot3 equiv_pre equiv_post
-
-// This function replaces T_Frame with empty frames by T_Equiv
-let rec replace_frame_emp_with_equiv #g #t #c (ty: st_typing g t c):
-  Tot (st_typing g t c) (decreases ty)
-  = match ty with
-  | T_Frame g e c' frame tot_ty ty' -> 
-  // comp_pre c = comp_pre_pre (add_frame c')
-  if Tm_Emp? frame.t then
-    let pre = comp_pre c' in
-    let eq1: vprop_equiv g (tm_star frame pre) pre = VE_Unit g pre in
-    let eq2: vprop_equiv g (tm_star pre frame) (tm_star frame pre) = VE_Comm g pre frame in
-    let eq3: vprop_equiv g (tm_star pre frame) pre = VE_Trans g _ _ _ eq2 eq1 in
-    let eq_pre: vprop_equiv g (comp_pre c') (tm_star (comp_pre c') frame) = VE_Sym g _ _ eq3 in
-    let st_eq: st_equiv g c' c = create_st_equiv g c' c eq_pre in
-      T_Equiv g e c' c (replace_frame_emp_with_equiv ty') st_eq
-  else ty
-  | T_Equiv g e c c' ty' equiv ->
-  T_Equiv g e c c' (replace_frame_emp_with_equiv ty') equiv
-  | T_Bind g e1 e2 c1 c2 b x c ty1 tot1 ty2 tot2 ->
-  T_Bind g e1 e2 c1 c2 b x c (replace_frame_emp_with_equiv ty1) tot1 (replace_frame_emp_with_equiv ty2) tot2
-  | _ -> ty
-
-(*
-// This function collapses two consecutive nested T_Equiv into one
-let rec collapse_equiv #g #e #c (ty: st_typing g e c):
-  //Tot (st_typing g e c) (decreases ty)
-  T.Tac (st_typing g e c)
-  = match ty with
-  // Pattern: T_Equiv g e c' c ...
-  | T_Equiv _ _ c' _ (T_Equiv _ _ c'' _ ty' eq') eq ->
-  let st_eq: st_equiv g c'' c =
-    create_st_equiv g c'' c (VE_Trans g _ _ _ (ST_VPropEquiv?.equiv_pre eq') (ST_VPropEquiv?.equiv_pre eq)) in
-  collapse_equiv (T_Equiv g e c'' c ty' st_eq)
-  | T_Equiv _ _ c' _ ty' eq -> T_Equiv g e c' c (collapse_equiv ty') eq
-  | T_Bind g e1 e2 c1 c2 b x c ty1 tot1 ty2 tot2 ->
-  T_Bind g e1 e2 c1 c2 b x c (collapse_equiv ty1) tot1 (collapse_equiv ty2) tot2
-  | _ -> ty
-  *)
-
-let rec collect_frames #g #e #c (ty: st_typing g e c):
-  T.Tac (list term)
-= match ty with
-  | T_Frame g e c' frame tot_ty ty' -> [frame]
-  | T_Equiv g e c c' ty' equiv -> collect_frames ty'
-  | T_Bind g e1 e2 c1 c2 b x c ty1 tot1 ty2 tot2 -> collect_frames ty1 @ collect_frames ty2
-  | _ -> T.fail "Unable to figure out frame at this leaf"
- 
-let simplify_st_typing #g #e #c (ty: st_typing g e c): T.Tac (st_typing g e c)
-  = //collapse_equiv (replace_frame_emp_with_equiv ty)
-  replace_frame_emp_with_equiv ty
-
-let deq (a: host_term) (b: host_term): (r:bool{r <==> (a == b)}) =
-  (assume (faithful a); assume (faithful b); term_eq_dec a b)
-
-let delta (a: host_term) (b: host_term): nat
-  = if deq a b then 1 else 0
-
-let rec countt (l: list host_term) (x: host_term): nat
-  = match l with
-  | [] -> 0
-  | t::q -> delta t x + countt q x
-
-// is destructive
-let rec compute_intersection_aux (ft: host_term) (l: list host_term): list host_term & list host_term
-  = match l with
-  | [] -> ([], [])
-  | t::q -> if deq ft t then ([t], q)
-  else let (a, b) = compute_intersection_aux ft q in (a, t::b)
-  // how to link
-  // delta t x = countt l x - countt b x
-
-// spec
-let rec countt_compute_intersection (ft: host_term) (l: list host_term) (x: host_term):
-  Lemma (let (a, b) = compute_intersection_aux ft l in (countt l x = countt a x + countt b x
-  /\ length a <= 1 /\ length l = length a + length b
-  /\ countt a x <= 1
-  /\ (~(deq ft x) ==> countt a x = 0)
-  /\ (countt a x = 1 <==> (deq ft x /\ countt l x >= 1))
-  ))
-= match l with
-  | [] -> ()
-  | t::q -> if deq ft t then ()
-  else countt_compute_intersection ft q x
-
-// Could probably be improved, in terms of performance
-let rec compute_intersection (l1: list host_term) (l2: list host_term) =
-  match l1 with
-  | [] -> []
-  | t::q -> let (a, b) = compute_intersection_aux t l2 // l2 = a @ b
-  in a @ compute_intersection q b
-
-let rec countt_append (l1: list host_term) (l2: list host_term) (x: host_term):
-  Lemma (countt (l1 @ l2) x = countt l1 x + countt l2 x)
-  = match l1 with
-  | [] -> ()
-  | t::q -> countt_append q l2 x
-
-let rec compute_intersection_included (l1: list host_term) (l2: list host_term) (x: host_term):
-  Lemma (let l = compute_intersection l1 l2 in
-  countt l x = min (countt l1 x) (countt l2 x))
-= match l1 with
-  | [] -> ()
-  | t::q -> let (a, b) = compute_intersection_aux t l2 in
-   countt_compute_intersection t l2 x;
-  calc (=) {
-    countt (compute_intersection l1 l2) x;
-    = { countt_append a (compute_intersection q b) x }
-    countt a x + countt (compute_intersection q b) x;
-    = { compute_intersection_included q b x }
-    countt l2 x - countt b x + min (countt q x) (countt b x);
-    = {}
-    min (countt q x - countt b x + countt l2 x) (countt l2 x);
-    = {}
-    min (countt l1 x) (countt l2 x);
-  }
-
-// collects a subset of all host terms
-// should collect typing proofs as well (using some trusted wrapper)
-let rec term_to_list (t: term): list host_term
-  = match t.t with
-  | Tm_FStar ft -> [ft]
-  | Tm_Star l r -> term_to_list l @ term_to_list r
-  | _ -> admit() //T.fail "Could not convert the term to a list"
-
-let compute_intersection_list (l: list term): T.Tac (list host_term)
-  = match map term_to_list l with
-  | [] -> []
-  | t::q -> fold_left compute_intersection t q
-
-let rec list_of_FStar_term_to_string l: T.Tac string
-= match l with
-  | [] -> ""
-  | t::q -> T.term_to_string t ^ ", " ^ list_of_FStar_term_to_string q
-
-let rec remove_host_term_from_term (ht: host_term) (t: term): bool & term
-// returns (b, t')
-// b means we have removed it successfully, and t' is t minus ht
-// b false implies t = t'
-  = match t.t with
-  | Tm_FStar ft -> if deq ft ht then (true, with_range Tm_Emp t.range) else (false, t)
-  | Tm_Star l r -> let (b, l') = remove_host_term_from_term ht l in
-  if b then (true, with_range (Tm_Star l' r) t.range)
-  else let (b', r') = remove_host_term_from_term ht r in
-    if b' then (true, with_range (Tm_Star l r') t.range) else (false, t)
-  | _ -> (false, t)
-// should return true in every "good" call
-
-let rec remove_from_vprop (l: list host_term) (t: term): T.Tac term =
-  match l with
-  | [] -> t
-  | ht::q -> remove_from_vprop q ((remove_host_term_from_term ht t)._2)
-
-let adapt_st_comp (c: st_comp) (pre: vprop) (post: vprop): st_comp =
-  { u = c.u; res = c.res; pre = pre; post = post }
-
-let add_range t = with_range (Tm_FStar t) (Range.range_0)
-
-//let star_with_range r a b = with_range (Tm_Star a b) r
-
-let from_list_to_term (l: list host_term): term
-  = let l': list vprop = map add_range l in
-  let temp: vprop = tm_emp in
-  fold_left tm_star temp l'
-
-let ve_unit_rev (g: env) (t:term): vprop_equiv g (tm_star t tm_emp) t
-  = let eq1: vprop_equiv g (tm_star tm_emp t) t = VE_Unit _ t in
-  let eq2: vprop_equiv g (tm_star t tm_emp) (tm_star tm_emp t)
-  = VE_Comm _ _ _ in
-  VE_Trans _ _ _ _ eq2 eq1
-
-  // need to show that appending is OK?
-let rec append_from_list_to_term_equiv (g: env) (l1 l2: list host_term):
-  vprop_equiv g
-  (tm_star (from_list_to_term l1) (from_list_to_term l2))
-  (from_list_to_term (l1 @ l2))
-= 
-assert (from_list_to_term (l1 @ l2) == tm_star (from_list_to_term l1) (tl (from_list_to_term l2)));
-admit()
-(*
-= match l2 with
-| [] -> ve_unit_rev _ (from_list_to_term l1)
-| t2::q2 -> assert (
-from_list_to_term ()
-
-);
-admit()
-*)
-
-
-let rec term_to_list_vprop_equiv (g: env) (t: term):
-  T.Tac (vprop_equiv g t (from_list_to_term (term_to_list t)))
-= match t.t with
-  | Tm_FStar ft ->
-  VE_Sym g _ _ (VE_Unit _ (add_range ft))
-  | Tm_Star l r -> 
-  let eql = term_to_list_vprop_equiv g l in
-  let eqr = term_to_list_vprop_equiv g r in
-  let ll = term_to_list l in
-  let rr = term_to_list r in
-  let eqlr: vprop_equiv g (tm_star l r) (tm_star (from_list_to_term ll) (from_list_to_term rr))
-  = VE_Ctxt g _ _ _ _ eql eqr in
-  let eq_append: vprop_equiv g _ (from_list_to_term (term_to_list t))
-  = append_from_list_to_term_equiv g ll rr in
-  VE_Trans g _ _ _ eqlr eq_append
-  | _ -> fail g None "Could not convert term to an equivalent list representation"
-
-
-
-
-
-let rec extract_common_frame #g #t #c (inter: list host_term) (ty: st_typing g t c):
-  T.Tac (st_typing g t c) (decreases ty)
-  = match ty with
-  | T_Frame g e c0 frame tot_ty ty' ->
-  let f1 = remove_from_vprop inter frame in
-  let c1 = add_frame c0 f1 in
-  let f2 = from_list_to_term frame.range inter in
-  // Should be proven by the postcondition of remove and from_list_to...
-  let eqf12: vprop_equiv g frame (tm_star f1 f2) = magic() in
-  let c2 = add_frame c1 f2 in
-  let tot_ty1: Ghost.erased (tot_typing g f1 tm_vprop) = magic() in
-  let tot_ty2: Ghost.erased (tot_typing g f2 tm_vprop) = magic() in
-  let ty1 = T_Frame g e c0 f1 tot_ty1 ty' in
-  let ty2 = T_Frame g e c1 f2 tot_ty2 ty1 in
-  // c = c0 * frame
-  // c2 = (c0 * f1) * f2
-  // need frame <==> f1 * f2
-  let pre = comp_pre c0 in
-  let eq': vprop_equiv g (tm_star pre (tm_star f1 f2)) (tm_star pre frame) =
-    VE_Ctxt g _ _ _ _ (VE_Refl g pre) (VE_Sym g _ _ eqf12) in
-  let eq_assoc: vprop_equiv g (tm_star (tm_star pre f1) f2) (tm_star pre (tm_star f1 f2))
-    = VE_Sym _ _ _ (VE_Assoc _ _ _ _) in
-  let needed_eq: vprop_equiv g (tm_star (tm_star pre f1) f2) (tm_star pre frame) =
-    VE_Trans _ _ _ _ eq_assoc eq'
+let check_par'
+  (allow_inst:bool)
+  (g:env)
+  (t:st_term{Tm_Par? t.term})
+  (pre:term)
+  (pre_typing:tot_typing g pre tm_vprop)
+  (post_hint:post_hint_opt g)
+  (check':bool -> check_t)
+  : T.Tac (checker_result_t g pre post_hint) =
+(
+  let g = push_context "check_par" t.range g in
+  let Tm_Par {pre1=preL; body1=eL; post1=postL; pre2=preR; body2=eR; post2=postR} = t.term in
+  let postL_hint: post_hint_opt g = if Tm_Unknown? postL.t then None else Some (intro_post_hint g None postL) in
+  let (| eL, cL, preR, preR_typing, eL_typing |):
+    (t: st_term & c:comp &
+      frame:vprop & tot_typing g frame tm_vprop & st_typing g t c)
+  = check_par_compute_preconditions allow_inst g pre pre_typing eL preL preR postL_hint check' (modify_type_derivation ())
+  // if modify type derivation is true, we basically ignore the postcondition provided by the user; not great
   in
-  let st_eq: st_equiv g c2 c = create_st_equiv g c2 c needed_eq in
-  T_Equiv g e c2 c ty2 st_eq
-  // replace frame by frame-common, and put that into common frame
-  // and an equiv
-  // Example: frame = A * B * C
-  // Common: B
-  // Result:
-  // Equiv (A * B * C) ((A * C) * B)
-  // {
-  //    Frame B (Frame (A * C) ... )
-  // }
-  | T_Equiv g e c c' ty' equiv ->
-  T_Equiv g e c c' (extract_common_frame inter ty') equiv
-  | T_Bind g e1 e2 c1 c2 b x c ty1 tot1 ty2 tot2 ->
-  T_Bind g e1 e2 c1 c2 b x c (extract_common_frame inter ty1) tot1 (extract_common_frame inter ty2) tot2
-  | _ -> fail g None "No common frame to extract..." // bad, should not happen
-
-#push-options "--z3rlimit 100"
-
-
-let bring_frame_top_bind #g #e1 #c1' #e2 #c2' #c #c1 #c2
-(b:binder { b.binder_ty == comp_res c1' })
-(x: var{None? (lookup g x)  /\ ~(x `Set.mem` freevars_st e2) })
-(ty1:st_typing g e1 c1'{T_Frame? ty1})
-(ty2:st_typing (push_binding g x ppname_default (comp_res c1')) (open_st_term_nv e2 (b.binder_ppname, x)) c2'{T_Frame? ty2})
-(bcomp: bind_comp g x c1 c2 c)
-(eq1: st_equiv g c1' c1)
-(eq2: st_equiv (push_binding g x ppname_default (comp_res c1')) c2' c2)
-: T.Tac (c': comp & st_typing g (wr (Tm_Bind { binder=b; head=e1; body=e2 })) c' & st_equiv g c' c) 
-=
-match ty1 with
-| T_Frame _ _ c1'' f1 totf1 ty1' -> (
-    let ty1': st_typing g e1 c1'' = ty1' in
-  match ty2 with
-  | T_Frame _ _ c2'' f2 totf2 ty2' ->
-    let g2 = push_binding g x ppname_default (comp_res c1') in
-    let ty2': st_typing g2 _ c2'' = ty2' in
-    let b':(b':binder{Mkbinder?.binder_ty b' == comp_res c1'}) =
-      {
-        binder_ty = comp_res c1'; binder_ppname = b.binder_ppname
-      } in
+   if C_ST? cL
+    then
     (
-      assume (bind_comp_compatible c1' c2');
-      assume (f1 == f2);
-      let c': comp_st = bind_comp_out c1'' c2'' in
-      let tot_ty1: Ghost.erased (tot_typing g (comp_res c1') (tm_type (comp_u c1'))) = magic() in
-      let bcomp': bind_comp g x c1'' c2'' c' = magic() in
-      let ty': st_typing _ _ _ = T_Bind g e1 e2 c1'' c2'' b' x c' ty1' tot_ty1 ty2' bcomp' in
-      let e: st_term = {range = e1.range; term = Tm_Bind {binder=b; head=e1; body=e2}} in
-      let c'': comp_st = add_frame c' f1 in
-      let ty'': st_typing g _ c'' = T_Frame g e c' f1 totf1 ty' in
-      let jeq: vprop_equiv g (comp_pre c'') (comp_pre c1) =
-        VE_Trans _ _ _ _ (VE_Refl _ _) (ST_VPropEquiv?.equiv_pre eq1) in
-      let eq: st_equiv g c'' c = create_st_equiv g c'' c jeq in
-      Mkdtuple3 c'' ty'' eq)
-  | _ -> fail g None "Unexpected issue while bringing the frame to the top"
-)
-| _ -> fail g None "Unexpected issue while bringing the frame to the top"
-
-#set-options "--split_queries always --query_stats"
-
-// Up to equivalence...
-let rec bring_frame_top #g #t #c (ty: st_typing g t c):
-// should allow to change the computation, as long as it's equivalent
-// we put back the equiv at the end? Not really needed
-  T.Tac (c': comp & st_typing g t c' & st_equiv g c' c) //(decreases ty)
-  =
-  match ty with
-  | T_Frame g e c0 frame tot_ty ty' -> // Frame already at the top: Good
-  (
-    Mkdtuple3 c ty (create_st_equiv g c c (VE_Refl _ _))
-  )
-  | T_Equiv _ _ c1 _ ty1 eq1 -> 
-    let eq1: vprop_equiv g (comp_pre c1) (comp_pre c) = ST_VPropEquiv?.equiv_pre eq1 in
-    let r = bring_frame_top ty1 in
-    let c2: comp = r._1 in
-    let ty2: st_typing g t c2 = r._2 in
-    let eq2: st_equiv g c2 c1 = r._3 in
-    let eq12: st_equiv g c2 c = create_st_equiv g c2 c (
-      VE_Trans _ _ _ _ (ST_VPropEquiv?.equiv_pre eq2) eq1
-    ) in
-    Mkdtuple3 c2 ty2 eq12
-  | T_Bind _ e1 e2 c1 c2 b x c' ty1 _ ty2 bcomp2 ->
-    (
-      assert (None? (lookup g x));
-    let r1 = bring_frame_top ty1 in
-    let c1': comp = r1._1 in
-    let ty1: st_typing g e1 c1' = r1._2 in
-    let eq1: st_equiv g c1' c1 = r1._3 in
-    let g2 = push_binding g x ppname_default (comp_res c1) in
-    let t2 = (open_st_term_nv e2 (b.binder_ppname, x)) in
-    let r2: (c': comp & st_typing g2 t2 c' & st_equiv g2 c' c2) = bring_frame_top #g2 #t2 #c2 ty2 in
-    let c2': comp = r2._1 in
-    let ty2: st_typing g2 t2 c2' = r2._2 in
-    let eq2: st_equiv g2 c2' c2 = r2._3 in
-    let b' =
-      {
-        binder_ty = comp_res c1'; binder_ppname = b.binder_ppname
-      } in
-    if T_Frame? ty1 && T_Frame? ty2 then
-      (
-        assert (b'.binder_ty == comp_res c1');
-        assert (None? (lookup g x)  /\ ~(x `Set.mem` freevars_st e2));
-        assert (push_binding g x ppname_default (comp_res c1') == g2);
-        assert (open_st_term_nv e2 (b'.binder_ppname, x) == t2);
-      let (b':binder{b'.binder_ty == comp_res c1'}) = b' in
-      let (x:var{  None? (lookup g x)  /\ ~(x `Set.mem` freevars_st e2) }) = x in
-      let (ty1:st_typing g e1 c1'{T_Frame? ty1}) = ty1 in
-      let (ty2:st_typing (push_binding g x ppname_default (comp_res c1')) (open_st_term_nv e2 (b'.binder_ppname, x)) c2'{T_Frame? ty2}) = ty2 in
-      let bcomp2:(bind_comp g x c1 c2 c') = bcomp2 in
-      bring_frame_top_bind #g #e1 #c1' #e2 b' x ty1 ty2 bcomp2 eq1 eq2
-      )
-    else
-      fail g None "Should not have happened..."
+      //T.print "LEFT PRE:";
+      //T.print (term_to_string (comp_pre cL));
+      //T.print "RIGHT PRE:";
+      //T.print (term_to_string preR);
+      let cL_typing = MT.st_typing_correctness eL_typing in
+      let postR_hint = (if Tm_Unknown? postR.t then None else Some (intro_post_hint g None postR)) in
+      let (| eR, cR, eR_typing |) = check' allow_inst g eR preR preR_typing postR_hint in
+      if C_ST? cR && eq_univ (comp_u cL) (comp_u cR)
+      then
+        let cR_typing = MT.st_typing_correctness eR_typing in
+        let x = fresh g in
+        let d = T_Par _ _ _ _ _ x cL_typing cR_typing eL_typing eR_typing in
+        repack (try_frame_pre pre_typing d) post_hint
+      else fail g (Some eR.range) "par: cR is not stt")
+    else fail g (Some eL.range) "par: cL is not stt"
     )
-  | _ -> fail g None "No frame to bring to the top..." // bad, should not happen
-
-// assuming ty is the typing derivation of the left branch
-let get_typing_deriv_and_frame #g #t #c (ty: st_typing g t c):
-  T.Tac (c':comp & st_typing g t c' & vprop) (decreases ty)
-= let r = bring_frame_top ty in
-  let c': comp = r._1 in
-  let ty': st_typing g t c' = r._2 in
-  (
-    //T.print "Bringing frame at the top";
-    //T.print (st_typing_to_string ty');
-    let eq: st_equiv g c' c = r._3 in
-    match ty' with
-    | T_Frame _ _ c'' f tot ty' -> Mkdtuple3 c'' ty' f
-    | _ -> fail g None "Did not find a frame at the top..."
-  )
-
-let retypecheck_left_branch () = true
-
 #pop-options
-#push-options "--z3rlimit 20"
+
 let check_par
   (allow_inst:bool)
   (g:env)
@@ -562,52 +112,14 @@ let check_par
   (post_hint:post_hint_opt g)
   (check':bool -> check_t)
   : T.Tac (checker_result_t g pre post_hint) =
-  (
-    let g = push_context "check_par" t.range g in
-    let Tm_Par {pre1=preL; body1=eL; post1=postL; pre2=preR; body2=eR; post2=postR} = t.term in
-    // Step 1: Type left branch in full context
-    // The postcondition hint might be misleading, so we ignore it (for the moment; TODO: Can be used in both approaches)
-    let (| eL_t, cL_t, eL_typing_t |) = check' allow_inst g eL pre pre_typing None in
-    // Step 2: Find the common frame:
-    let ty = simplify_st_typing eL_typing_t in
-    let inter = compute_intersection_list (collect_frames ty) in
-    // bind: cL, eL_typing, new_preR
-    let (| eL, cL, eL_typing, new_preR |) 
-      : (eL:st_term & c:comp & typing:st_typing g eL c & vprop)
-    =
-    // START APPROACH 1: We modify the type derivation (avoids retypechecking)
-    (if retypecheck_left_branch() then
-      let r = get_typing_deriv_and_frame (extract_common_frame inter ty) in
-      (| eL_t, r._1, r._2, r._3 |)
-      //let (| cL, eL_typing, new_preR |) = r in
-      //(| eL, cL, eL_typing, new_preR |)
-    // END APPROACH 1
-    // START APPROACH 2: We find the new left and right preconditions, and simply retypecheck
-    else
-      let new_preL = remove_from_vprop inter pre in
-      let new_preR = from_list_to_term preR.range inter in
-      let (| preL, preL_typing |) = check_term_with_expected_type g new_preL tm_vprop in
-      let postL_hint = (if Tm_Unknown? postL.t then None else Some (intro_post_hint g None postL)) in
-      let (| eL, cL, eL_typing |) = check' allow_inst g eL preL (E preL_typing) postL_hint in
-      (| eL, cL, eL_typing, new_preR |) )
-    // END APPROACH 2
-  in
-  let (| preR, preR_typing |) =
-    check_term_with_expected_type g new_preR tm_vprop in
-  if C_ST? cL
-  then
-    let cL_typing = MT.st_typing_correctness eL_typing in
-    let postR_hint = (if Tm_Unknown? postR.t then None else Some (intro_post_hint g None postR)) in
-    let (| eR, cR, eR_typing |) =
-      check' allow_inst g eR preR (E preR_typing) postR_hint in
-
-    if C_ST? cR && eq_univ (comp_u cL) (comp_u cR)
-    then
-      let cR_typing = MT.st_typing_correctness eR_typing in
-      let x = fresh g in
-      let d = T_Par _ _ _ _ _ x cL_typing cR_typing eL_typing eR_typing in
-      repack (try_frame_pre pre_typing d) post_hint
-    else fail g (Some eR.range) "par: cR is not stt"
-  else fail g (Some eL.range) "par: cL is not stt"
-  )
-#pop-options
+(
+  let g = push_context "check_par" t.range g in
+  let Tm_Par {pre1=preL; body1=eL; post1=postL; pre2=preR; body2=eR; post2=postR} = t.term in
+  if Tm_Unknown? preL.t && not (Tm_Unknown? preR.t) then
+    // swapping the two parallel branches
+    let (t': st_term{Tm_Par? t'.term}) =
+      { term = Tm_Par {pre1=preR; body1=eR; post1=postR; pre2=preL; body2=eL; post2=postL}; range = Range.range_0 } in
+    check_par' allow_inst g t' pre pre_typing post_hint check'
+  else
+    check_par' allow_inst g t pre pre_typing post_hint check'
+)
