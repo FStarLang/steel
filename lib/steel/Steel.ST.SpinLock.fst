@@ -49,7 +49,7 @@ let lockinv (p:vprop) (r:ref U32.t) : vprop =
   exists_ (lockinv_predicate p r)
 
 noeq
-type lock (p:vprop) = {
+type lock ([@@@unused] p:vprop) = {
   r:ref U32.t;
   i:inv (lockinv p r)
 }

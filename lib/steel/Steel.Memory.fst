@@ -1110,7 +1110,7 @@ let iname_for_p_stable (i:iname) (p:slprop)
   : Lemma (W.stable full_mem mem_evolves (iname_for_p_mem i p))
   = ()
 
-let ( >--> ) (i:iname) (p:slprop) : Type0 = W.witnessed full_mem mem_evolves (iname_for_p_mem i p)
+let ( >--> ) (i:iname) ([@@@unused] p:slprop) : Type0 = W.witnessed full_mem mem_evolves (iname_for_p_mem i p)
 
 let hmem_with_inv_equiv e (m:mem) (p:slprop)
   : Lemma (interp (p `star` linv e m) m <==>
@@ -1202,7 +1202,8 @@ let new_invariant_tot_action (e:inames) (p:slprop) (m0:hmem_with_inv_except e p{
     assert (frame_related_mems p emp e m0 m1);
     ( i, m1 )
 
-let inv (p:slprop u#1) = i:erased iname & (i >--> p)
+let inv ([@@@unused] p:slprop u#1) = i:erased iname & (i >--> p)
+
 let name_of_inv #p (i:inv p) = dfst i
 
 let new_invariant (e:inames) (p:slprop) (frame:slprop)
