@@ -10,6 +10,7 @@ open Pulse.Typing
 open Pulse.Checker
 open Pulse.Elaborate
 open Pulse.Soundness
+module Cfg = Pulse.Config
 module RU = Pulse.RuntimeUtils
 module P = Pulse.Syntax.Printer
 
@@ -50,8 +51,29 @@ let main' (t:st_term) (pre:term) (g:RT.fstar_top_env)
            | _ -> fail g (Some t.range) "main: top-level term not a Tm_Abs"
       else fail g (Some t.range) "pulse main: cannot typecheck pre at type vprop"
 
-let main t pre : RT.dsl_tac_t = main' t pre
-  
+let join_smt_goals () : Tac unit =
+  let open FStar.Tactics in
+  let open FStar.List.Tot in
+  (* dump "PULSE: Goals before join"; *)
+  let smt_goals = T.smt_goals () in
+  set_goals (goals () @ smt_goals);
+  set_smt_goals [];
+  ignore (T.repeat T.join);
+  (* dump "PULSE: Goals after join"; *)
+  ()
+
+let main t pre : RT.dsl_tac_t = fun g ->
+  (* If we will be joining goals, make sure the guards from reflection
+  typing end up as SMT goals. This is anyway the default behavior but it
+  doesn't hurt to be explicit. *)
+  set_guard_policy SMT;
+
+  let res = main' t pre g in
+
+  if Cfg.join_goals && not (RU.debug_at_level g "DoNotJoin") then
+    join_smt_goals();
+  res
+
 [@@plugin]
 let check_pulse (namespaces:list string)
                 (module_abbrevs:list (string & string))
