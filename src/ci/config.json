@@ -1,6 +1,6 @@
 {
     "RepoVersions" : {
-        "fstar": "master",
+        "fstar": "guido_qa",
         "karamel" : "master"
     },
     "NotificationChannel" : "#steel-build"
