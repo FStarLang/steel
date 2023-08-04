@@ -5,6 +5,7 @@ open Pulse.Typing
 open Pulse.Checker.Pure
 open Pulse.Checker.Base
 open Pulse.Checker.Prover
+open Pulse.Typing.Util
 
 module T = FStar.Tactics.V2
 module P = Pulse.Syntax.Printer
@@ -28,7 +29,7 @@ let check
       then VE_Refl g p
       else let elab_p = elab_term p in
            let elab_q = elab_term q in
-           let res, issues = T.check_equiv (elab_env g) elab_p elab_q in
+           let res, issues = check_equiv_now (elab_env g) elab_p elab_q in
            T.log_issues issues;
            match res with
            | None -> 

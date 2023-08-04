@@ -4,6 +4,7 @@ open Pulse.Syntax
 open Pulse.Typing
 open Pulse.Typing.Combinators
 open Pulse.Typing.Metatheory
+open Pulse.Typing.Util
 open Pulse.Checker.VPropEquiv
 open Pulse.Checker.Prover.Base
 open Pulse.Checker.Prover.Util
@@ -227,7 +228,7 @@ let rec unify (g:env) (uvs:env { disjoint uvs g})
          let _ = assume (PS.dom ss `Set.subset` freevars q) in
          let v0 = elab_term p in
          let v1 = elab_term q in
-         match T.check_equiv (elab_env g) v0 v1 with
+         match check_equiv_now (elab_env g) v0 v1 with
          | Some token, _ -> Some (| ss, RT.EQ_Token _ _ _ (FStar.Squash.return_squash token) |)
          | None, _ -> None
     else let _ =
