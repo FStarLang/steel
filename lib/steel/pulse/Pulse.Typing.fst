@@ -553,7 +553,7 @@ let tr_binding (vt : var & typ) : Tot R.binding =
 
 let tr_bindings = L.map tr_binding
 
-[@@ no_auto_projectors]
+[@@ no_auto_projectors ]
 noeq
 type comp_typing : env -> comp -> universe -> Type =
   | CT_Tot :

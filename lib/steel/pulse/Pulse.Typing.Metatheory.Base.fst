@@ -3,6 +3,91 @@ open Pulse.Syntax
 open Pulse.Syntax.Naming
 open Pulse.Typing
 
+let fresh_for (x:var) (g:env) = ~ (Set.mem x (dom g))
+
+let tot_typing_weakening_1
+          (g:env) (g':env {disjoint g g'})
+          (#e:_) (#c:_) (d:tot_typing (push_env g g') e c)
+          (x:var) (t:typ) (u:_) (t_typing:universe_of g t u)
+          (_:squash (fresh_for x g /\ fresh_for x g'))
+  : Tot (tot_typing (push_env (push_binding g x ppname_default t) g') e c)
+        (decreases d)
+  = admit()
+
+let renaming = dom:list var & m:FStar.Map.t var var { 
+    Set.as_set dom == Map.domain m /\
+    (forall x y. Map.contains m x /\ Map.contains m y ==>
+                 Map.sel m x =!= Map.sel m y)
+}
+
+let renaming_contains (r:renaming) (x:var) = Map.contains (dsnd r) x
+
+let var_as_term (x:var) =
+  tm_var {nm_ppname=ppname_default;nm_index=x}
+
+let as_subst (r:renaming) : subst = 
+  let (| dom, m |) = r in
+  List.Tot.map (fun x -> NT x (var_as_term (Map.sel m x))) dom
+
+let rename (r:renaming) (x:var) : var = 
+   Map.sel (dsnd r) x
+
+let rename_term (r:renaming) (t:term) : term = 
+  subst_term t (as_subst r)
+
+let rename_comp (r:renaming) (c:comp) : comp = 
+  subst_comp c (as_subst r)
+
+let rename_st_term (r:renaming) (t:st_term) : st_term = 
+  subst_st_term t (as_subst r)
+
+let rename_bindings (bs:env_bindings) (r:renaming) =
+   List.Tot.map (fun (x, t) -> (rename r x, rename_term r t)) bs 
+   
+let renamed_envs (g0 g1:env) (r:renaming) =
+   fstar_env g0 == fstar_env g1 /\
+   bindings g0 == rename_bindings (bindings g1) r
+
+let tot_typing_renaming (#g:_) (#e:_) (#t:_) (d:tot_typing g e t)
+                        (g':env) (r:renaming { renamed_envs g g' r})
+  : tot_typing g' (rename_term r e) (rename_term r t)
+  = admit()
+
+let st_typing_renaming (#g:_) (#e:_) (#c:_) (d:st_typing g e c)
+                       (g':env) (r:renaming { renamed_envs g g' r})
+  : st_typing g' (rename_st_term r e) (rename_comp r c)
+  = admit()
+
+// let rec st_typing_renaming_1
+//           (g:env) (g':env {disjoint g g'})
+//           (#e:_) (#c:_) (d:st_typing (push_env g g') e c)
+//           (x:var) (y:var) (t:typ) (u:_) (t_typing:universe_of g t u)
+//           (_:squash (fresh_for x g /\ fresh_for y g'))
+//   : Tot (st_typing (push_env (push_binding g x ppname_default t) g') e c)
+//         (decreases d)
+//   = match d with
+//     | T_STApp _ head ty q res arg head_typing arg_typing ->
+//       let head_typing = tot_typing_renaming_1 g g' head_typing x y t u t_typing () in    
+//       let arg_typing = tot_typing_renaming_1 g g' arg_typing x y t u t_typing () in    
+//       T_STApp _ head ty q res arg head_typing arg_typing
+
+//     | _ -> admit()
+
+let rec st_typing_weakening_1
+          (g:env) (g':env {disjoint g g'})
+          (#e:_) (#c:_) (d:st_typing (push_env g g') e c)
+          (x:var) (t:typ) (u:_) (t_typing:universe_of g t u)
+          (_:squash (fresh_for x g /\ fresh_for x g'))
+  : Tot (st_typing (push_env (push_binding g x ppname_default t) g') e c)
+        (decreases d)
+  = match d with
+    | T_STApp _ head ty q res arg head_typing arg_typing ->
+      let head_typing = tot_typing_weakening_1 g g' head_typing x t u t_typing () in    
+      let arg_typing = tot_typing_weakening_1 g g' arg_typing x t u t_typing () in    
+      T_STApp _ head ty q res arg head_typing arg_typing
+
+    | _ -> admit()
+
 let admit_st_comp_typing (g:env) (st:st_comp) 
   : st_comp_typing g st
   = admit(); 
@@ -18,11 +103,34 @@ let admit_comp_typing (g:env) (c:comp_st)
     | C_STGhost inames st ->
       CT_STGhost g inames st (admit()) (admit_st_comp_typing g st)      
 
-let st_typing_correctness (#g:env) (#t:st_term) (#c:comp_st) 
-                          (_:st_typing g t c)
-  : comp_typing_u g c
-  = admit_comp_typing g c
-    
+module RT = FStar.Reflection.Typing
+
+let tot_typing_correctness #g #e #t (d:tot_typing g e t) 
+  : GTot (u:universe & universe_of g t u)
+  = let E d = d in
+    let (| u, d' |) = RT.type_correctness _ _ _ d in
+    (| u, E d' |)
+
+let rec st_typing_correctness' (#g:env) (#t:st_term) (#c:comp_st) 
+                               (d:st_typing g t c)
+  : GTot (comp_typing_u g c)
+  = match d with
+    | T_Abs _ _ _ _ _ _ _ _ _ -> false_elim ()
+    | T_STApp _ head ty q res arg head_typing arg_typing ->
+      let (| uh, head_t_typing |) = tot_typing_correctness head_typing in
+      //hard case; needs an inversion on arrow typing and a substitution lemma
+      admit()
+    | T_Return g c false u t e post x t_u e_t post_t ->
+      admit()
+    | T_If _g b e1 e2 c uc hyp b_t e1_t e2_t c_t ->
+      let E c_t = c_t in
+      c_t
+    // | T_While g inv cond body inv_typing cond_typing body_typing ->
+    //   st_typing_correctness' body_typing
+    | _ -> admit()
+
+let st_typing_correctness #g #t #c d = admit()
+
 let add_frame_well_typed (#g:env) (#c:comp_st) (ct:comp_typing_u g c)
                          (#f:term) (ft:tot_typing g f tm_vprop)
   : comp_typing_u g (add_frame c f)
