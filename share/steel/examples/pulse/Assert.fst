@@ -1,6 +1,12 @@
 module Assert
 open Pulse.Lib.Pervasives
 
+open Steel.Memory
+
+// let pred a = (a -> vprop) // a is the type of the argument
+
+// let smaller #a (p q: pred) = magic()
+
 ```pulse
 fn test_assert (r0 r1: ref nat)
                (#p0 #p1:perm)

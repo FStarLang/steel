@@ -53,11 +53,14 @@ let unit_with_inv a: Type u#2 =
   -> stt a (DI.active full_perm inv_pre) (fun x -> DI.active full_perm (inv_post x))
 *)
 
+unfold
 let half = half_perm full_perm
 
 // ignoring the pure post
 
-let own_res r = (exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
+// Old version:
+//let own_res r = (exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
+let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r half v))
 
 ```pulse
 fn read_own_res (#a: Type0) (r: ref (option a))
@@ -106,7 +109,7 @@ let task_plus: Type u#1 =
   //& done: option (x:task._1 & DI.inv (post x))
 )
 
-//#push-options "--warn_error -249"
+#push-options "--warn_error -249"
 
 let mono_list_task_plus: Type u#1 = list task_plus
 // should evolve according to preorder
@@ -125,6 +128,7 @@ let good_task_plus (t: task_plus) (q: task_queue) =
   | Done -> (exists_ (fun v -> pts_to t._1._3 half v ** pure (Some? v))) //** pure_inv_queue q c ql
   *)
 
+// Deprecated
 let good_task_plus (t: task_plus) (q: task_queue) =
   if Todo? t._2
     then pure (squash (memP t._1 q))
@@ -165,6 +169,9 @@ let rec old_pure_inv_queue (q: task_queue) (c: int) (l: mono_list_task_plus):
 if length l = 0 then pure (c = 0)
 else good_task_plus (hd l) q ** old_pure_inv_queue q (decrement_if_ongoing (hd l) c) (tl l)
 
+// Checks two things:
+// 1. every "Todo" task must be in the work queue
+// 2. the counter should equal the number of "Ongoing" tasks
 let rec pure_inv_queue (q: task_queue) (c: int) (l: mono_list_task_plus):
   Tot prop (decreases l)
 = match l with
@@ -180,39 +187,56 @@ let rec pure_inv_mono t q c l
   | [] -> ()
   | tl::ql -> pure_inv_mono t q (decrement_if_ongoing tl c) ql
 
-let done_with_perm_task (t: task_plus): vprop
-= (if Done? t._2
+// why not just put all permission here?
+(*
+Phases:
+1. Todo: 1/2 and None
+2. Ongoing: 0
+3. Done: 1/2 and Some
+*)
+let task_res_own (t: task_plus): vprop
+= match t._2 with
+| Todo -> pts_to t._1._3 half None
+| Ongoing -> emp // in this case, the worker has the half permission
+| Done -> (exists_ (fun v -> pts_to t._1._3 half v ** pure (Some? v)))
+  
+(*
+  if Done? t._2
   then (exists_ (fun v -> pts_to t._1._3 half v ** pure (Some? v)))
   else emp)
+*)
 
 ```pulse
-fn fold_done_task_not_done (tp: (tp:task_plus{~(Done? tp._2)}))
-  requires emp
-  ensures done_with_perm_task tp
+fn fold_done_task_todo (tp: task_plus) //(tp: (tp:task_plus{Todo? tp._2}))
+  requires pts_to tp._1._3 half None ** pure (Todo? tp._2)
+  ensures task_res_own tp
 {
-  rewrite emp as
-    ((`@(if Done? tp._2 then (exists_ (fun v -> pts_to tp._1._3 half v ** pure (Some? v)))
-    else emp)));
-  fold (done_with_perm_task tp)
+  rewrite (pts_to tp._1._3 half None) as
+  `@(match tp._2 with
+| Todo -> pts_to tp._1._3 half None
+| Ongoing -> emp // in this case, the worker has the half permission
+| Done -> (exists_ (fun v -> pts_to tp._1._3 half v ** pure (Some? v))));
+  fold (task_res_own tp);
+  ()
 }
 ```
 
-let rec done_with_perm (l: mono_list_task_plus): vprop
+let rec tasks_res_own (l: mono_list_task_plus): vprop
 =  match l with
   | [] -> emp
-  | tl::ql -> done_with_perm_task tl ** done_with_perm ql
+  | tl::ql -> task_res_own tl ** tasks_res_own ql
 
 let enqueue_task_plus (t: task_plus) (l: mono_list_task_plus): mono_list_task_plus
   = t::l
 
 ```pulse
 fn fold_done_task (tp: task_plus) (l:mono_list_task_plus)
-  requires done_with_perm_task tp ** done_with_perm l
-  ensures done_with_perm (enqueue_task_plus tp l)
+  requires task_res_own tp ** tasks_res_own l
+  ensures tasks_res_own (enqueue_task_plus tp l)
 {
-  rewrite (done_with_perm_task tp ** done_with_perm l)
+  rewrite (task_res_own tp ** tasks_res_own l)
     as
-  (done_with_perm (enqueue_task_plus tp l));
+  (tasks_res_own (enqueue_task_plus tp l));
   ()
 }
 ```
@@ -226,7 +250,7 @@ let inv_task_queue
     HR.pts_to q full_perm vq **
     pts_to c full_perm vc **
     HR.pts_to l full_perm vl **
-    done_with_perm vl **
+    tasks_res_own vl **
     pure (pure_inv_queue vq vc vl)
     ))))
 
@@ -290,7 +314,7 @@ fn acquire_queue_lock
     HR.pts_to (get_queue p) full_perm vq **
     pts_to (get_counter p) full_perm vc **
     HR.pts_to (get_mono_list p) full_perm vl **
-    done_with_perm vl **
+    tasks_res_own vl **
     pure (pure_inv_queue vq vc vl)
   )
 {
@@ -309,7 +333,7 @@ fn release_queue_lock
     HR.pts_to (get_queue p) full_perm vq **
     pts_to (get_counter p) full_perm vc **
     HR.pts_to (get_mono_list p) full_perm vl **
-    done_with_perm vl **
+    tasks_res_own vl **
     pure (pure_inv_queue vq vc vl)
   )
   //requires (exists vq vc. HR.pts_to (get_queue p) full_perm vq ** pts_to (get_counter p) full_perm vc)
@@ -336,9 +360,9 @@ let mk_pure_handler #a (r: ref (option a)) (l: Lock.lock (own_res r)) // (exists
 ```pulse
 fn enqueue_plus
   (t: task_elem) (q: task_queue) (c: int) (l: mono_list_task_plus)
-  requires done_with_perm q c l' ** pure (pure_inv_queue l)
+  requires tasks_res_own q c l' ** pure (pure_inv_queue l)
   returns l': mono_list_task_plus
-  ensures done_with_perm (enqueue t q) c l' ** pure (pure_inv_queue l)
+  ensures tasks_res_own (enqueue t q) c l' ** pure (pure_inv_queue l)
 {
   let tp = (| t, Todo |);
   let l' = enqueue_task_plus tp l;
@@ -418,7 +442,7 @@ fn spawn_emp'
   with vc. assert (pts_to (get_counter p) full_perm (Ghost.reveal vc));
   with vl. assert (HR.pts_to (get_mono_list p) full_perm (Ghost.reveal vl));
 
-  assert (done_with_perm vl ** pure (pure_inv_queue vq vc vl));
+  assert (tasks_res_own vl ** pure (pure_inv_queue vq vc vl));
 
   let vc' = !(get_counter p);
 
@@ -432,11 +456,22 @@ fn spawn_emp'
 
   higher_write #mono_list_task_plus #vl' (get_mono_list p) vl'';
 
-  assert (done_with_perm vl ** pure (pure_inv_queue vq vc vl));
+  assert (tasks_res_own vl ** pure (pure_inv_queue vq vc vl));
   assert (pure (pure_inv_queue vq' vc' vl'));
 
   pure_inv_mono task vq vc vl;
-  fold_done_task_not_done tp;
+  rewrite (pts_to res (half_perm full_perm) None) as (pts_to tp._1._3 half None);
+// requires pts_to tp._1._3 half None
+  assert (pts_to tp._1._3 half None ** pure (Todo? tp._2));
+  //let tp = typed_id (tp:task_plus{Todo? tp._2}) tp;
+  //assert (pts_to tp._1._3 half None);
+  rewrite (pts_to tp._1._3 half None) as
+    `@(match tp._2 with
+      | Todo -> pts_to tp._1._3 half None
+      | Ongoing -> emp // in this case, the worker has the half permission
+      | Done -> (exists_ (fun v -> pts_to tp._1._3 half v ** pure (Some? v))));
+  fold (task_res_own tp);
+  //fold_done_task_todo tp; // this call does not work for some reason
   fold_done_task tp vl';
   release_queue_lock p;
   let r = mk_pure_handler res l_res;
@@ -489,12 +524,11 @@ fn join_emp'
 
 let join_emp = join_emp'
 
-
 let len (q: task_queue): nat
 = List.Tot.length q
 
 let pop (q: task_queue{len q > 0}): task_elem & task_queue
-= let t::q' = q in (t, q')
+= (hd q, tl q) //let t::q' = q in (t, q')
 
 assume val assert_prop (p: prop): stt unit (pure p) (fun _ -> emp)
 
@@ -523,7 +557,7 @@ fn unfold_and_read_own_res
   (#a: Type0) (r: ref (option a))
   requires own_res r
   returns v: option a
-  ensures pts_to r half v ** `@(if None? v then pts_to r half v else emp)
+  ensures pts_to r half v
 {
   unfold own_res r;
   let v = !r;
@@ -537,45 +571,33 @@ fn fold_own_res_Some
   requires pts_to r half v
   ensures own_res r
 {
-  admit()
+  fold (own_res r)
 }
 ```
 
 ```pulse
 fn write_res (t: task_elem) (res: t._1)
-  requires emp
+  requires pts_to t._3 half None // we got that from the todo part
   ensures pts_to t._3 half (Some res)
 {
-  // need to check whether there is a result...
+  assert (pts_to t._3 half None);
   Lock.acquire t._4;
   let v = unfold_and_read_own_res t._3;
-  if (None? v) {
-    rewrite `@(if None? v then pts_to t._3 half v else emp) as (pts_to t._3 half v);
-    assert (pts_to t._3 half v ** pts_to t._3 half v);
-    gather t._3;
-    rewrite (pts_to t._3 (sum_perm half half) v) as (pts_to t._3 full_perm v);
-    t._3 := Some res;
-    share t._3;
-    rewrite (pts_to t._3 (half_perm full_perm) (Some res)) as
-      (pts_to t._3 half (Some res));
-    fold_own_res_Some t._3 (Some res);
-    Lock.release t._4;
-    rewrite (pts_to t._3 (half_perm full_perm) (Some res)) as
-      (pts_to t._3 half (Some res));
-    ()
-  }
-  else {
-    //fold (own_res t._3);
-    fold_own_res_Some t._3 v;
-    Lock.release t._4;
-    rewrite `@(if None? v then pts_to t._3 half v else emp) as emp;
-    admit() // TODO: How do we prove that this case does not happen
-  }
+  assert (pts_to t._3 half v ** pts_to t._3 half None);
+  gather t._3;
+  rewrite (pts_to t._3 (sum_perm half half) None) as (pts_to t._3 full_perm None);
+  t._3 := Some res;
+  share t._3;
+  rewrite (pts_to t._3 (half_perm full_perm) (Some res)) as (pts_to t._3 half (Some res));
+  rewrite (pts_to t._3 (half_perm full_perm) (Some res)) as (pts_to t._3 half (Some res));
+  fold_own_res_Some t._3 (Some res);
+  Lock.release t._4
 }
 ```
 
-(*
 
+// need to remove one ongoing task now!
+(*
 ```pulse
 fn decrease_counter (p: par_env)// (#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue q c))
   requires emp
@@ -588,6 +610,88 @@ fn decrease_counter (p: par_env)// (#q: HR.ref task_queue) (#c: ref int) (l: Loc
   ()
 }
 ```
+*)
+
+```pulse
+fn update_task_ongoing
+  (task: task_elem) (vq:(vq:task_queue{len vq > 0})) (vc: int) (vl: mono_list_task_plus)
+  requires tasks_res_own vl ** pure (pure_inv_queue vq vc vl)
+  returns vl': mono_list_task_plus
+  ensures tasks_res_own vl' ** pts_to task._3 half None
+    ** pure (pure_inv_queue (tl vq) (vc + 1) vl')
+{
+  admit()
+}
+```
+
+(*
+let rec pure_inv_queue (q: task_queue) (c: int) (l: mono_list_task_plus):
+  Tot prop (decreases l)
+= match l with
+  | [] -> c = 0
+  | tl::ql -> ((Todo? tl._2 ==> memP tl._1 q) /\ pure_inv_queue q (decrement_if_ongoing tl c) ql)
+*)
+
+(*
+      // 1. We need to remove the task from vl
+      // such that we get back 1/2 permission to the res
+      // FROM
+      assert (tasks_res_own vl);
+      assert (pure (pure_inv_queue vq vc vl));
+      // TO
+      // vl' = vl where the status of "task" has gone from Todo to Ongoing
+      assert (tasks_res_own vl' ** pts_to task._3 half None);
+      assert (pure (pure_inv_queue (tl vq) (vc + 1) vl'));
+      *)
+
+(*
+This function decrements the counter,
+and sets the task (which is provably ongoing) to "done" in the ghost list
+*)
+```pulse
+fn declare_task_done (p: par_env) (task: task_elem) (res: task._1)
+  requires pts_to task._3 half (Some res)
+  ensures emp
+{
+  acquire_queue_lock p;
+
+  // getting a hold of the three things
+  with vq. assert (HR.pts_to (get_queue p) full_perm (Ghost.reveal vq));
+  let vq = higher_read #_ #full_perm #vq (get_queue p);
+  let vc = !(get_counter p);
+  with vl. assert (HR.pts_to (get_mono_list p) full_perm (Ghost.reveal vl));
+  let vl = higher_read #_ #full_perm #vl (get_mono_list p);
+
+  (get_counter p) := vc - 1;
+  //higher_write #_ #vq (get_queue p) (pair._2);
+  //let task = pair._1;
+  assert (HR.pts_to (get_queue p) full_perm vq **
+    pts_to (get_counter p) full_perm (vc - 1) **
+    HR.pts_to (get_mono_list p) full_perm vl);
+  //let vl' = update_task_ongoing task vq vc vl;
+  //assert (tasks_res_own vl' ** pts_to task._3 half None ** pure (pure_inv_queue (tl vq) (vc + 1) vl'));
+  //assert (tasks_res_own vl' ** pts_to task._3 half None ** pure (pure_inv_queue pair._2 (vc + 1) vl'));
+  let vl' = vl;
+  higher_write #_ #vl (get_mono_list p) vl';
+
+
+
+
+  // we also have a witness that the task was ongoing
+  // 4. decrease counter
+  // and declare task "done"
+  //decrease_counter p;
+  // we can prove that this task is still ongoing, because
+  // 1. we have 1/2 permission
+  // 2. the lock owns the remaining half permission
+  // 3. we know task is in the list (monotonicity)
+  // 4. the cases todo and done would give us 1/2 more permission, resulting in an inconsistency
+  admit()
+  //release_queue_lock p;
+}
+```
+
+
 
 ```pulse
 fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue q c))
@@ -603,9 +707,11 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
   {
     acquire_queue_lock p;
 
-    with vq. assert (HR.pts_to (get_queue p) full_perm vq);
+    with vq. assert (HR.pts_to (get_queue p) full_perm (Ghost.reveal vq));
     let vq = higher_read #_ #full_perm #vq (get_queue p);
     let vc = !(get_counter p);
+    with vl. assert (HR.pts_to (get_mono_list p) full_perm (Ghost.reveal vl));
+    let vl = higher_read #_ #full_perm #vl (get_mono_list p);
 
     // We check whether there's a task in the queue
     if (len vq > 0) {
@@ -613,8 +719,53 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       let pair = pop vq;
       (get_counter p) := vc + 1;
       higher_write #_ #vq (get_queue p) (pair._2);
-      release_queue_lock p;
       let task = pair._1;
+      assert (HR.pts_to (get_queue p) full_perm pair._2 **
+        pts_to (get_counter p) full_perm (vc + 1) **
+        HR.pts_to (get_mono_list p) full_perm vl);
+      let vl' = update_task_ongoing task vq vc vl;
+      assert (tasks_res_own vl' ** pts_to task._3 half None ** pure (pure_inv_queue (tl vq) (vc + 1) vl'));
+      assert (tasks_res_own vl' ** pts_to task._3 half None ** pure (pure_inv_queue pair._2 (vc + 1) vl'));
+      higher_write #_ #vl (get_mono_list p) vl';
+
+      release_queue_lock p;
+
+      //assert (HR.pts_to (get_queue p) full_perm pair._2 **
+        //pts_to (get_counter p) full_perm (vc + 1) **
+        //HR.pts_to (get_mono_list p) full_perm vl);
+      //assert (pure (pair._2 == tl vq));
+  //(task: task_elem) (vq:(vq:task_queue{len vq > 0})) (vc: int) (vl: mono_list_task_plus)
+  (*
+  requires tasks_res_own vl ** pure (pure_inv_queue vq vc vl)
+  returns vl': mono_list_task_plus
+  ensures tasks_res_own vl' ** pts_to task._3 half None
+    ** pure (pure_inv_queue (tl vq) (vc + 1) vl')
+
+      // 1. We need to remove the task from vl
+      // such that we get back 1/2 permission to the res
+      // FROM
+      assert (tasks_res_own vl);
+      assert (pure (pure_inv_queue vq vc vl));
+      // TO
+      // vl' = vl where the status of "task" has gone from Todo to Ongoing
+      assert (tasks_res_own vl' ** pts_to task._3 half None);
+      assert (pure (pure_inv_queue (tl vq) (vc + 1) vl'));
+      *)
+ 
+      (*
+  (q: HR.ref task_queue) // the task queue
+  (c: ref int) // a counter of how many tasks are currently being performed
+  (l: HR.ref mono_list_task_plus)
+  : vprop
+= (exists_ (fun vq -> exists_ (fun vc -> exists_ (fun vl ->
+    HR.pts_to q full_perm vq **
+    pts_to c full_perm vc **
+    HR.pts_to l full_perm vl **
+    tasks_res_own vl **
+    pure (pure_inv_queue vq vc vl)
+    ))))
+      *)
+
 
       // 2. perform the task
       let res = perform_task task; // (task._3) (); // Actually performing the task
@@ -622,8 +773,8 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       // 3. put the result in the reference
       write_res task res;
 
-      // 4. decrease counter
-      decrease_counter p;
+      assert (pts_to task._3 half (Some res));
+      declare_task_done p task res;
       ()
     }
     else {
@@ -636,6 +787,8 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
   ()
 }
 ```
+(*
+
 let worker = worker'
 
 let empty_task_queue: task_queue = []
