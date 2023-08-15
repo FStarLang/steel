@@ -60,7 +60,7 @@ let half = half_perm full_perm
 
 // Old version:
 //let own_res r = (exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
-let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r half v))
+let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r #half v))
 
 ```pulse
 fn read_own_res (#a: Type0) (r: ref (option a))
@@ -135,21 +135,21 @@ let good_task_plus (t: task_plus) (q: task_queue) =
   else if Ongoing? t._2
     then emp
   else
-    (exists_ (fun v -> pts_to t._1._3 half v ** pure (Some? v))) //** pure_inv_queue q c ql
+    (exists_ (fun v -> pts_to t._1._3 #half v ** pure (Some? v))) //** pure_inv_queue q c ql
 
 let emp_list: list int = []
 
 ```pulse
 fn test_rewrite_match
   (r: ref nat)
-  requires pts_to r full_perm 0
-  ensures pts_to r full_perm 0
+  requires pts_to r 0
+  ensures pts_to r 0
 {
   let l = emp_list;
-  rewrite (pts_to r full_perm 0) as (`@(
+  rewrite (pts_to r 0) as (`@(
     match l with
-    | [] -> pts_to r full_perm 0
-    | t::q -> pts_to r full_perm 1
+    | [] -> pts_to r 0
+    | t::q -> pts_to r 1
   ));
   admit()
 }
