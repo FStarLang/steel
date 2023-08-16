@@ -15,6 +15,7 @@
     "share/steel/examples/pulse/dice/engine",
     "share/steel/examples/pulse/dice/common",
     "share/steel/examples/pulse/lib",
-    "share/steel/examples/pulse/parallel"
+    "share/steel/examples/pulse/parallel",
+    "share/steel/examples/pulse/parix"
   ]
 }
