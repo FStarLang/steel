@@ -13,54 +13,25 @@ module GR = Pulse.Lib.GhostReference
 
 open FStar.List.Tot.Base
 
-(*
-assume val domain : a:Type0 -> (a -> vprop) -> Type0
-// should contain (at least):
-// 1. the reference where we will put the result
-// 2. a lock that gives back the postcondition
-
-assume val joinable :
-  #a:Type0 -> #post:(a -> vprop) ->
-  domain a post -> vprop
-*)
-
-(*
-noeq
-type par_env = | ParEnv : list task -> par_env
-and task = | Task : (ref par_env -> stt nat emp (fun _ -> emp)) -> task
-*)
-
-//let unit_emp_stt_pure_pure a p
-//  = unit -> stt a emp (fun x -> pure (p x))
-  // depends negatively on par_env
-
-(*
-//TODO: Adapt
-Ignoring the pure post; It can be expressed as part of the type
-let maybe_sat #a (p: a -> prop) (x: option a)
-  = match x with
-  | None -> True
-  | Some x -> p x
-  *)
+open GhostTaskQueue
 
 let unit_emp_stt_pure_pure a
   = unit -> stt a emp (fun _ -> emp)
 
-(*
-let unit_with_inv a: Type u#2 =
-  pre:vprop -> inv_pre:DI.inv pre -> post:(a -> vprop) -> inv_post:(x:a -> DI.inv (post x))
-  -> unit
-  -> stt a (DI.active full_perm inv_pre) (fun x -> DI.active full_perm (inv_post x))
-*)
-
 unfold
 let half = half_perm full_perm
+
+unfold
+let one_quart = half_perm (half_perm full_perm)
+
+unfold
+let three_quart = sum_perm (half_perm full_perm) (half_perm (half_perm full_perm))
 
 // ignoring the pure post
 
 // Old version:
 //let own_res r = (exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
-let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r #half v))
+let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r #one_quart v))
 
 ```pulse
 fn read_own_res (#a: Type0) (r: ref (option a))
@@ -91,101 +62,12 @@ let task_elem: Type u#1 = (
 
 #push-options "--print_universes"
 
-//let task_queue: Type u#(174590) = not crashing
-//let task_queue: Type u#(174591) = crashing
 let task_queue: Type u#1 = list task_elem
-// depends negatively on par_env
-
-// Ghost stuff
-// Goal: Prove that, at the end, all tasks are done (and thus all results are Some ...)
-type task_status = | Todo | Ongoing | Done
-
-let task_plus: Type u#1 = 
-(
-  task: task_elem
-  & status: task_status
-  //& post: (task._1 -> vprop)
-  //& post_claimed: ref bool // needs to be ref, so it can be provably false
-  //& done: option (x:task._1 & DI.inv (post x))
-)
+let task_plus: Type u#1 = task_with_status task_elem
 
 #push-options "--warn_error -249"
 
-let mono_list_task_plus: Type u#1 = list task_plus
-// should evolve according to preorder
-
-//let in_queue (t: task_elem) (vq: list task_elem): prop
-//= mem_prop_is_affi t vq
-
-let decrement_if_ongoing (t: task_plus) (c: int)
-= if Ongoing? t._2 then c - 1 else c
-
-(*
-let good_task_plus (t: task_plus) (q: task_queue) =
-  match t._2 with
-  | Todo -> pure (squash (memP t._1 q)) //** pure_inv_queue q c ql
-  | Ongoing -> emp//pure_inv_queue q (c - 1) ql // this task is "included" in the counter
-  | Done -> (exists_ (fun v -> pts_to t._1._3 half v ** pure (Some? v))) //** pure_inv_queue q c ql
-  *)
-
-// Deprecated
-let good_task_plus (t: task_plus) (q: task_queue) =
-  if Todo? t._2
-    then pure (squash (memP t._1 q))
-  else if Ongoing? t._2
-    then emp
-  else
-    (exists_ (fun v -> pts_to t._1._3 #half v ** pure (Some? v))) //** pure_inv_queue q c ql
-
-let emp_list: list int = []
-
-```pulse
-fn test_rewrite_match
-  (r: ref nat)
-  requires pts_to r 0
-  ensures pts_to r 0
-{
-  let l = emp_list;
-  rewrite (pts_to r 0) as (`@(
-    match l with
-    | [] -> pts_to r 0
-    | t::q -> pts_to r 1
-  ));
-  admit()
-}
-```
-
-// the following is a vprop, because it contains half perm to res ref
-(*
-let rec pure_inv_queue (q: task_queue) (c: int) (l: mono_list_task_plus):
-  Tot vprop (decreases l)
-= match l with
-| [] -> pure (c = 0)
-| t::ql -> good_task_plus t q ** pure_inv_queue q (decrement_if_ongoing t c) ql
-*)
-let rec old_pure_inv_queue (q: task_queue) (c: int) (l: mono_list_task_plus):
-  Tot vprop (decreases l)
-=
-if length l = 0 then pure (c = 0)
-else good_task_plus (hd l) q ** old_pure_inv_queue q (decrement_if_ongoing (hd l) c) (tl l)
-
-// Checks two things:
-// 1. every "Todo" task must be in the work queue
-// 2. the counter should equal the number of "Ongoing" tasks
-let rec pure_inv_queue (q: task_queue) (c: int) (l: mono_list_task_plus):
-  Tot prop (decreases l)
-= match l with
-  | [] -> c = 0
-  | tl::ql -> ((Todo? tl._2 ==> memP tl._1 q) /\ pure_inv_queue q (decrement_if_ongoing tl c) ql)
-
-let rec pure_inv_mono t q c l
-  : Lemma
-  (requires pure_inv_queue q c l)
-  (ensures pure_inv_queue (t::q) c l)
-  (decreases l)
-= match l with
-  | [] -> ()
-  | tl::ql -> pure_inv_mono t q (decrement_if_ongoing tl c) ql
+let mono_list_task_plus: Type u#1 = mono_list task_elem
 
 // why not just put all permission here?
 (*
@@ -196,47 +78,47 @@ Phases:
 *)
 let task_res_own (t: task_plus): vprop
 = match t._2 with
-| Todo -> pts_to t._1._3 half None
+| Todo -> pts_to t._1._3 #three_quart None
 | Ongoing -> emp // in this case, the worker has the half permission
-| Done -> (exists_ (fun v -> pts_to t._1._3 half v ** pure (Some? v)))
+| Done -> (exists_ (fun v -> pts_to t._1._3 #three_quart v ** pure (Some? v)))
   
-(*
-  if Done? t._2
-  then (exists_ (fun v -> pts_to t._1._3 half v ** pure (Some? v)))
-  else emp)
-*)
-
+  (*
 ```pulse
 fn fold_done_task_todo (tp: task_plus) //(tp: (tp:task_plus{Todo? tp._2}))
-  requires pts_to tp._1._3 half None ** pure (Todo? tp._2)
+  requires pts_to tp._1._3 #three_quart None ** pure (Todo? tp._2)
   ensures task_res_own tp
 {
-  rewrite (pts_to tp._1._3 half None) as
+  rewrite (pts_to tp._1._3 #three_quart None) as
   `@(match tp._2 with
-| Todo -> pts_to tp._1._3 half None
+| Todo -> pts_to tp._1._3 #three_quart None
 | Ongoing -> emp // in this case, the worker has the half permission
-| Done -> (exists_ (fun v -> pts_to tp._1._3 half v ** pure (Some? v))));
+| Done -> (exists_ (fun v -> pts_to tp._1._3 #three_quart v ** pure (Some? v))));
   fold (task_res_own tp);
   ()
 }
 ```
+*)
 
 let rec tasks_res_own (l: mono_list_task_plus): vprop
 =  match l with
   | [] -> emp
   | tl::ql -> task_res_own tl ** tasks_res_own ql
 
-let enqueue_task_plus (t: task_plus) (l: mono_list_task_plus): mono_list_task_plus
-  = t::l
+//let enqueue_task_plus (t: task_plus) (l: mono_list_task_plus): mono_list_task_plus
+ // = t::l
+//let todoify (t: task_elem): task_plus =
+ // ( t, Todo )
 
 ```pulse
-fn fold_done_task (tp: task_plus) (l:mono_list_task_plus)
-  requires task_res_own tp ** tasks_res_own l
-  ensures tasks_res_own (enqueue_task_plus tp l)
+fn fold_done_task (t: task_elem) (l:mono_list_task_plus)
+  requires pts_to t._3 #three_quart None ** tasks_res_own l
+  ensures tasks_res_own (enqueue_todo l t)._1
 {
-  rewrite (task_res_own tp ** tasks_res_own l)
+  rewrite (pts_to t._3 #three_quart None) as (task_res_own (t, Todo));
+  fold (task_res_own (t, Todo));
+  rewrite (task_res_own (t, Todo) ** tasks_res_own l)
     as
-  (tasks_res_own (enqueue_task_plus tp l));
+  (tasks_res_own (enqueue_todo l t)._1);
   ()
 }
 ```
@@ -247,9 +129,9 @@ let inv_task_queue
   (l: HR.ref mono_list_task_plus)
   : vprop
 = (exists_ (fun vq -> exists_ (fun vc -> exists_ (fun vl ->
-    HR.pts_to q full_perm vq **
-    pts_to c full_perm vc **
-    HR.pts_to l full_perm vl **
+    HR.pts_to q vq **
+    pts_to c vc **
+    HR.pts_to l vl **
     tasks_res_own vl **
     pure (pure_inv_queue vq vc vl)
     ))))
