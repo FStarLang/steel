@@ -51,7 +51,7 @@ fn async_fill
 ```
 
 ```pulse
-fn async
+fn __async
   (#a : Type0)
   (#pre : vprop)
   (#post : (a -> vprop))
@@ -79,9 +79,10 @@ fn async
   res
 }
 ```
+let async = __async
 
 ```pulse
-fn await
+fn __await
   (#a : Type0)
   (#post : (a -> vprop))
   (h : asynch a post)
@@ -116,3 +117,4 @@ fn await
   }
 }
 ```
+let await = __await
