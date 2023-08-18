@@ -88,25 +88,13 @@ let emp_inames = Ghost.hide Set.empty
 inline_for_extraction
 type stt (a:Type u#a) (pre:vprop) (post:a -> vprop) = unit -> STT a pre post
 
-let mk_stt #a #pre #post e = e
-
-let reveal_stt #a #pre #post e = e
-
 inline_for_extraction
 type stt_atomic (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) =
   unit -> STAtomicT a opened pre post
-
-let mk_stt_atomic #a #opened #pre #post e = e
-
-let reveal_stt_atomic #a #opened #pre #post e = e
  
 inline_for_extraction
 type stt_ghost (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) =
   unit -> STGhostT a opened pre post
-
-let mk_stt_ghost #a #opened #pre #post e = e
-
-let reveal_stt_ghost #a #opened #pre #post e = e
 
 inline_for_extraction
 let return_stt (#a:Type u#a) (x:a) (p:a -> vprop) =
