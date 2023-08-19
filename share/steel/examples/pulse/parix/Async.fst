@@ -68,8 +68,10 @@ fn __async
   //   : (unit -> stt u#0 unit (pre ** pts_to u#0 #(option u#0 a) r #full_perm (None u#0 #a))
   //                           (fun () -> ref_solves_post #a r post))
   //   = (fun () -> async_fill #a #pre #post f r ());
+  // let th = fork #(pre ** pts_to r None) #(ref_solves_post r post)
   let th = fork #(pre ** pts_to r None) #(ref_solves_post r post)
                 (fun () -> magic()); // FIXME... it's the thing above
+                // (async_fill #a #pre #post f r);
   let res = ( r, th );
   
   assert (joinable th);

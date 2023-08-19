@@ -16,15 +16,36 @@ fn qs (n:nat)
   ensures qsv 1 ** qsv 2 ** qsv 3 ** qsv 4
 {
   let p = setup_pool 42;
-  spawn p (fun () -> qsc 1);
-  spawn p (fun () -> qsc 2);
-  spawn p (fun () -> qsc 3);
-  spawn p (fun () -> qsc 4);
+  spawn_ p (fun () -> qsc 1);
+  spawn_ p (fun () -> qsc 2);
+  spawn_ p (fun () -> qsc 3);
+  spawn_ p (fun () -> qsc 4);
   teardown_pool p;
   redeem_promise (pool_done p) (qsv 1);
   redeem_promise (pool_done p) (qsv 2);
   redeem_promise (pool_done p) (qsv 3);
   redeem_promise (pool_done p) (qsv 4);
+  drop_ (pool_done p);
+  ()
+}
+```
+
+```pulse
+fn qs_joinpromises (n:nat)
+  requires emp
+  returns _:unit
+  ensures qsv 1 ** qsv 2 ** qsv 3 ** qsv 4
+{
+  let p = setup_pool 42;
+  spawn_ p (fun () -> qsc 1);
+  spawn_ p (fun () -> qsc 2);
+  spawn_ p (fun () -> qsc 3);
+  spawn_ p (fun () -> qsc 4);
+  join_promise #(pool_done p) (qsv 1) (qsv 2);
+  join_promise #(pool_done p) (qsv 3) (qsv 4);
+  teardown_pool p;
+  redeem_promise (pool_done p) (qsv 1 ** qsv 2);
+  redeem_promise (pool_done p) (qsv 3 ** qsv 4);
   drop_ (pool_done p);
   ()
 }
@@ -48,11 +69,11 @@ fn qsh (n:nat)
   ensures qsv 1 ** qsv 2 ** qsv 3 ** qsv 4
 {
   let p = setup_pool 42;
-  spawn p qs12;
+  spawn_ p qs12;
   // could do the same thing for 3&4... it's gonna work.
   // also qs12 could spawn and join its tasks, it would clearly work
-  spawn p (fun () -> qsc 3);
-  spawn p (fun () -> qsc 4);
+  spawn_ p (fun () -> qsc 3);
+  spawn_ p (fun () -> qsc 4);
   teardown_pool p;
   redeem_promise (pool_done p) (qsv 1 ** qsv 2);
   redeem_promise (pool_done p) (qsv 3);
@@ -68,8 +89,8 @@ fn qs12_par (p:pool)
   returns _:unit
   ensures pool_alive p ** promise (pool_done p) (qsv 1) ** promise (pool_done p) (qsv 2)
   {
-    spawn p (fun () -> qsc 1);
-    spawn p (fun () -> qsc 2);
+    spawn_ p (fun () -> qsc 1);
+    spawn_ p (fun () -> qsc 2);
     ()
   }
 ```

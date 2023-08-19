@@ -4,28 +4,58 @@ open Pulse.Lib.Pervasives
 open Pulse.Lib.SpinLock
 open Promises
 
-let pool : Type0 = magic()
-let pool_alive : pool -> vprop = magic ()
-let pool_done : pool -> vprop = magic ()
+let pool : Type0 = magic ()
+let pool_alive (#[T.exact (`full_perm)]p : perm) (pool:pool) : vprop
+  = magic()
+let pool_done = magic ()
 
 let setup_pool (n:nat)
-  : stt pool emp (fun p -> pool_alive p)
   = magic ()
 
-let task_handle : a:Type0 -> vprop -> Type0
-  = magic ()
+let task_handle pool a post = magic ()
+let joinable #p #a #post th = magic ()
+let joined   #p #a #post th = magic ()
 
-let spawn
-  (#a : Type0)
-  (#pre : vprop) (#post : vprop)
-  (p:pool)
-  ($f : unit -> stt a pre (fun (_:a) -> post))
-  : stt (task_handle a post) (pool_alive p ** pre) (fun prom -> pool_alive p ** promise (pool_done p) post)
-  = magic ()
+let handle_solved #p #a #post th = magic()
 
-let spawn_ #pre #post p f =
-  bind_stt (spawn p f) (fun _ ->
-  Pulse.Lib.Core.return () (fun _ -> pool_alive p ** promise (pool_done p) post))
+let spawn = magic ()
+
+let spawn_ = magic ()
+
+let must_be_done = magic ()
+
+let join0 = magic ()
+
+```pulse
+fn __extract
+  (#p:pool)
+  (#a:Type0)
+  (#post : (a -> vprop))
+  (th : task_handle p a post)
+  requires handle_solved th
+  returns x:a
+  ensures post x
+{
+  admit()
+}
+``` 
+let extract = __extract
+
+```pulse
+fn __join
+  (#p:pool)
+  (#a:Type0)
+  (#post : (a -> vprop))
+  (th : task_handle p a post)
+  requires joinable th
+  returns x:a
+  ensures post x
+{
+  join0 th;
+  extract th
+}
+``` 
+let join = __join
 
 let teardown_pool
   (p:pool)

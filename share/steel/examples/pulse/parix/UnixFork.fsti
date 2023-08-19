@@ -11,8 +11,6 @@ val thread : Type0
 val joinable : thread -> vprop
 val done     : thread -> vprop (* i.e. reapable/zombie *)
 
-// val rewrite_thread (
-
 val fork 
   (#pre #post : vprop)
   (f : unit -> stt unit pre (fun () -> post))
