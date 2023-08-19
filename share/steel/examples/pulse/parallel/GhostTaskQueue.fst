@@ -1,9 +1,7 @@
 module GhostTaskQueue
-
 module L = FStar.List.Tot.Base
 module P = FStar.Preorder
 
-//#push-options "--fuel 10 --ifuel 10 --z3rlimit 10"
 let smaller_status: P.preorder task_status =
 fun (x y: task_status) -> 
     match x, y with
@@ -68,28 +66,12 @@ let is_mono_suffix #a =
   );
   is_mono_suffix'
 
-// [..., ..., task] -> pos 0
-// [task, ...] -> pos 1
-// l[length l - (pos_task + 1)] = task
-// length l - pos_task - 1 >= 0
-// pos_task < length l
-// if pos_task + 1 == length l --> we're there!
-
 let rec task_in_queue #a (x: a) (pos:nat) (l: mono_list a) =
   if pos + 1 = L.length l then
     fst (L.hd l) == x
   else if pos + 1 < L.length l then
     task_in_queue x pos (L.tl l)
   else False
-
-
-  //x == fst (L.index l (L.length l - pos - 1))
-  (*
-  if pos + 1 = length l then // we're there
-   match l with
-  | [] -> False
-  | t::q -> x == fst t \/ task_in_queue x q
-  *)
 
 let rec task_in_queue_same_mono #a (t: a) (pos:nat) (x y: mono_list a):
 Lemma (requires is_same_mono_list x y)
@@ -98,11 +80,6 @@ Lemma (requires is_same_mono_list x y)
   if pos + 1 < L.length x then
     task_in_queue_same_mono t pos (L.tl x) (L.tl y)
   else ()
-(*
-match x, y with
-| tx::qx, ty::qy -> task_in_queue_same_mono t pos qx qy
-| _ -> ()
-*)
 
 // main reason why we want this preorder:
 let rec task_in_queue_preorder #a 
@@ -152,18 +129,12 @@ Lemma (requires ~(get_actual_queue l == []))
 = pop_preserves_order_aux l; from_same_to_suffix l (pop_todo_task l)._2
 
 (** 3. concluding the task: when the worker is done **)
-// a bit weird: Can we prove the task was not done before???
-// yes, because we have the permission?
-// maybe with 2/3 + 2/3 permissions
-// do I need an id (with distinctness) to compare two tasks?
-// If equality does not work, can add indices, with a uniqueness invariant...
 let task_in_queue_not_empty t pos l:
   Lemma (requires task_in_queue t pos l)
         (ensures L.length l >= 1)
 = ()
 
 let rec close_task #a
-    //(eq: (x:a -> y:a -> b:bool{b <==> x == y }))
     (t: a)
     (pos: nat)
     (l: mono_list a{task_in_queue t pos l /\ L.length l >= 1}):
@@ -224,7 +195,6 @@ Lemma (P.stable (task_in_queue t pos) is_mono_suffix)
 // can witness that task is in queue
 let witness (#a:Type) #t #pos
             (r:ghost_mono_ref a)
-            //(fact:stable_property p)
             (v:erased (mono_list a))
             (_:squash (task_in_queue t pos v))
   : //TODO: SteelAtomicUT
@@ -258,7 +228,6 @@ let certificate (r:ghost_mono_ref task_elem) (t: task_elem) (pos: nat)
 // can witness that task is in queue
 let get_certificate (t: task_elem) (pos: nat)
             (r:ghost_mono_ref task_elem)
-            //(fact:stable_property p)
             (l:erased mono_list_task_plus)
             (_:squash (task_in_queue t pos l))
   : //TODO: SteelAtomicUT
@@ -271,8 +240,6 @@ let get_certificate (t: task_elem) (pos: nat)
 let pts_to_Some (t: task_elem & task_status): vprop
 = (exists_ (fun v -> pts_to (t._1._2) #three_quart v ** pure (Some? v)))
 
-
-// in NewDomains, g is ._3 and f is ._1
 let task_res_own (t: task_plus): vprop
 = match t._2 with
 | Todo -> pts_to (t._1._2) #three_quart None
@@ -440,115 +407,12 @@ ensures pts_to r #three_quart v1 ** pts_to r #three_quart v2
   ()
 }
 ```
-(*
-stt_ghost unit emp_inames
-(fun () ->
-= rewrite _ _ (equiv_not_aliases r r v1 v2)
 
-
-// To prove
-```pulse
-ghos
-let equiv_not_aliases (#a: Type) (r1 r2: ref a) (v1 v2: a):
-vprop_equiv
-  (pts_to r1 #three_quart v1 ** pts_to r2 #three_quart v2)
-  (pts_to r1 #three_quart v1 ** pts_to r2 #three_quart v2 ** pure (~(r1 == r2)))
-{
-  (*
-/// A permission is always no greater than one
-val ghost_pts_to_perm (#a: _) (#u: _) (#p: _) (#v: _) (r: ghost_ref a)
-  : SteelGhost unit u
-      (ghost_pts_to r p v)
-      (fun _ -> ghost_pts_to r p v)
-      (fun _ -> True)
-      (fun _ _ _ -> p `lesser_equal_perm` full_perm)
-      *)
-  admit()
-}
-
-let derive_false_from_too_much_permission (#a: Type) (r: ref a) (v1 v2: a):
-stt_ghost unit emp_inames (pts_to r #three_quart v1 ** pts_to r #three_quart v2)
-(fun () ->
-pts_to r #three_quart v1 ** pts_to r #three_quart v2 **
-pure (~(r == r)))
-= rewrite _ _ (equiv_not_aliases r r v1 v2)
-*)
-
-
-// TODO: Do this vprop_equiv
-
-(*
-let rec vprop_equiv_test
-  (l: mono_list_task_plus{~(get_actual_queue l == [])})
-: vprop_equiv (tasks_res_own l)
-  (pts_to (pop_todo_task l)._1._2 #three_quart None
-  ** tasks_res_own (pop_todo_task l)._2)
-= match l with
-| (t, Todo)::q ->
-let p1: vprop_equiv (tasks_res_own l) 
-  (pts_to (pop_todo_task l)._1._2 #three_quart None ** tasks_res_own q) = vprop_equiv_refl _ in
-let p2: vprop_equiv (tasks_res_own q) (emp ** tasks_res_own q) = 
-  vprop_equiv_sym _ _ (vprop_equiv_unit _)
- in
-let p3: vprop_equiv (emp ** tasks_res_own q) (tasks_res_own (pop_todo_task l)._2) = vprop_equiv_refl _ in
-let p4: vprop_equiv (tasks_res_own q) (tasks_res_own (pop_todo_task l)._2) = vprop_equiv_trans _ _ _ p2 p3 in
-let p5 = vprop_equiv_cong _ _ _ _ (vprop_equiv_refl (pts_to (pop_todo_task l)._1._2 #three_quart None)) p4 in
-vprop_equiv_trans _ _ _ p1 p5
-| t::q -> 
-*)
-
-(*
-let rec put_back_permission_equiv
-  (t: task_elem)
-  (pos: nat)
-  (l: mono_list_task_plus{task_in_queue t pos l})
-  (x: t._1)
-: vprop_equiv 
-  (tasks_res_own l ** pts_to t._2 #three_quart (Some x))
-  (tasks_res_own (close_task t pos l)._2 **
-  pure (Ongoing? (close_task t pos l)._1))
-= match l with
-| (t', s)::q -> 
-if pos + 1 = L.length l
-  then admit() //(| s, (t', Done)::q |)
-  else let (| s', q' |) = close_task t pos q in
-  assert (close_task t pos l == (| s', (t', s)::q' |));
-  admit() // (| s', (t', s)::q' |)
-  *)
-
-  (*
-   match l with
-| (t', s)::q -> 
-//if eq t t'
-if pos + 1 = L.length l
-  then (| s, (t', Done)::q |) // if s is not Ongoing, then we have too much permission
-  else let (| s', q' |) = close_task t pos q in (| s', (t', s)::q' |)
-  *)
-
-(*
-= match l with
-| (t', s)::q -> 
-//if eq t t'
-if pos + 1 = L.length l
-  then (| s, (t', Done)::q |)
-  else let (| s', q' |) = close_task t pos q in (| s', (t', s)::q' |)
-*)
-//let decompose_list (l: mono_list_task_plus{L.length l > 0}):
-//  Lemma (L.hd l == ((L.hd l)._1, (L.hd l)._2))
-//  = ()
 let rec close_task_bis #a
-    //(eq: (x:a -> y:a -> b:bool{b <==> x == y }))
     (t: a)
     (pos: nat)
     (l: mono_list a{task_in_queue t pos l /\ L.length l >= 1}):
   mono_list a
-  (*
-    (s:task_status{L.memP (t, s) l} & r:
-    mono_list a{
-        s == Ongoing ==> (
-            get_actual_queue r == get_actual_queue l /\
-            count_ongoing r == count_ongoing l - 1)})
-*)
 = let (t', s)::q = l in
 if pos + 1 = L.length l
   then (t', Done)::q // if s is not Ongoing, then we have too much permission
@@ -571,8 +435,6 @@ let close_task_bis_preserves_order #a
     (l: mono_list a{task_in_queue t pos l}):
     Lemma (is_mono_suffix l (close_task_bis t pos l) )
 = close_task_bis_preserves_order_aux t pos l; from_same_to_suffix l (close_task_bis t pos l)
-
-
 
 // waiting to have recursion in Pulse
 assume val put_back_permission_cb
@@ -607,7 +469,6 @@ fn derive_status_ongoing (h: (task_elem & task_status)) (x: h._1._1)
       unfold (pts_to_Some h);
       assert (exists_ (fun v -> pts_to (h._1._2) #three_quart v ** pure (Some? v)));
       with v. assert (pts_to (h._1._2) #three_quart v ** pure (Some? v));
-      ////with v. assert (pts_to h._1._2 v);
       derive_false_from_too_much_permission h._1._2 v (Some x);
       fold (pts_to_Some h);
       rewrite (pts_to_Some h) as (task_res_own h);
@@ -633,23 +494,10 @@ fn fold_task_done (h:(task_elem & task_status))
   ()
 }
 ```
-(*
-    let h' = (h._1, Done);
-    rewrite (pts_to (h._1._2) #three_quart (Some x)) as (pts_to h'._1._2 #three_quart (Some x));
-    //rewrite (pts_to h'._1._2 #three_quart (Some x)) as
-     // (exists v. pts_to (h'._1._2) #three_quart v ** pure (Some? v));
-
-    rewrite (pts_to (h._1._2) #three_quart (Some x))
-    as `@(match h'._2 with
-      | Todo -> pts_to (h'._1._2) #three_quart None
-      | Ongoing -> emp
-      | Done -> (exists_ (fun v -> pts_to (h'._1._2) #three_quart v ** pure (Some? v))));
-    *)
 
 ```pulse
 ghost
 fn fold_tasks_res_own (h: (task_elem & task_status)) (q: mono_list_task_plus)
-//: stt_ghost unit emp_inames
 requires task_res_own h ** tasks_res_own q
 ensures tasks_res_own (h::q)
 {
@@ -722,67 +570,6 @@ ensures tasks_res_own (close_task_bis t pos l) ** pure (
 }
 ```
 
-(*
-  //Ongoing? (close_task t pos l)._1)
-{
-  assert (pure (L.length l > 0));
-  (*
-= let (t', s)::q = l in
-if pos + 1 = L.length l
-  then (| s, (t', Done)::q |) // if s is not Ongoing, then we have too much permission
-  else let (| s', q' |) = close_task t pos q in (| s', (t', s)::q' |)
-  *)
-  //let h: ((task_elem u#1) & task_status) = L.hd l;
-  let h: (task_with_status u#1 task_elem) = L.hd l;
-// type task_with_status (a: Type) = a & task_status
-  let t': task_elem = fst h;
-  let s: task_status = snd h;
-  //assert (pure (h == (t', s)));
-  assert (pure (fst h == t'));
-  assert (pure (snd h == s));
-  assert (pure (eq2 h (Mktuple2 #task_elem #task_status t' s)));
-
-  let q = L.tl l;
-  //assert (pure (l == (t', s)::q));
-  //assert (pure (h == (t', s)));
-  //let proof = decompose_list l;
-  //rewrite emp as (pure (L.hd l == (t', s)));
-  //assert (pure (L.hd l == (t', s))); // why needed?
-  assert (pure (l == (L.hd l)::q));
-  //assert (pure (l == (t', s)::q));
-  //inhale (pure (L.hd l == (t', s))); // why needed?
-  //rewrite emp as (pure (l == ((t', s)::q))); // unclear...
-  //assert (pure (l == ((t', s)::q))); // unclear...
-  //inhale (pure ( l == (t', s)::q ));
-  //inhale (pure ( l == (t', s)::q ));
-  if (pos + 1 = L.length l)
-  {
-    let pair: (tuple2 u#1 u#0 task_elem task_status) = Mktuple2 #task_elem #task_status t' Done;
-    let pairq = Cons #(tuple2 u#1 u#0 task_elem task_status) pair q;
-    let dtup = Mkdtuple2 #task_status #_ s pairq;
-    assert (pure (close_task t pos l == dtup));
-    // task must be t
-    // status can be only Ongoing, otherwise we derive a contradiction
-    admit()
-  }
-  else
-  {
-    // recursive call
-    admit()
-  }
-  (*
-= match l with
-| (t', s)::q -> 
-if pos + 1 = L.length l
-  then admit() //(| s, (t', Done)::q |)
-  else let (| s', q' |) = close_task t pos q in admit() // (| s', (t', s)::q' |)
-  *)
-}
-```
-*)
-
-
-
 
 // 3: conclude the task
 ```pulse
@@ -819,71 +606,6 @@ let recall_certificate (#t: task_elem) (#pos: nat)
            (v: mono_list task_elem)
            (w:certificate r t pos)
 = recall r v w
-(*
-let recall (#a:Type u#1) #t #pos
-           (r:ghost_mono_ref a)
-           (v:erased (mono_list a))
-           (w:M.witnessed r (task_in_queue t pos))
-  : //TODO: SteelAtomicU
- stt_ghost unit emp_inames
-                 (pts_to_ghost_queue r v)
-                 (fun _ -> pts_to_ghost_queue r v ** pure (task_in_queue t pos v))
-  = M.recall (task_in_queue t pos) r v w
-
-
-*)
- 
-
-(*
-Need:
-1. Being able to enqueue, and return witnessed
-2. Being able to pop
-3. Being able to set task to done
-*)
-
-(** We connect the mono list with the actual queue and counter **)
-
-
-(*
-let rec pure_inv_mono t q c l
-  : Lemma
-  (requires pure_inv_queue q c l)
-  (ensures pure_inv_queue (t::q) c l)
-  (decreases l)
-= match l with
-  | [] -> ()
-  | tl::ql -> pure_inv_mono t q (decrement_if_ongoing tl c) ql
-
-
-
-
-
-
-let decrement_if_ongoing #a (t: task_with_status a) (c: int)
-= if Ongoing? t._2 then c - 1 else c
-
-// if we filter only the TODOs, we have the queue?
-
-// Checks two things:
-// 1. every "Todo" task must be in the work queue
-// 2. the counter should equal the number of "Ongoing" tasks
-let rec pure_inv_queue #a (q: list a) (c: int) (l: mono_list a):
-  Tot prop (decreases l)
-= match l with
-  | [] -> c = 0
-  | tl::ql -> ((Todo? tl._2 ==> memP tl._1 q) /\ pure_inv_queue q (decrement_if_ongoing tl c) ql)
-
-(** Lemmas **)
-let rec pure_inv_mono t q c l
-  : Lemma
-  (requires pure_inv_queue q c l)
-  (ensures pure_inv_queue (t::q) c l)
-  (decreases l)
-= match l with
-  | [] -> ()
-  | tl::ql -> pure_inv_mono t q (decrement_if_ongoing tl c) ql
-
-*)
 
 // assuming recursion
 assume val get_Some_finished_aux_rec
@@ -916,7 +638,6 @@ ensures tasks_res_own l
     rewrite (task_res_own h) as (pts_to_Some h);
     unfold (pts_to_Some h);
     with y. assert (pts_to h._1._2 #three_quart y);
-    //let y = !(h._1._2); // how to make this a "ghost" read?
     fold (pts_to_Some h);
     rewrite (pts_to_Some h) as (task_res_own h);
     rewrite (task_res_own h ** tasks_res_own q) as (tasks_res_own l);
@@ -943,7 +664,6 @@ ensures small_inv r [] 0
 {
   unfold small_inv r [] 0;
   with l. assert (pts_to_ghost_queue r l);
-  // irrelevant
   recall_certificate r l w;
   assert (pure (task_in_queue t pos l));
   assert (tasks_res_own l);
