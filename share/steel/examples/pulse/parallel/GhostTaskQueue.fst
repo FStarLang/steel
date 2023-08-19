@@ -197,6 +197,8 @@ let close_task_preserves_order #a
 module M = Pulse.Lib.GhostMonotonicHigherReference
 open Pulse.Lib.Pervasives
 
+#push-options "--print_universes"
+
 let ghost_mono_ref a = M.ref (mono_list a) is_mono_suffix
 
 let pts_to_ghost_queue #a (r: ghost_mono_ref a) (l: mono_list a): vprop
@@ -245,24 +247,6 @@ let recall (#a:Type u#1) #t #pos
 (** Part 3: Associated permissions: Reasoning done here **)
 
 module Lock = Pulse.Lib.SpinLock
-
-unfold
-let one_quart = half_perm (half_perm full_perm)
-
-unfold
-let three_quart = sum_perm (half_perm full_perm) (half_perm (half_perm full_perm))
-
-let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r #one_quart v))
-
-let unit_emp_stt_pure_pure a
-  = unit -> stt a emp (fun _ -> emp)
-
-let task_elem: Type u#1 = (
-  a: Type0 // return type of the computation
-  & r: ref (option a) // the reference where we put the result of the computation
-  & Lock.lock (own_res r)//(exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
-  & (unit_emp_stt_pure_pure a)
-)
 
 let task_plus: Type u#1 = task_with_status task_elem
 
@@ -327,7 +311,7 @@ let small_inv (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int): vprop
 // 1: Enqueue
 ```pulse
 ghost
-fn spawn_task_ghost
+fn spawn_task_ghost'
 (r: ghost_mono_ref task_elem)
 (q: list task_elem) (c: int) (t: task_elem)
   requires small_inv r q c ** pts_to t._2 #three_quart None 
@@ -350,6 +334,8 @@ fn spawn_task_ghost
   res
 }
 ```
+
+let spawn_task_ghost = spawn_task_ghost'
 
 let rec vprop_equiv_test
   (l: mono_list_task_plus{~(get_actual_queue l == [])})
@@ -393,7 +379,7 @@ let get_permission_from_todo
 // 2: Pop
 ```pulse
 ghost
-fn pop_task_ghost
+fn pop_task_ghost'
 (r: ghost_mono_ref task_elem)
 (t: task_elem)
 (q: list task_elem) (c: int) (t: task_elem)
@@ -417,11 +403,68 @@ fn pop_task_ghost
 }
 ```
 
+let pop_task_ghost = pop_task_ghost'
+
+assume val pts_to_perm (#a: _) (#p: _) (#v: _) (r: ref a)
+  : stt_ghost unit emp_inames
+      (pts_to r #p v)
+      (fun _ -> pts_to r #p v ** pure (p `lesser_equal_perm` full_perm))
+    
+assume val gather_pt
+  (#a:Type0) (#p0:perm) (#p1:perm) (#v0 #v1:erased a) (r:ref a)
+: stt_ghost unit emp_inames
+    (pts_to r #p0 v0 ** pts_to r #p1 v1)
+    (fun _ -> pts_to r #(sum_perm p0 p1) v0 ** pure (v0 == v1))
+
+assume val share_pt
+  (#a:Type0) (#p:perm) (#v:erased a) (r:ref a)
+  : stt_ghost unit emp_inames
+    (pts_to r #p v)
+    (fun _ -> pts_to r #(half_perm p) v ** pts_to r #(half_perm p) v)
+
+```pulse
+ghost
+fn derive_false_from_too_much_permission
+(#a: Type) (r: ref a) (v1 v2: a)
+requires pts_to r #three_quart v1 ** pts_to r #three_quart v2
+ensures pts_to r #three_quart v1 ** pts_to r #three_quart v2
+  ** pure (~(r == r))
+{
+  gather_pt #a #three_quart #three_quart #v1 #v2 r;
+  pts_to_perm #_ #(sum_perm three_quart three_quart) #v1 r;
+  assert (pure False);
+  share_pt #a #(sum_perm three_quart three_quart) #v1 r;
+  rewrite (pts_to r #(half_perm (sum_perm three_quart three_quart)) v1 **
+    pts_to r #(half_perm (sum_perm three_quart three_quart)) v1)
+  as (pts_to r #three_quart v1 ** pts_to r #three_quart v2);
+  ()
+}
+```
+(*
+stt_ghost unit emp_inames
+(fun () ->
+= rewrite _ _ (equiv_not_aliases r r v1 v2)
+
+
 // To prove
-assume val equiv_not_aliases (#a: Type) (r1 r2: ref a) (v1 v2: a):
+```pulse
+ghos
+let equiv_not_aliases (#a: Type) (r1 r2: ref a) (v1 v2: a):
 vprop_equiv
   (pts_to r1 #three_quart v1 ** pts_to r2 #three_quart v2)
   (pts_to r1 #three_quart v1 ** pts_to r2 #three_quart v2 ** pure (~(r1 == r2)))
+{
+  (*
+/// A permission is always no greater than one
+val ghost_pts_to_perm (#a: _) (#u: _) (#p: _) (#v: _) (r: ghost_ref a)
+  : SteelGhost unit u
+      (ghost_pts_to r p v)
+      (fun _ -> ghost_pts_to r p v)
+      (fun _ -> True)
+      (fun _ _ _ -> p `lesser_equal_perm` full_perm)
+      *)
+  admit()
+}
 
 let derive_false_from_too_much_permission (#a: Type) (r: ref a) (v1 v2: a):
 stt_ghost unit emp_inames (pts_to r #three_quart v1 ** pts_to r #three_quart v2)
@@ -429,6 +472,7 @@ stt_ghost unit emp_inames (pts_to r #three_quart v1 ** pts_to r #three_quart v2)
 pts_to r #three_quart v1 ** pts_to r #three_quart v2 **
 pure (~(r == r)))
 = rewrite _ _ (equiv_not_aliases r r v1 v2)
+*)
 
 
 // TODO: Do this vprop_equiv
@@ -613,7 +657,6 @@ ensures tasks_res_own (h::q)
   ()
 }
 ```
-//= rewrite ()
 
 ```pulse
 ghost
@@ -744,9 +787,9 @@ if pos + 1 = L.length l
 // 3: conclude the task
 ```pulse
 ghost
-fn conclude_task_ghost
-(t: task_elem)
-(pos: nat)
+fn conclude_task_ghost'
+(#t: task_elem)
+(#pos: nat)
 (r: ghost_mono_ref task_elem)
 (q: list task_elem) (c: int)
 (x: t._1)
@@ -769,6 +812,27 @@ fn conclude_task_ghost
 }
 ```
 
+let conclude_task_ghost = conclude_task_ghost'
+
+let recall_certificate (#t: task_elem) (#pos: nat)
+           (r:ghost_mono_ref task_elem)
+           (v: mono_list task_elem)
+           (w:certificate r t pos)
+= recall r v w
+(*
+let recall (#a:Type u#1) #t #pos
+           (r:ghost_mono_ref a)
+           (v:erased (mono_list a))
+           (w:M.witnessed r (task_in_queue t pos))
+  : //TODO: SteelAtomicU
+ stt_ghost unit emp_inames
+                 (pts_to_ghost_queue r v)
+                 (fun _ -> pts_to_ghost_queue r v ** pure (task_in_queue t pos v))
+  = M.recall (task_in_queue t pos) r v w
+
+
+*)
+ 
 
 (*
 Need:
@@ -820,3 +884,74 @@ let rec pure_inv_mono t q c l
   | tl::ql -> pure_inv_mono t q (decrement_if_ongoing tl c) ql
 
 *)
+
+// assuming recursion
+assume val get_Some_finished_aux_rec
+  (t: task_elem) (pos: nat)
+  (l: mono_list_task_plus)
+: stt_ghost t._1 emp_inames
+(tasks_res_own l ** pure (task_in_queue t pos l) ** pure (count_ongoing l = 0 /\ get_actual_queue l == []))
+(fun _ -> tasks_res_own l)
+
+```pulse
+ghost
+fn get_Some_finished_aux
+  (t: task_elem) (pos: nat)
+  (l: mono_list_task_plus)
+requires tasks_res_own l ** pure (task_in_queue t pos l)
+  ** pure (count_ongoing l = 0 /\ get_actual_queue l == [])
+returns x: t._1
+ensures tasks_res_own l
+{
+  let h = L.hd l;
+  let q = L.tl l;
+
+  rewrite (tasks_res_own l) as (task_res_own h ** tasks_res_own q);
+
+  if (pos + 1 = L.length l)
+  {
+    assert (task_res_own h);
+    assert (pure (fst h == t));
+    assert (pure (snd h = Done));
+    rewrite (task_res_own h) as (pts_to_Some h);
+    unfold (pts_to_Some h);
+    with y. assert (pts_to h._1._2 #three_quart y);
+    //let y = !(h._1._2); // how to make this a "ghost" read?
+    fold (pts_to_Some h);
+    rewrite (pts_to_Some h) as (task_res_own h);
+    rewrite (task_res_own h ** tasks_res_own q) as (tasks_res_own l);
+    let x = Some?.v y;
+    x
+  }
+  else {
+    let x = get_Some_finished_aux_rec t pos q;
+    rewrite (task_res_own h ** tasks_res_own q) as (tasks_res_own l);
+    x
+  }
+}
+```
+
+```pulse
+ghost
+fn get_Some_finished'
+  (#t: task_elem) (#pos: nat)
+  (r:ghost_mono_ref task_elem)
+  (w:certificate r t pos)
+requires small_inv r [] 0
+returns x: t._1
+ensures small_inv r [] 0
+{
+  unfold small_inv r [] 0;
+  with l. assert (pts_to_ghost_queue r l);
+  // irrelevant
+  recall_certificate r l w;
+  assert (pure (task_in_queue t pos l));
+  assert (tasks_res_own l);
+  assert (pure (count_ongoing l = 0 /\ get_actual_queue l == []));
+  let x = get_Some_finished_aux t pos l;
+  fold small_inv r [] 0;
+  x
+}
+```
+
+let get_Some_finished = get_Some_finished'
