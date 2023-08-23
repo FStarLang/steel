@@ -7,6 +7,7 @@ open Pulse.Typing.Metatheory
 open Pulse.Checker.VPropEquiv
 open Pulse.Checker.Prover.Base
 open Pulse.Checker.Base
+open Pulse.Checker.Pure
 
 module T = FStar.Tactics.V2
 module PS = Pulse.Checker.Prover.Substs
@@ -18,7 +19,7 @@ let coerce_eq (#a #b:Type) (x:a) (_:squash (a == b)) : y:b{y == x} = x
 let k_intro_exists (#g:env) (#u:universe) (#b:binder) (#p:vprop)
   (ex_typing:tot_typing g (tm_exists_sl u b p) tm_vprop)
   (#e:term)
-  (e_typing:tot_typing g e b.binder_ty)
+  (e_typing:ghost_typing g e b.binder_ty)
   (#frame:vprop)
   (frame_typing:tot_typing g frame tm_vprop)
   : T.Tac (continuation_elaborator g (frame * subst_term p [ DT 0 e ])
@@ -190,14 +191,17 @@ let intro_exists (#preamble:_) (pst:prover_state preamble)
                     (subst_term (pst_sub.ss.(body)) [DT 0 witness]))
         pst_sub.pg ( _ *
                     (tm_exists_sl u (PS.nt_subst_binder b nt) pst_sub.ss.(body))) =
+    let b = PS.nt_subst_binder b nt in
+    let witness_typing =
+      core_check_term_with_expected_type pst_sub.pg witness T.E_Ghost b.binder_ty in
     k_intro_exists
       #pst_sub.pg
       #u
-      #(PS.nt_subst_binder b nt)
+      #b
       #pst_sub.ss.(body)
       (magic ())  // typing of tm_exists_sl with pst_sub.ss applied
       #witness
-      (magic ())  // witness typing
+      witness_typing
       #_
       (magic ())  // frame typing
   in
