@@ -49,6 +49,11 @@ let rec term_to_string' (level:string) (t:term)
   = match t.t with
     | Tm_Emp -> "emp"
 
+    | Tm_Inv p ->
+      sprintf "inv (\n%s%s)"
+        (indent level)
+        (term_to_string' (indent level) p)
+
     | Tm_Pure p ->
       sprintf "pure (\n%s%s)" 
         (indent level)
@@ -262,6 +267,12 @@ let rec st_term_to_string' (level:string) (t:st_term)
         (term_to_string v)
         (st_term_to_string' level t)
 
+    | Tm_WithInv { name; body } ->
+      sprintf "with_invariant %s. {\n%s\n}"
+        (term_to_string name)
+        (st_term_to_string' (indent level) body)
+
+
 and branches_to_string brs : T.Tac _ =
   match brs with
   | [] -> ""
@@ -276,6 +287,7 @@ let st_term_to_string t = st_term_to_string' "" t
 let tag_of_term (t:term) =
   match t.t with
   | Tm_Emp -> "Tm_Emp"
+  | Tm_Inv _ -> "Tm_Inv"
   | Tm_Pure _ -> "Tm_Pure"
   | Tm_Star _ _ -> "Tm_Star"
   | Tm_ExistsSL _ _ _ -> "Tm_ExistsSL"
@@ -304,6 +316,7 @@ let tag_of_st_term (t:st_term) =
   | Tm_Rewrite _ -> "Tm_Rewrite"
   | Tm_Admit _ -> "Tm_Admit"
   | Tm_ProofHintWithBinders _ -> "Tm_ProofHintWithBinders"
+  | Tm_WithInv _ -> "Tm_WithInv"
 
 let tag_of_comp (c:comp) : T.Tac string =
   match c with
@@ -333,6 +346,7 @@ let rec print_st_head (t:st_term)
   | Tm_IntroExists _ -> "IntroExists"
   | Tm_ElimExists _ -> "ElimExists"  
   | Tm_ProofHintWithBinders _ -> "AssertWithBinders"
+  | Tm_WithInv _ -> "WithInv"
 and print_head (t:term) =
   match t with
   // | Tm_FVar fv
@@ -359,3 +373,4 @@ let rec print_skel (t:st_term) =
   | Tm_IntroExists _ -> "IntroExists"
   | Tm_ElimExists _ -> "ElimExists"
   | Tm_ProofHintWithBinders _ -> "AssertWithBinders"
+  | Tm_WithInv _ -> "WithInv"

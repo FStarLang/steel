@@ -148,6 +148,9 @@ let tm_proof_hint_with_binders (ht:PulseSugar.hint_type) (binders: binder list) 
                                             v=p;
                                             t3=s }) r)
 
+let tm_with_inv (name:term) (body:st_term) (returns_inv:vprop option) r : st_term =
+  PSB.(with_range (tm_withinv name body returns_inv) r)
+
 let tm_par p1 p2 q1 q2 b1 b2 r : st_term =
   PSB.(with_range (tm_par p1 b1 q1 p2 b2 q2) r)
 

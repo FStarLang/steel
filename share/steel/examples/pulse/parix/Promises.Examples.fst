@@ -3,6 +3,7 @@ module Promises.Examples
 open Pulse.Lib.Pervasives
 open Promises
 
+#set-options "--ext pulse:guard_policy=SMTSync"
 (* Assuming invariants *)
 
 [@@erasable]
@@ -25,31 +26,33 @@ assume val admit_ghost
 
 type abc = | A | B | C
 
+
 let invp (b:ref abc) (y:ref int) =
-  exists_ (fun (bb:abc) -> pts_to b #(half_perm full_perm) bb ** (if bb =B then pts_to y 42 else emp))
+  exists_ (fun (bb:abc) -> pts_to b #(half_perm full_perm) bb ** (if bb = B then pts_to y 42 else emp))
 
 ```pulse
-fn test_aux (b : ref bool) (y : ref int)
-  requires pts_to b #(half_perm full_perm) true ** invp b y
-  ensures pts_to b #(half_perm full_perm) true ** pts_to y 42 ** invp b y
+fn test_aux (b : ref abc) (y : ref int)
+  requires pts_to b #(half_perm full_perm) B ** invp b y
+  ensures pts_to b #(half_perm full_perm) C ** pts_to y 42 ** invp b y
 {
   unfold invp b y;
   with bb.
-    assert (pts_to b #(half_perm full_perm) bb ** `@(if bb then pts_to y 42 else emp));
-  assert (pts_to b #(half_perm full_perm) true);
+    assert (pts_to b #(half_perm full_perm) bb ** `@(if bb = B then pts_to y 42 else emp));
+
+  assert (pts_to b #(half_perm full_perm) B);
   assert (pts_to b #(half_perm full_perm) bb);
 
   // Automate?
-  pts_to_injective_eq #bool
+  pts_to_injective_eq #abc
         #(half_perm full_perm) #(half_perm full_perm)
-        #true #bb
+        #B #bb
         b;
 
   // Automate?
   rewrite (pts_to b #(half_perm full_perm) bb)
-       as (pts_to b #(half_perm full_perm) true);
+       as (pts_to b #(half_perm full_perm) B);
 
-  gather b;
+  gather2 #abc #emp_inames b;
 
   // Should automate
   rewrite (pts_to b #(sum_perm (half_perm full_perm) (half_perm full_perm)) true)
@@ -72,6 +75,8 @@ fn test_aux (b : ref bool) (y : ref int)
   ()
 }
 ```
+
+
 (* Promising and redeeming in a single func *)
 ```pulse
 fn test (b : ref bool) (y : ref int)

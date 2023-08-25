@@ -43,6 +43,9 @@ let rec open_term_ln' (e:term)
     | Tm_EmpInames
     | Tm_Unknown -> ()
 
+    | Tm_Inv p ->
+      open_term_ln' p x i
+
     | Tm_Pure p ->
       open_term_ln' p x i
 
@@ -187,6 +190,10 @@ let rec open_st_term_ln' (e:st_term)
       open_term_ln' v x (i + n);
       open_st_term_ln' t x (i + n)
 
+    | Tm_WithInv { name; body } ->
+      open_term_ln' name x i;
+      open_st_term_ln' body x i
+
 // The Tm_Match? and __brs_of conditions are to prove that the ln_branches' below
 // satisfies the termination refinment.
 and open_branches_ln' (t:st_term{Tm_Match? t.term}) (brs:list branch{brs << t /\ __brs_of t == brs}) (x:term) (i:index)
@@ -246,6 +253,8 @@ let rec ln_weakening (e:term) (i j:int)
     | Tm_Inames
     | Tm_EmpInames
     | Tm_Unknown -> ()
+    | Tm_Inv p ->
+      ln_weakening p i j
     | Tm_Pure p ->
       ln_weakening p i j
       
@@ -378,6 +387,10 @@ let rec ln_weakening_st (t:st_term) (i j:int)
       ln_weakening v (i + n) (j + n);
       ln_weakening_st t (i + n) (j + n)
 
+    | Tm_WithInv { name; body } ->
+      ln_weakening name i j;
+      ln_weakening_st body i j
+
 assume
 val r_open_term_ln_inv' (e:R.term) (x:R.term { RT.ln x }) (i:index)
   : Lemma 
@@ -399,6 +412,8 @@ let rec open_term_ln_inv' (e:term)
     | Tm_Unknown ->
       ln_weakening x (-1) (i - 1)
 
+    | Tm_Inv p ->
+      open_term_ln_inv' p x i
     | Tm_Pure p ->
       open_term_ln_inv' p x i
 
@@ -541,6 +556,10 @@ let rec open_term_ln_inv_st' (t:st_term)
       open_term_ln_inv' v x (i + n);
       open_term_ln_inv_st' t x (i + n)
 
+    | Tm_WithInv { name; body } ->
+      open_term_ln_inv' name x i;
+      open_term_ln_inv_st' body x i
+
 #pop-options
 
 assume
@@ -563,6 +582,8 @@ let rec close_term_ln' (e:term)
     | Tm_EmpInames
     | Tm_Unknown -> ()
 
+    | Tm_Inv p ->
+      close_term_ln' p x i
     | Tm_Pure p ->
       close_term_ln' p x i
 
@@ -697,6 +718,10 @@ let rec close_st_term_ln' (t:st_term) (x:var) (i:index)
       close_term_ln' v x (i + n);
       close_st_term_ln' t x (i + n)
       
+    | Tm_WithInv { name; body } ->
+      close_term_ln' name x i;
+      close_st_term_ln' body x i
+
 let close_comp_ln (c:comp) (v:var)
   : Lemma 
     (requires ln_c c)
@@ -958,4 +983,7 @@ let rec st_typing_ln (#g:_) (#t:_) (#c:_)
       tot_or_ghost_typing_ln pre_typing;
       tot_or_ghost_typing_ln post_typing;
       open_term_ln' s.post (term_of_no_name_var x) 0
+
+    | T_WithInv _ _ _ _ _ _ _ _ ->
+      admit() // IOU
 #pop-options

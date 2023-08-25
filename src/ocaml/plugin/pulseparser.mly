@@ -58,6 +58,7 @@ let r p = rng (fst p) (snd p)
 
 /* pulse specific tokens; rest are inherited from F* */
 %token MUT FN INVARIANT WHILE REF PARALLEL REWRITE FOLD GHOST ATOMIC
+%token WITH_INVS OPENS
 
 %start pulseDecl
 %start peekFnId
@@ -144,6 +145,8 @@ pulseStmtNoSeq:
     { PulseSugar.mk_proof_hint_with_binders (UNFOLD ns) bs p }
   | bs=withBindersOpt FOLD ns=option(names) p=pulseVprop
     { PulseSugar.mk_proof_hint_with_binders (FOLD ns) bs p }
+  | WITH_INVS names=nonempty_list(atomicTerm) r=option(ensuresVprop) LBRACE body=pulseStmt RBRACE
+    { PulseSugar.mk_with_invs names body r }
 
 
 names:

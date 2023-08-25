@@ -33,6 +33,7 @@ module Return = Pulse.Checker.Return
 module Rewrite = Pulse.Checker.Rewrite
 module ElimPure = Pulse.Checker.Prover.ElimPure
 module ElimExists = Pulse.Checker.Prover.ElimExists
+module WithInv = Pulse.Checker.WithInv
 
 let terms_to_string (t:list term)
   : T.Tac string 
@@ -237,6 +238,9 @@ let rec check
 
     | Tm_Rewrite _ ->
       Rewrite.check g pre pre_typing post_hint res_ppname t
+
+    | Tm_WithInv _ ->
+      WithInv.check g pre pre_typing post_hint res_ppname t check
 
     | _ -> T.fail "Checker form not implemented"
   in

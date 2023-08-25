@@ -38,6 +38,8 @@ let rec elab_open_commute' (e:term)
     // | Tm_PureApp e1 _ e2 ->
     //   elab_open_commute' e1 v n;
     //   elab_open_commute' e2 v n
+    | Tm_Inv p ->
+      elab_open_commute' p v n
     | Tm_Pure p ->
       elab_open_commute' p v n
     | Tm_Star e1 e2 ->
@@ -79,6 +81,8 @@ let rec elab_close_commute' (e:term)
     | Tm_EmpInames
     | Tm_VProp
     | Tm_Unknown -> ()
+    | Tm_Inv p ->
+      elab_close_commute' p v n
     | Tm_Pure p ->
       elab_close_commute' p v n
     | Tm_Star e1 e2 ->
@@ -126,6 +130,7 @@ let elab_comp_open_commute (c:comp) (x:term)
 let rec elab_ln t i =
   match t.t with
   | Tm_Emp -> ()
+  | Tm_Inv p -> elab_ln p i
   | Tm_Pure t -> elab_ln t i
   | Tm_Star l r ->
     elab_ln l i;
@@ -161,6 +166,7 @@ let rec elab_freevars_eq (e:term)
   : Lemma (Set.equal (freevars e) (RT.freevars (elab_term e))) =
   match e.t with
   | Tm_Emp -> ()
+  | Tm_Inv p -> elab_freevars_eq p
   | Tm_Pure t -> elab_freevars_eq t
   | Tm_Star l r ->
     elab_freevars_eq l;

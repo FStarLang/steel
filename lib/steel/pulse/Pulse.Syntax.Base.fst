@@ -21,6 +21,8 @@ let rec eq_tm (t1 t2:term)
     | Tm_Star l1 r1, Tm_Star l2 r2 ->
       eq_tm l1 l2 &&
       eq_tm r1 r2
+    | Tm_Inv p1, Tm_Inv p2 ->
+      eq_tm p1 p2
     | Tm_Pure p1, Tm_Pure p2 ->
       eq_tm p1 p2
     | Tm_ExistsSL u1 t1 b1, Tm_ExistsSL u2 t2 b2
@@ -227,6 +229,12 @@ let rec eq_st_term (t1 t2:st_term)
       eq_list eq_binder bs1 bs2 &&
       eq_tm v1 v2 &&
       eq_st_term t1 t2
+
+    | Tm_WithInv {name=name1; returns_inv=r1; body=body1},
+      Tm_WithInv {name=name2; returns_inv=r2; body=body2} ->
+      eq_tm name1 name2 &&
+      eq_tm_opt r1 r2 &&
+      eq_st_term body1 body2
 
     | _ -> false
 

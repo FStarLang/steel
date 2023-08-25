@@ -213,6 +213,14 @@ let add_frame (s:comp_st) (frame:term)
     | C_STAtomic inames s -> C_STAtomic inames (add_frame_s s)
     | C_STGhost inames s -> C_STGhost inames (add_frame_s s)
 
+let add_inv (s:comp_st) (v:vprop)
+  : comp_st
+  = add_frame s v
+  (* TODO: this is pretty correct as it is, it's just missing
+  adding the invariant name to the comp type. And maybe check that
+  it's only atomic/ghost. *)
+
+
 //
 // TODO: there is a observability flag upcoming in the underlying steel framework
 //       the bind will then also allow for (statomic unobservable, statomic observable)
@@ -874,6 +882,18 @@ type st_typing : env -> st_term -> comp -> Type =
       st_comp_typing g s ->
       st_typing g (wr (Tm_Admit { ctag=c; u=s.u; typ=s.res; post=None }))
                   (comp_admit c s)
+
+  (* FAKE: takes an stt sub function, needs to check effects *)
+  | T_WithInv:
+      g:env ->
+      inv_tm : term ->
+      inv_vprop : vprop ->
+      inv_vprop_typing : tot_typing g inv_vprop tm_vprop -> // could be ghost
+      inv_typing : tot_typing g inv_tm (tm_inv inv_vprop) ->
+      body : st_term ->
+      c : comp_st ->
+      body_typing : st_typing g body (add_frame c inv_vprop) ->
+      st_typing g (wr (Tm_WithInv {name=inv_tm; body; returns_inv=None})) c
 
 and pats_complete : env -> term -> typ -> list R.pattern -> Type0 =
   // just check the elaborated term with the core tc

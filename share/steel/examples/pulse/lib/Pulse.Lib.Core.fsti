@@ -3,6 +3,7 @@ open FStar.Ghost
 open Steel.FractionalPermission
 module U32 = FStar.UInt32
 module G = FStar.Ghost
+module Set = FStar.Set
 
 (* Common alias *)
 let one_half =
@@ -67,7 +68,16 @@ val vprop_equiv_ext (p1 p2:vprop) (_:p1 == p2)
 (***** begin computation types and combinators *****)
 val iname : eqtype
 let inames = erased (FStar.Set.set iname)
-val emp_inames : inames
+
+let emp_inames : inames = Set.empty
+
+val inv (p:vprop) : Type u#0
+
+(* NB: Using EXACTLY the definitions of Steel.Effect.Common otherwise
+we run into tons of pain when trying to define the operations. *)
+val name_of_inv #p (i : inv p) : GTot iname
+let mem_inv (#p:vprop) (e:inames) (i:inv p) : erased bool = elift2 (fun e i -> Set.mem i e) e (name_of_inv i)
+let add_inv (#p:vprop) (e:inames) (i:inv p) : inames = Set.union (Set.singleton (name_of_inv i)) (reveal e)
 
 (* stt a pre post: The type of a pulse computation
    that when run in a state satisfying `pre`
@@ -76,6 +86,15 @@ val emp_inames : inames
    such that the final state satisfies `post x` *)
 inline_for_extraction
 val stt (a:Type u#a) (pre:vprop) (post:a -> vprop) : Type0
+
+(* stt_unobservable a opened pre post: The type of a pulse computation
+   that when run in a state satisfying `pre`
+   takes an unobservable atomic step
+   while relying on the ghost invariant names in `opened` 
+   and returns `x:a`
+   such that the final state satisfies `post x` *)
+inline_for_extraction
+val stt_unobservable (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) : Type u#(max 2 a)
 
 (* stt_atomic a opened pre post: The type of a pulse computation
    that when run in a state satisfying `pre`
@@ -232,6 +251,44 @@ val sub_stt_ghost
   (pf2 : vprop_post_equiv post1 post2)
   (e:stt_ghost a opened pre1 post1)
   : stt_ghost a opened pre2 post2
+
+inline_for_extraction
+val return_stt_unobservable (#a:Type u#a) #opened (x:a) (p:a -> vprop)
+  : stt_unobservable a opened (p x) (fun r -> p r ** pure (r == x))
+
+inline_for_extraction
+val return_stt_unobservable_noeq (#a:Type u#a) #opened (x:a) (p:a -> vprop)
+  : stt_unobservable a opened (p x) p
+
+inline_for_extraction
+val new_invariant #opened (p:vprop) : stt_unobservable (inv p) opened p (fun _ -> emp)
+
+inline_for_extraction
+val new_invariant' #opened (p:vprop) : stt_atomic (inv p) opened p (fun _ -> emp)
+
+inline_for_extraction
+val with_invariant_g (#a:Type)
+                   (#fp:vprop)
+                   (#fp':erased a -> vprop)
+                   (#opened_invariants:inames)
+                   (#p:vprop)
+                   (i:inv p{not (mem_inv opened_invariants i)})
+                   ($f:unit -> stt_ghost a (add_inv opened_invariants i) 
+                                            (p ** fp)
+                                            (fun x -> p ** fp' x))
+  : stt_unobservable (erased a) opened_invariants fp fp'
+
+inline_for_extraction
+val with_invariant_a (#a:Type)
+                   (#fp:vprop)
+                   (#fp':a -> vprop)
+                   (#opened_invariants:inames)
+                   (#p:vprop)
+                   (i:inv p{not (mem_inv opened_invariants i)})
+                   ($f:unit -> stt_atomic a (add_inv opened_invariants i) 
+                                            (p ** fp)
+                                            (fun x -> p ** fp' x))
+  : stt_atomic a opened_invariants fp fp'
 
 inline_for_extraction
 let unit_non_informative : non_informative_witness unit =
