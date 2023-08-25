@@ -21,6 +21,7 @@ let rec freevars (t:term)
     | Tm_Inames
     | Tm_EmpInames
     | Tm_Unknown -> Set.empty
+    | Tm_Inv p -> freevars p
     | Tm_Star t1 t2 ->
       Set.union (freevars t1) (freevars t2)
     | Tm_ExistsSL _ t1 t2
@@ -119,6 +120,11 @@ let rec freevars_st (t:st_term)
 
     | Tm_ProofHintWithBinders { binders; v; t } ->
       Set.union (freevars v) (freevars_st t)
+
+    | Tm_WithInv { name; body; returns_inv } ->
+      Set.union (Set.union (freevars name) (freevars_st body))
+                (freevars_term_opt returns_inv)
+
 and freevars_branches (t:list (pattern & st_term)) : Set.set var =
   match t with
   | [] -> Set.empty
@@ -131,6 +137,8 @@ let rec ln' (t:term) (i:int) : Tot bool (decreases t) =
   | Tm_Inames
   | Tm_EmpInames
   | Tm_Unknown -> true
+
+  | Tm_Inv p -> ln' p i
 
   | Tm_Star t1 t2 ->
     ln' t1 i &&
@@ -248,6 +256,10 @@ let rec ln_st' (t:st_term) (i:int)
       ln' v (i + n) &&
       ln_st' t (i + n)
 
+    | Tm_WithInv { name; body } ->
+      ln' name i &&
+      ln_st' body i
+
 and ln_branch' (b : pattern & st_term) (i:int) : Tot bool (decreases b) =
   let (p, e) = b in
   match p with
@@ -301,6 +313,9 @@ let rec subst_term (t:term) (ss:subst)
     | Tm_Inames
     | Tm_EmpInames
     | Tm_Unknown -> t
+
+    | Tm_Inv p ->
+      w (Tm_Inv (subst_term p ss))
                  
     | Tm_Pure p ->
       w (Tm_Pure (subst_term p ss))
@@ -462,6 +477,13 @@ let rec subst_st_term (t:st_term) (ss:subst)
                                 binders;
                                 v = subst_term v ss;
                                 t = subst_st_term t ss }
+
+    | Tm_WithInv { name; body; returns_inv } ->
+      let name = subst_term name ss in
+      let body = subst_st_term body ss in
+      let returns_inv = subst_term_opt returns_inv ss in
+      Tm_WithInv { name; body; returns_inv }
+
     in
     { t with term = t' }
 

@@ -271,6 +271,9 @@ let rec elab_st_typing (#g:env)
        | STT_Atomic -> mk_stt_atomic_admit ru rres rpre rpost
        | STT_Ghost -> mk_stt_ghost_admit ru rres rpre rpost)
 
+    | T_WithInv _ _ _ _ _ _ _ _ ->
+      `("IOU: elab_st_typing of T_WithInv")
+
 and elab_br (#g:env)
             (#c:comp_st)
             (#sc_u:universe) (#sc_ty:typ) (#sc:term)

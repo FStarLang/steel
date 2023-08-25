@@ -29,6 +29,8 @@ let rec freevars_close_term' (e:term) (x:var) (i:index)
     | Tm_EmpInames
     | Tm_Unknown -> ()
 
+    | Tm_Inv p ->
+      freevars_close_term' p x i
     | Tm_Pure p ->
       freevars_close_term' p x i
 
@@ -164,6 +166,11 @@ let rec freevars_close_st_term' (t:st_term) (x:var) (i:index)
       let n = L.length binders in
       freevars_close_term' v x (i + n);
       freevars_close_st_term' t x (i + n)
+
+    | Tm_WithInv { name; body; returns_inv } ->
+      freevars_close_term' name x i;
+      freevars_close_term_opt' returns_inv x i;
+      freevars_close_st_term' body x i
 #pop-options
 
 let freevars_close_term (e:term) (x:var) (i:index)
@@ -551,4 +558,7 @@ let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
      tot_or_ghost_typing_freevars pre_typing;
      tot_or_ghost_typing_freevars post_typing;
      freevars_open_term s.post (term_of_no_name_var x) 0
+
+   | T_WithInv _ _ _ _ _ _ _ _ ->
+     admit () // IOU
 #pop-options //takes about 12s

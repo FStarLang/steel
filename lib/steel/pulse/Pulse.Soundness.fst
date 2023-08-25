@@ -387,6 +387,8 @@ let rec soundness (g:stt_env)
       Rewrite.rewrite_soundness d
 
     | T_Admit _ _ _ _ -> Admit.admit_soundess d
+
+    | T_WithInv _ _ _ _ _ _ _ _ -> magic() // IOU
 #pop-options
 
 let soundness_lemma

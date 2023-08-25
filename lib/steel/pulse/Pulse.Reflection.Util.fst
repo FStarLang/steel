@@ -50,6 +50,7 @@ let mk_snd (u1 u2:R.universe) (a1 a2 e:R.term) : R.term =
 let true_tm = R.pack_ln (R.Tv_Const (R.C_True))
 let false_tm = R.pack_ln (R.Tv_Const (R.C_False))
 
+let inv_lid = mk_pulse_lib_core_lid "inv"
 let emp_lid = mk_pulse_lib_core_lid "emp"
 let inames_lid = mk_pulse_lib_core_lid "inames"
 

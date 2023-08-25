@@ -19,6 +19,9 @@ let rec close_open_inverse' (t:term)
     | Tm_EmpInames
     | Tm_Unknown -> ()
     
+    | Tm_Inv p ->
+      close_open_inverse' p x i
+
     | Tm_Pure p ->
       close_open_inverse' p x i
 
@@ -156,6 +159,11 @@ let rec close_open_inverse_st'  (t:st_term)
       close_open_inverse' v x (i + n);
       close_open_inverse_st' t x (i + n)
       
+    | Tm_WithInv { name; body; returns_inv } ->
+      close_open_inverse' name x i;
+      close_open_inverse_opt' returns_inv x i;
+      close_open_inverse_st' body x i
+
 let close_open_inverse (t:term) (x:var { ~(x `Set.mem` freevars t) } )
   : Lemma (ensures close_term (open_term t x) x == t)
           (decreases t)
@@ -177,6 +185,7 @@ let rec open_with_gt_ln (e:term) (i:int) (t:term) (j:nat)
   | Tm_Inames
   | Tm_EmpInames
   | Tm_Unknown -> ()
+  | Tm_Inv p -> open_with_gt_ln p i t j
   | Tm_Pure p -> open_with_gt_ln p i t j
   | Tm_Star e1 e2 ->
     open_with_gt_ln e1 i t j;
@@ -221,6 +230,7 @@ let rec close_with_non_freevar (e:term) (x:var) (i:nat)
   | Tm_Star t1 t2 ->
     close_with_non_freevar t1 x i;
     close_with_non_freevar t2 x i
+  | Tm_Inv p -> close_with_non_freevar p x i
   | Tm_Pure p -> close_with_non_freevar p x i
   | Tm_ExistsSL _ t1 body
   | Tm_ForallSL _ t1 body ->

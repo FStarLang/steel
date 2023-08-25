@@ -435,6 +435,16 @@ let rec desugar_stmt (env:env_t) (s:Sugar.stmt)
     | LetBinding _ -> 
       fail "Terminal let binding" s.range
 
+    | WithInvariants { names=n1::names; body; returns_ } ->
+      let? n1 = tosyntax env n1 in
+      let? names = map_err (tosyntax env) names in
+      let? body = desugar_stmt env body in
+      let? returns_ = map_err_opt (desugar_vprop env) returns_ in
+      (* the returns_ goes only to the outermost with_inv *)
+      let tt = L.fold_right (fun nm body -> let nm : term = tm_expr nm s.range in SW.tm_with_inv nm body None s.range) names body in
+      let n1 : term = tm_expr n1 s.range in
+      return (SW.tm_with_inv n1 tt returns_ s.range)
+
 and desugar_branch (env:env_t) (br:A.pattern & Sugar.stmt)
   : err SW.branch
   = let (p, e) = br in

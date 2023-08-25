@@ -129,6 +129,12 @@ type stmt' =
       vprop:vprop;
     }
 
+  | WithInvariants {
+      names : list A.term;
+      body  : stmt;
+      returns_ : option vprop;
+    }
+
 and stmt = {
   s:stmt';
   range:rng
@@ -171,3 +177,4 @@ let mk_open lid = Open lid
 let mk_par p1 p2 q1 q2 b1 b2 = Parallel { p1; p2; q1; q2; b1; b2 }
 let mk_rewrite p1 p2 = Rewrite { p1; p2 }
 let mk_proof_hint_with_binders ht bs p =  ProofHintWithBinders { hint_type=ht; binders=bs; vprop=p }
+let mk_with_invs names body returns_ = WithInvariants { names; body; returns_ }

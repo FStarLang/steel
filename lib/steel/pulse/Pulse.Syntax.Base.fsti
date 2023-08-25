@@ -80,6 +80,7 @@ type term' =
   | Tm_ExistsSL   : u:universe -> b:binder -> body:vprop -> term'
   | Tm_ForallSL   : u:universe -> b:binder -> body:vprop -> term'
   | Tm_VProp      : term'
+  | Tm_Inv        : vprop -> term'
   | Tm_Inames     : term'  // type inames
   | Tm_EmpInames  : term'
   | Tm_FStar      : host_term -> term'
@@ -103,6 +104,7 @@ let term_range (t:term) = t.range
 let tm_fstar (t:host_term) (r:range) : term = { t = Tm_FStar t; range=r }
 let with_range (t:term') (r:range) = { t; range=r }
 let tm_vprop = with_range Tm_VProp FStar.Range.range_0
+let tm_inv p = with_range (Tm_Inv p) FStar.Range.range_0
 let tm_inames = with_range Tm_Inames FStar.Range.range_0
 let tm_emp = with_range Tm_Emp FStar.Range.range_0
 let tm_emp_inames = with_range Tm_EmpInames FStar.Range.range_0
@@ -239,6 +241,11 @@ type st_term' =
       v:vprop;
       t:st_term
   }
+  | Tm_WithInv {
+      name : term; // invariant name is an F* term that is an Tm_fvar or Tm_name
+      body : st_term;
+      returns_inv : option vprop;
+    }
 
 and st_term = {
     term : st_term';

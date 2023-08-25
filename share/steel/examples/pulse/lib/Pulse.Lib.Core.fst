@@ -84,8 +84,10 @@ let vprop_equiv_cong (p1 p2 p3 p4:vprop)
 
 let vprop_equiv_ext p1 p2 _ = equiv_refl p1
 
+(* Invariants, just reexport *)
 let iname = iname
-let emp_inames = Ghost.hide Set.empty
+let inv = inv
+let name_of_inv = name_of_inv
 
 inline_for_extraction
 type stt (a:Type u#a) (pre:vprop) (post:a -> vprop) = unit -> STT a pre post
@@ -93,6 +95,10 @@ type stt (a:Type u#a) (pre:vprop) (post:a -> vprop) = unit -> STT a pre post
 let mk_stt #a #pre #post e = e
 
 let reveal_stt #a #pre #post e = e
+
+inline_for_extraction
+type stt_unobservable (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) =
+  unit -> STAtomicUT a opened pre post
 
 inline_for_extraction
 type stt_atomic (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) =
@@ -251,8 +257,100 @@ let sub_stt_ghost #a #opened #pre1 pre2 #post1 post2 pf1 pf2 e =
   rewrite_equiv (post1 x) (post2 x);
   x
 
-let rewrite p q _ = fun _ -> rewrite_equiv p q
+(* odd workaround for definition below *)
+let thunk #a #r #opened #pre (#post : (x:a -> r x -> vprop))
+  ($f : (x:a -> STAtomicUT (r x) opened (pre x) (post x)))
+  : (x:a -> stt_unobservable (r x) opened (pre x) (post x))
+  = fun x () -> f x
 
+assume
+val noop_ut (#opened:inames) (#p:vprop) (_:unit)
+  : STAtomicUT unit opened p (fun _ -> p)
+
+let return_stt_unobservable #a #opened x p
+: stt_unobservable a opened (p x) (fun r -> p r ** pure (r == x))
+=
+  // FIXME
+  admit()
+  // fun _ -> noop_ut(); x
+  // fun () -> Steel.ST.Effect.AtomicAndGhost.return_ a x opened
+
+let return_stt_unobservable_noeq #a #opened x (p:(a -> vprop))
+: stt_unobservable a opened (p x) p
+=
+  // FIXME
+  admit()
+  // thunk Steel.ST.Effect.AtomicAndGhost.return_ 
+  // fun () -> Steel.ST.Effect.AtomicAndGhost.return_ a x opened
+
+let new_invariant #opened : p:vprop -> stt_unobservable (inv p) opened p (fun _ -> emp) =
+  thunk new_invariant
+
+let new_invariant' #opened : p:vprop -> stt_atomic (inv p) opened p (fun _ -> emp) =
+  admit()
+
+  // These fail with:
+  // * Error 228 at ../../examples/pulse/lib/Pulse.Lib.Core.fst(272,97-273,60):
+  //   - Tactic failed
+  //   - "Could not make progress, no solvable goal found"
+  // fun p -> let _ = noop_ut() in Steel.ST.Util.new_invariant #opened p
+  // fun p -> (Steel.ST.Util.new_invariant #opened p)
+  
+//val with_invariant_atomic
+
+// let with_invariant_u (#a:Type)
+//                    (#fp:vprop)
+//                    (#fp':a -> vprop)
+//                    (#opened_invariants:inames)
+//                    (#p:vprop)
+//                    (i:inv p{not (mem_inv opened_invariants i)})
+//                    ($f:unit -> stt_unobservable a (add_inv opened_invariants i) 
+//                                             (p ** fp)
+//                                             (fun x -> p ** fp' x))
+//   : stt_unobservable a opened_invariants fp fp'
+//   = // Cannot currently define in this Steel, should we allow it?
+//     admit()
+
+// val __z_with_invariant_g (#a:Type)
+//                      (#fp:vprop)
+//                      (#fp':a -> vprop)
+//                      (#opened_invariants:inames)
+//                      (#p:vprop)
+//                      (i:inv p{not (mem_inv opened_invariants i)})
+//                      (f:unit -> STGhostT a (add_inv opened_invariants i)
+//                                          (p `star` fp)
+//                                          (fun x -> p `star` fp' x))
+//   : unit -> STAtomicUT (erased a) opened_invariants fp (fun x -> fp' x)
+// let __z_with_invariant_g #a #fp #fp' #opened_invariants #p i f () =
+//   with_invariant_g #a #fp #fp' #opened_invariants #p i f
+
+// #set-options "--ext steel:disable --ext fstar:notacimp"
+
+let with_invariant_g (#a:Type)
+                   (#fp:vprop)
+                   (#fp':erased a -> vprop)
+                   (#opened_invariants:inames)
+                   (#p:vprop)
+                   (i:inv p{not (mem_inv opened_invariants i)})
+                   (f:unit -> stt_ghost a (add_inv opened_invariants i) 
+                                          (p `star` fp)
+                                          (fun x -> p `star` fp' x))
+  : stt_unobservable (erased a) opened_invariants fp fp'
+  = admit() // FIXME
+
+let with_invariant_a (#a:Type)
+                   (#fp:vprop)
+                   (#fp':a -> vprop)
+                   (#opened_invariants:inames)
+                   (#p:vprop)
+                   (i:inv p{not (mem_inv opened_invariants i)})
+                   ($f:unit -> stt_atomic a (add_inv opened_invariants i) 
+                                            (p ** fp)
+                                            (fun x -> p ** fp' x))
+  : stt_atomic a opened_invariants fp fp'
+  = admit()
+
+let rewrite p q _ = fun _ -> rewrite_equiv p q
 
 let elim_pure_explicit p = fun _ -> elim_pure p
 let elim_pure _ #p = fun _ -> elim_pure p
@@ -281,7 +379,6 @@ let stt_ghost_reveal a x =
 let stt_admit _ _ _ = admit ()
 let stt_atomic_admit _ _ _ = admit ()
 let stt_ghost_admit _ _ _ = admit ()
-
 
 let stt_ghost_ni (#a:Type) (#p:vprop) (#q:a -> vprop)
   : non_informative_witness (stt_ghost a emp_inames p q)
