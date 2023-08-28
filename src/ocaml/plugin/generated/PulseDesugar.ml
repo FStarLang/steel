@@ -930,6 +930,40 @@ let rec (desugar_stmt :
                     return uu___2))
       | PulseSugar.LetBinding uu___ ->
           fail "Terminal let binding" s.PulseSugar.range1
+      | PulseSugar.WithInvariants
+          { PulseSugar.names = n1::names; PulseSugar.body2 = body;
+            PulseSugar.returns_ = returns_;_}
+          ->
+          let uu___ = tosyntax env n1 in
+          op_let_Question uu___
+            (fun n11 ->
+               let uu___1 = map_err (tosyntax env) names in
+               op_let_Question uu___1
+                 (fun names1 ->
+                    let uu___2 = desugar_stmt env body in
+                    op_let_Question uu___2
+                      (fun body1 ->
+                         let uu___3 =
+                           map_err_opt (desugar_vprop env) returns_ in
+                         op_let_Question uu___3
+                           (fun returns_1 ->
+                              let tt =
+                                FStar_Compiler_List.fold_right
+                                  (fun nm ->
+                                     fun body2 ->
+                                       let nm1 =
+                                         PulseSyntaxWrapper.tm_expr nm
+                                           s.PulseSugar.range1 in
+                                       PulseSyntaxWrapper.tm_with_inv nm1
+                                         body2 FStar_Pervasives_Native.None
+                                         s.PulseSugar.range1) names1 body1 in
+                              let n12 =
+                                PulseSyntaxWrapper.tm_expr n11
+                                  s.PulseSugar.range1 in
+                              let uu___4 =
+                                PulseSyntaxWrapper.tm_with_inv n12 tt
+                                  returns_1 s.PulseSugar.range1 in
+                              return uu___4))))
 and (desugar_branch :
   env_t ->
     (FStar_Parser_AST.pattern * PulseSugar.stmt) ->
@@ -1388,7 +1422,7 @@ let (desugar_decl :
                         op_let_Question uu___4
                           (fun comp ->
                              let uu___5 =
-                               desugar_stmt env2 p.PulseSugar.body2 in
+                               desugar_stmt env2 p.PulseSugar.body3 in
                              op_let_Question uu___5
                                (fun body ->
                                   let rec aux bs2 bvs2 =

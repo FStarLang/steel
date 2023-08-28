@@ -114,6 +114,7 @@ let (true_tm : FStar_Reflection_Types.term) =
 let (false_tm : FStar_Reflection_Types.term) =
   FStar_Reflection_V2_Builtins.pack_ln
     (FStar_Reflection_V2_Data.Tv_Const FStar_Reflection_V2_Data.C_False)
+let (inv_lid : Prims.string Prims.list) = mk_pulse_lib_core_lid "inv"
 let (emp_lid : Prims.string Prims.list) = mk_pulse_lib_core_lid "emp"
 let (inames_lid : Prims.string Prims.list) = mk_pulse_lib_core_lid "inames"
 let (star_lid : Prims.string Prims.list) =

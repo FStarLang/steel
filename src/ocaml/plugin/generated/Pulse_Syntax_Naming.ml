@@ -8,6 +8,7 @@ let rec (freevars :
     | Pulse_Syntax_Base.Tm_Inames -> FStar_Set.empty ()
     | Pulse_Syntax_Base.Tm_EmpInames -> FStar_Set.empty ()
     | Pulse_Syntax_Base.Tm_Unknown -> FStar_Set.empty ()
+    | Pulse_Syntax_Base.Tm_Inv p -> freevars p
     | Pulse_Syntax_Base.Tm_Star (t1, t2) ->
         FStar_Set.union (freevars t1) (freevars t2)
     | Pulse_Syntax_Base.Tm_ExistsSL (uu___, t1, t2) ->
@@ -149,6 +150,12 @@ let rec (freevars_st :
           Pulse_Syntax_Base.binders = binders; Pulse_Syntax_Base.v = v;
           Pulse_Syntax_Base.t3 = t1;_}
         -> FStar_Set.union (freevars v) (freevars_st t1)
+    | Pulse_Syntax_Base.Tm_WithInv
+        { Pulse_Syntax_Base.name1 = name; Pulse_Syntax_Base.body5 = body;
+          Pulse_Syntax_Base.returns_inv = returns_inv;_}
+        ->
+        FStar_Set.union (FStar_Set.union (freevars name) (freevars_st body))
+          (freevars_term_opt returns_inv)
 and (freevars_branches :
   (Pulse_Syntax_Base.pattern * Pulse_Syntax_Base.st_term) Prims.list ->
     Pulse_Syntax_Base.var FStar_Set.set)
@@ -167,6 +174,7 @@ let rec (ln' : Pulse_Syntax_Base.term -> Prims.int -> Prims.bool) =
       | Pulse_Syntax_Base.Tm_Inames -> true
       | Pulse_Syntax_Base.Tm_EmpInames -> true
       | Pulse_Syntax_Base.Tm_Unknown -> true
+      | Pulse_Syntax_Base.Tm_Inv p -> ln' p i
       | Pulse_Syntax_Base.Tm_Star (t1, t2) -> (ln' t1 i) && (ln' t2 i)
       | Pulse_Syntax_Base.Tm_Pure p -> ln' p i
       | Pulse_Syntax_Base.Tm_ExistsSL (uu___, t1, body) ->
@@ -298,6 +306,10 @@ let rec (ln_st' : Pulse_Syntax_Base.st_term -> Prims.int -> Prims.bool) =
           ->
           let n = FStar_List_Tot_Base.length binders in
           (ln' v (i + n)) && (ln_st' t1 (i + n))
+      | Pulse_Syntax_Base.Tm_WithInv
+          { Pulse_Syntax_Base.name1 = name; Pulse_Syntax_Base.body5 = body;
+            Pulse_Syntax_Base.returns_inv = uu___;_}
+          -> (ln' name i) && (ln_st' body i)
 and (ln_branch' :
   (Pulse_Syntax_Base.pattern * Pulse_Syntax_Base.st_term) ->
     Prims.int -> Prims.bool)
@@ -389,6 +401,8 @@ let rec (subst_term :
       | Pulse_Syntax_Base.Tm_Inames -> t
       | Pulse_Syntax_Base.Tm_EmpInames -> t
       | Pulse_Syntax_Base.Tm_Unknown -> t
+      | Pulse_Syntax_Base.Tm_Inv p ->
+          w (Pulse_Syntax_Base.Tm_Inv (subst_term p ss))
       | Pulse_Syntax_Base.Tm_Pure p ->
           w (Pulse_Syntax_Base.Tm_Pure (subst_term p ss))
       | Pulse_Syntax_Base.Tm_Star (l, r) ->
@@ -693,6 +707,19 @@ let rec (subst_st_term :
                 Pulse_Syntax_Base.binders = binders;
                 Pulse_Syntax_Base.v = (subst_term v ss1);
                 Pulse_Syntax_Base.t3 = (subst_st_term t1 ss1)
+              }
+        | Pulse_Syntax_Base.Tm_WithInv
+            { Pulse_Syntax_Base.name1 = name; Pulse_Syntax_Base.body5 = body;
+              Pulse_Syntax_Base.returns_inv = returns_inv;_}
+            ->
+            let name1 = subst_term name ss in
+            let body1 = subst_st_term body ss in
+            let returns_inv1 = subst_term_opt returns_inv ss in
+            Pulse_Syntax_Base.Tm_WithInv
+              {
+                Pulse_Syntax_Base.name1 = name1;
+                Pulse_Syntax_Base.body5 = body1;
+                Pulse_Syntax_Base.returns_inv = returns_inv1
               } in
       {
         Pulse_Syntax_Base.term1 = t';
