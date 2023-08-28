@@ -38,7 +38,7 @@ let st_comp_remove_inv (inv:vprop) (c:st_comp) : T.Tac st_comp =
   { c with pre = term_remove_inv inv c.pre
          ; post = term_remove_inv inv c.post }
 
-#push-options "--z3rlimit 25"
+#push-options "--z3rlimit 50"
 
 let check
   (g:env)
