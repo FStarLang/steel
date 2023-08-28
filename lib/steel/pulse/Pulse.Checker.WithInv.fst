@@ -76,9 +76,24 @@ let check
   let inv_p =
     match inv_tm_ty.t with
     | Tm_Inv p -> p
+    | Tm_FStar _ -> begin
+      (* FIXME: should unrefine... meh *)
+      let ropt = Pulse.Syntax.Pure.is_fvar_app inv_tm in
+      match ropt with
+      | Some (lid, _, _, Some tm) -> 
+        if lid = ["Pulse"; "Lib"; "Core"; "inv" ]
+        then tm
+        else fail g (Some inv_tm.range)
+                  (Printf.sprintf "(GGG3) Does not have invariant type (%s)" (P.term_to_string inv_tm_ty))
+      | _ -> fail g (Some inv_tm.range)
+                  (Printf.sprintf "(tm_fstar) Does not have invariant type (%s)" (P.term_to_string inv_tm_ty))
+    end
     | _ -> fail g (Some inv_tm.range)
                 (Printf.sprintf "Does not have invariant type (%s)" (P.term_to_string inv_tm_ty))
   in
+  
+  (* FIXME: This is bogus for the Tm_FStar case!!! *)
+  assume (tm_inv inv_p == inv_tm);
 
   (* Can this come from some inversion instead? *)
   let inv_p_typing : tot_typing g inv_p tm_vprop = recheck () in
