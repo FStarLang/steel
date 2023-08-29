@@ -119,4 +119,4 @@ let pts_to_injective_eq (#a:Type0)
   : stt_ghost unit emp_inames
       (R.pts_to r p v0 `S.star` R.pts_to r q v1)
       (fun _ -> R.pts_to r p v0 `S.star` R.pts_to r q v0 `S.star` S.pure (v0 == v1))
-    = fun _ -> let _ = R.pts_to_injective_eq #a #emp_inames #p #q #v0 #v1 r in ()
+    = fun _ -> let _ = R.pts_to_injective_eq #a #all_inames #p #q #v0 #v1 r in ()
