@@ -86,6 +86,9 @@ let vprop_equiv_ext p1 p2 _ = equiv_refl p1
 
 (* Invariants, just reexport *)
 let iname = iname
+let emp_inames : inames = Ghost.hide Set.empty
+let all_inames : inames = Ghost.hide (Set.complement Set.empty)
+
 let inv = inv
 let name_of_inv = name_of_inv
 
@@ -96,21 +99,41 @@ let mk_stt #a #pre #post e = e
 
 let reveal_stt #a #pre #post e = e
 
-inline_for_extraction
-type stt_unobservable (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) =
-  unit -> STAtomicUT a opened pre post
+let set_sub (#a:eqtype) (s1 s2 : Set.set a) : Set.set a =
+  s1 `Set.intersect` (Set.complement s2)
+
+(** Set lemmas **)
+
+let comp_comp (#a:eqtype) (s : Set.set a)
+  : Lemma (Set.complement (Set.complement s) == s)
+          [SMTPat (Set.complement (Set.complement s))]
+  = Set.lemma_equal_intro (Set.complement (Set.complement s)) s
+
+let s_minus_s (#a:eqtype) (s : Set.set a)
+  : Lemma (set_sub s s == Set.empty)
+          [SMTPat (set_sub s s)]
+  = Set.lemma_equal_intro (set_sub s s) Set.empty
+
+(** / Set lemmas **)
+
+let inames_sub (s1 s2 : inames) : inames =
+  set_sub s1 s2
 
 inline_for_extraction
-type stt_atomic (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) =
-  unit -> STAtomicT a opened pre post
+type stt_unobservable (a:Type u#a) (opens:inames) (pre:vprop) (post:a -> vprop) =
+  unit -> STAtomicUT a (Set.complement opens) pre post
+
+inline_for_extraction
+type stt_atomic (a:Type u#a) (opens:inames) (pre:vprop) (post:a -> vprop) =
+  unit -> STAtomicT a (Set.complement opens) pre post
 
 let mk_stt_atomic #a #opened #pre #post e = e
 
 let reveal_stt_atomic #a #opened #pre #post e = e
  
 inline_for_extraction
-type stt_ghost (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) =
-  unit -> STGhostT a opened pre post
+type stt_ghost (a:Type u#a) (opens:inames) (pre:vprop) (post:a -> vprop) =
+  unit -> STGhostT a (Set.complement opens) pre post
 
 let mk_stt_ghost #a #opened #pre #post e = e
 
@@ -164,14 +187,14 @@ let bind_sttg #a #b #opened #pre1 #post1 #post2 e1 e2 =
   let x = e1 () in
   e2 x ()
 
-let bind_stt_atomic_ghost #a #b #opened #pre1 #post1 #post2 e1 e2 reveal_b =
+let bind_stt_atomic_ghost #a #b #opens #pre1 #post1 #post2 e1 e2 reveal_b =
   fun _ ->
   let x = e1 () in
   let y =
     let y = e2 x () in
-    rewrite (post2 y) (post2 (reveal_b (Ghost.hide y)));
+    rewrite #(Set.complement opens) (post2 y) (post2 (reveal_b (Ghost.hide y)));
     Ghost.hide y in
-  Steel.ST.Util.return (reveal_b y)
+  Steel.ST.Util.return #_ #(Set.complement opens) (reveal_b y)
 
 let bind_stt_ghost_atomic #a #b #opened #pre1 #post1 #post2 e1 e2 reveal_a =
   fun _ ->
@@ -258,9 +281,9 @@ let sub_stt_ghost #a #opened #pre1 pre2 #post1 post2 pf1 pf2 e =
   x
 
 (* odd workaround for definition below *)
-let thunk #a #r #opened #pre (#post : (x:a -> r x -> vprop))
-  ($f : (x:a -> STAtomicUT (r x) opened (pre x) (post x)))
-  : (x:a -> stt_unobservable (r x) opened (pre x) (post x))
+let thunk #a #r #opens #pre (#post : (x:a -> r x -> vprop))
+  ($f : (x:a -> STAtomicUT (r x) (Set.complement opens) (pre x) (post x)))
+  : (x:a -> stt_unobservable (r x) opens (pre x) (post x))
   = fun x () -> f x
 
 assume
@@ -284,7 +307,8 @@ let return_stt_unobservable_noeq #a #opened x (p:(a -> vprop))
   // fun () -> Steel.ST.Effect.AtomicAndGhost.return_ a x opened
 
 let new_invariant #opened : p:vprop -> stt_unobservable (inv p) opened p (fun _ -> emp) =
-  thunk new_invariant
+  // thunk new_invariant
+  admit()
 
 let new_invariant' #opened : p:vprop -> stt_atomic (inv p) opened p (fun _ -> emp) =
   admit()

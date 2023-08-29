@@ -69,7 +69,8 @@ val vprop_equiv_ext (p1 p2:vprop) (_:p1 == p2)
 val iname : eqtype
 let inames = erased (FStar.Set.set iname)
 
-let emp_inames : inames = Set.empty
+val emp_inames : inames
+val all_inames : inames
 
 val inv (p:vprop) : Type u#0
 
@@ -87,33 +88,33 @@ let add_inv (#p:vprop) (e:inames) (i:inv p) : inames = Set.union (Set.singleton 
 inline_for_extraction
 val stt (a:Type u#a) (pre:vprop) (post:a -> vprop) : Type0
 
-(* stt_unobservable a opened pre post: The type of a pulse computation
+(* stt_unobservable a opens pre post: The type of a pulse computation
    that when run in a state satisfying `pre`
    takes an unobservable atomic step
-   while relying on the ghost invariant names in `opened` 
+   potentially opening invariants in `opens`
    and returns `x:a`
    such that the final state satisfies `post x` *)
 inline_for_extraction
-val stt_unobservable (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) : Type u#(max 2 a)
+val stt_unobservable (a:Type u#a) (opens:inames) (pre:vprop) (post:a -> vprop) : Type u#(max 2 a)
 
-(* stt_atomic a opened pre post: The type of a pulse computation
+(* stt_atomic a opens pre post: The type of a pulse computation
    that when run in a state satisfying `pre`
    takes a single concrete atomic step
-   while relying on the ghost invariant names in `opened` 
+   potentially opening invariants in `opens`
    and returns `x:a`
    such that the final state satisfies `post x` *)
 inline_for_extraction
-val stt_atomic (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) : Type u#(max 2 a)
+val stt_atomic (a:Type u#a) (opens:inames) (pre:vprop) (post:a -> vprop) : Type u#(max 2 a)
 
-(* stt_ghost a opened pre post: The type of a pulse computation
+(* stt_ghost a opens pre post: The type of a pulse computation
    that when run in a state satisfying `pre`
    takes a single ghost atomic step (i.e. a step that does not modify the heap, and does not get extracted)
-   while relying on the ghost invariant names in `opened` 
+   potentially opening invariants in `opens`
    and returns `x:a`
    such that the final state satisfies `post x` *)
 [@@ erasable]
 inline_for_extraction
-val stt_ghost (a:Type u#a) (opened:inames) (pre:vprop) (post:a -> vprop) : Type u#(max 2 a)
+val stt_ghost (a:Type u#a) (opens:inames) (pre:vprop) (post:a -> vprop) : Type u#(max 2 a)
 
 //
 // the returns should probably move to atomic,
@@ -148,17 +149,17 @@ val bind_stt
 
 inline_for_extraction
 val lift_stt_atomic (#a:Type u#a) (#pre:vprop) (#post:a -> vprop)
-  (e:stt_atomic a Set.empty pre post)
+  (e:stt_atomic a all_inames pre post)
   : stt a pre post
 
 inline_for_extraction
 val bind_sttg
   (#a:Type u#a) (#b:Type u#b)
-  (#opened:inames)
+  (#opens:inames)
   (#pre1:vprop) (#post1:a -> vprop) (#post2:b -> vprop)
-  (e1:stt_ghost a opened pre1 post1)
-  (e2:(x:a -> stt_ghost b opened (post1 x) post2))
-  : stt_ghost b opened pre1 post2
+  (e1:stt_ghost a opens pre1 post1)
+  (e2:(x:a -> stt_ghost b opens (post1 x) post2))
+  : stt_ghost b opens pre1 post2
 
 type non_informative_witness (a:Type u#a) =
   x:Ghost.erased a -> y:a{y == Ghost.reveal x}
@@ -166,28 +167,28 @@ type non_informative_witness (a:Type u#a) =
 inline_for_extraction
 val bind_stt_atomic_ghost
   (#a:Type u#a) (#b:Type u#b)
-  (#opened:inames)
+  (#opens:inames)
   (#pre1:vprop) (#post1:a -> vprop) (#post2:b -> vprop)
-  (e1:stt_atomic a opened pre1 post1)
-  (e2:(x:a -> stt_ghost b opened (post1 x) post2))
+  (e1:stt_atomic a opens pre1 post1)
+  (e2:(x:a -> stt_ghost b opens (post1 x) post2))
   (reveal_b:non_informative_witness b)
-  : stt_atomic b opened pre1 post2
+  : stt_atomic b opens pre1 post2
 
 inline_for_extraction
 val bind_stt_ghost_atomic
   (#a:Type u#a) (#b:Type u#b)
-  (#opened:inames)
+  (#opens:inames)
   (#pre1:vprop) (#post1:a -> vprop) (#post2:b -> vprop)
-  (e1:stt_ghost a opened pre1 post1)
-  (e2:(x:a -> stt_atomic b opened (post1 x) post2))
+  (e1:stt_ghost a opens pre1 post1)
+  (e2:(x:a -> stt_atomic b opens (post1 x) post2))
   (reveal_a:non_informative_witness a)
-  : stt_atomic b opened pre1 post2
+  : stt_atomic b opens pre1 post2
 
 inline_for_extraction
-val lift_stt_ghost (#a:Type u#a) (#opened:inames) (#pre:vprop) (#post:a -> vprop)
-  (e:stt_ghost a opened pre post)
+val lift_stt_ghost (#a:Type u#a) (#opens:inames) (#pre:vprop) (#post:a -> vprop)
+  (e:stt_ghost a opens pre post)
   (reveal_a:(x:Ghost.erased a -> y:a{y == Ghost.reveal x}))
-  : stt_atomic a opened pre post
+  : stt_atomic a opens pre post
 
 inline_for_extraction
 val frame_stt
@@ -200,20 +201,20 @@ val frame_stt
 inline_for_extraction
 val frame_stt_atomic
   (#a:Type u#a)
-  (#opened:inames)
+  (#opens:inames)
   (#pre:vprop) (#post:a -> vprop)
   (frame:vprop)
-  (e:stt_atomic a opened pre post)
-  : stt_atomic a opened (pre ** frame) (fun x -> post x ** frame)
+  (e:stt_atomic a opens pre post)
+  : stt_atomic a opens (pre ** frame) (fun x -> post x ** frame)
 
 inline_for_extraction
 val frame_stt_ghost
   (#a:Type u#a)
-  (#opened:inames)
+  (#opens:inames)
   (#pre:vprop) (#post:a -> vprop)
   (frame:vprop)
-  (e:stt_ghost a opened pre post)
-  : stt_ghost a opened (pre ** frame) (fun x -> post x ** frame)
+  (e:stt_ghost a opens pre post)
+  : stt_ghost a opens (pre ** frame) (fun x -> post x ** frame)
 
 inline_for_extraction
 val sub_stt (#a:Type u#a)
@@ -229,28 +230,28 @@ val sub_stt (#a:Type u#a)
 inline_for_extraction
 val sub_stt_atomic
   (#a:Type u#a)
-  (#opened:inames)
+  (#opens:inames)
   (#pre1:vprop)
   (pre2:vprop)
   (#post1:a -> vprop)
   (post2:a -> vprop)
   (pf1 : vprop_equiv pre1 pre2)
   (pf2 : vprop_post_equiv post1 post2)
-  (e:stt_atomic a opened pre1 post1)
-  : stt_atomic a opened pre2 post2
+  (e:stt_atomic a opens pre1 post1)
+  : stt_atomic a opens pre2 post2
 
 inline_for_extraction
 val sub_stt_ghost
   (#a:Type u#a)
-  (#opened:inames)
+  (#opens:inames)
   (#pre1:vprop)
   (pre2:vprop)
   (#post1:a -> vprop)
   (post2:a -> vprop)
   (pf1 : vprop_equiv pre1 pre2)
   (pf2 : vprop_post_equiv post1 post2)
-  (e:stt_ghost a opened pre1 post1)
-  : stt_ghost a opened pre2 post2
+  (e:stt_ghost a opens pre1 post1)
+  : stt_ghost a opens pre2 post2
 
 inline_for_extraction
 val return_stt_unobservable (#a:Type u#a) #opened (x:a) (p:a -> vprop)
