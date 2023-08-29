@@ -76,4 +76,4 @@ let pts_to_injective_eq (#a:Type0)
 
 inline_for_extraction
 let gref_non_informative (a:Type0) : non_informative_witness (ref a) =
-  magic() // This should be provable since ghost references are erased references
+  fun r -> reveal r
