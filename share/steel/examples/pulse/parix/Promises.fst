@@ -124,6 +124,182 @@ let split_promise (#f:vprop) (v1:vprop) (v2:vprop)
               (fun () -> promise f v1 ** promise f v2)
   = admit() // split_imp _ _ _ emp
 
+
+module GR = Pulse.Lib.GhostReference
+
+(* split_promise *)
+
+#set-options "--ext pulse:guard_policy=SMTSync"
+
+let inv_p' (f v1 v2 : vprop) (r1 r2 : GR.ref bool) (b1 b2 : bool) =
+     GR.pts_to r1 #one_half b1
+  ** GR.pts_to r2 #one_half b2
+  ** (match b1, b2 with
+      | false, false -> promise f (v1 ** v2)
+      | false, true -> v1
+      | true, false -> v2
+      | true, true -> emp)
+
+let inv_p (f v1 v2 : vprop) (r1 r2 : GR.ref bool) : vprop =
+  exists_ (fun b1 -> exists_ (fun b2 -> inv_p' f v1 v2 r1 r2 b1 b2))
+
+assume val stt_ghost_reveal (#a:Type)
+  (x : erased a)
+  : stt_ghost a emp_inames emp (fun r -> pure (hide r == x))
+
+```pulse
+ghost
+fn __elim_l (#f:vprop) (v1:vprop) (v2:vprop) (r1 r2 : GR.ref bool) (i : inv (inv_p f v1 v2 r1 r2)) (_:unit)
+  requires f ** GR.pts_to r1 #one_half false
+  ensures f ** v1
+{
+  open Pulse.Lib.GhostReference;
+  with_invariants i {
+    unfold (inv_p f v1 v2 r1 r2);
+    with bb1 bb2.
+      assert (inv_p' f v1 v2 r1 r2 bb1 bb2);
+    unfold (inv_p' f v1 v2 r1 r2 bb1 bb2);
+    let b1 = !r1;
+    let b2 = !r2;
+
+    assert (pure (b1 == bb1));
+    assert (pure (b2 == bb2));
+
+    gather2 #_ #emp_inames
+      r1
+      #false #b1;
+
+    let b1 : bool = stt_ghost_reveal b1;
+    let b2 : bool = stt_ghost_reveal b2;
+
+    if b2 {
+      (* The "easy" case: the big promise has already been claimed
+      by the other subpromise, so we just extract our resource. *)
+      assert (pts_to r1 false);
+      r1 := true;
+      rewrite emp ** `@(match false, true with
+                 | false, false -> promise f (v1 ** v2)
+                 | false, true -> v1
+                 | true, false -> v2
+                 | true, true -> emp)
+           as `@(match true, true with
+                 | false, false -> promise f (v1 ** v2)
+                 | false, true -> v1
+                 | true, false -> v2
+                 | true, true -> emp) ** v1;
+
+      (* I don't understand why this remains in the ctx, but get rid
+      of it as it's just emp *)
+      rewrite `@(match true, true with
+                 | false, false -> promise f (v1 ** v2)
+                 | false, true -> v1
+                 | true, false -> v2
+                 | true, true -> emp)
+           as emp;
+
+      share2 #_ #emp_inames r1;
+      fold (inv_p' f v1 v2 r1 r2 true true);
+      fold (inv_p f v1 v2 r1 r2);
+      assert (f ** v1 ** inv_p f v1 v2 r1 r2);
+      drop_ (pts_to r1 #one_half true);
+      ()
+    } else {
+      (* The "hard" case: the big promise has not been claimed.
+      Claim it, split it, and store the leftover in the invariant. *)
+      assert (pts_to r1 false);
+      // assert (pts_to r2 false);
+
+      rewrite `@(match false, false with
+                 | false, false -> promise f (v1 ** v2)
+                 | false, true -> v1
+                 | true, false -> v2
+                 | true, true -> emp)
+           as promise f (v1 ** v2);
+
+      redeem_promise f (v1 ** v2);
+
+      assert (f ** v1 ** v2);
+
+      r1 := true;
+
+      rewrite v2
+           as `@(match true, false with
+                 | false, false -> promise f (v1 ** v2)
+                 | false, true -> v1
+                 | true, false -> v2
+                 | true, true -> emp);
+
+      share2 #_ #emp_inames r1;
+      fold (inv_p' f v1 v2 r1 r2 true false);
+      fold (inv_p f v1 v2 r1 r2);
+      assert (f ** v1 ** inv_p f v1 v2 r1 r2);
+      drop_ (pts_to r1 #one_half true);
+      ()
+    }
+  }
+}
+```
+
+```pulse
+ghost
+fn __elim_r (#f:vprop) (v1:vprop) (v2:vprop) (r1 r2 : GR.ref bool) (i : inv (inv_p f v1 v2 r1 r2)) (_:unit)
+  requires f ** GR.pts_to r2 #one_half false
+  ensures f ** v2
+{
+  (* Analogous to above... *)
+  admit ()
+}
+```
+
+```pulse
+fn __split_promise (#f:vprop) (v1:vprop) (v2:vprop)
+  requires promise f (v1 ** v2)
+  ensures promise f v1 ** promise f v2
+{
+   let r1 = GR.alloc false;
+   let r2 = GR.alloc false;
+   GR.share2 #_ #emp_inames r1;
+   GR.share2 #_ #emp_inames r2;
+
+   rewrite (promise f (v1 ** v2))
+        as `@(match false, false with
+            | false, false -> promise f (v1 ** v2)
+            | false, true -> v1
+            | true, false -> v2
+            | true, true -> emp);
+
+  assert (
+     GR.pts_to r1 #one_half false
+  ** GR.pts_to r2 #one_half false
+  ** `@(match false, false with
+      | false, false -> promise f (v1 ** v2)
+      | false, true -> v1
+      | true, false -> v2
+      | true, true -> emp));
+
+  fold (inv_p' f v1 v2 r1 r2 false false);
+  fold (inv_p f v1 v2 r1 r2);
+
+  let i = new_invariant' #emp_inames (inv_p f v1 v2 r1 r2);
+
+  make_promise
+    f
+    v1
+    (GR.pts_to r1 #one_half false)
+    (__elim_l #f v1 v2 r1 r2 i);
+
+  make_promise
+    f
+    v2
+    (GR.pts_to r2 #one_half false)
+    (__elim_r #f v1 v2 r1 r2 i);
+
+  ()
+}
+```
+
+(* /split_promise *)
+
 let rewrite_promise (#f:vprop) (v1 : vprop) (v2 : vprop)
   (k : unit -> stt_ghost unit emp_inames v1 (fun _ -> v2))
   : stt_ghost unit
