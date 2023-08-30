@@ -114,22 +114,10 @@ let join_promise (#f:vprop) (v1:vprop) (v2:vprop)
     bind_promise v1 (fun () ->
     return_promise f (v1 ** v2)))
 
-(* I'm not sure this is definable. Maybe it can be encoded
-using invariants + a ghost ref stating whether the promise
-was already split? *)
-let split_promise (#f:vprop) (v1:vprop) (v2:vprop)
-  : stt_ghost unit
-              emp_inames
-              (promise f (v1 ** v2))
-              (fun () -> promise f v1 ** promise f v2)
-  = admit() // split_imp _ _ _ emp
-
+(* split_promise *)
+#set-options "--ext pulse:guard_policy=SMTSync"
 
 module GR = Pulse.Lib.GhostReference
-
-(* split_promise *)
-
-#set-options "--ext pulse:guard_policy=SMTSync"
 
 let inv_p' (f v1 v2 : vprop) (r1 r2 : GR.ref bool) (b1 b2 : bool) =
      GR.pts_to r1 #one_half b1
@@ -142,10 +130,6 @@ let inv_p' (f v1 v2 : vprop) (r1 r2 : GR.ref bool) (b1 b2 : bool) =
 
 let inv_p (f v1 v2 : vprop) (r1 r2 : GR.ref bool) : vprop =
   exists_ (fun b1 -> exists_ (fun b2 -> inv_p' f v1 v2 r1 r2 b1 b2))
-
-assume val stt_ghost_reveal (#a:Type)
-  (x : erased a)
-  : stt_ghost a emp_inames emp (fun r -> pure (hide r == x))
 
 ```pulse
 ghost
@@ -169,8 +153,8 @@ fn __elim_l (#f:vprop) (v1:vprop) (v2:vprop) (r1 r2 : GR.ref bool) (i : inv (inv
       r1
       #false #b1;
 
-    let b1 : bool = stt_ghost_reveal b1;
-    let b2 : bool = stt_ghost_reveal b2;
+    let b1 : bool = stt_ghost_reveal _ b1;
+    let b2 : bool = stt_ghost_reveal _ b2;
 
     if b2 {
       (* The "easy" case: the big promise has already been claimed
@@ -251,7 +235,13 @@ fn __elim_r (#f:vprop) (v1:vprop) (v2:vprop) (r1 r2 : GR.ref bool) (i : inv (inv
 }
 ```
 
+assume
+val new_invariant_ghost #opened (p:vprop) : stt_ghost (inv p) opened p (fun _ -> emp)
+
+#set-options "--print_implicits --print_universes"
+
 ```pulse
+ghost
 fn __split_promise (#f:vprop) (v1:vprop) (v2:vprop)
   requires promise f (v1 ** v2)
   ensures promise f v1 ** promise f v2
@@ -280,7 +270,7 @@ fn __split_promise (#f:vprop) (v1:vprop) (v2:vprop)
   fold (inv_p' f v1 v2 r1 r2 false false);
   fold (inv_p f v1 v2 r1 r2);
 
-  let i = new_invariant' #emp_inames (inv_p f v1 v2 r1 r2);
+  let i = new_invariant_ghost #emp_inames (inv_p f v1 v2 r1 r2);
 
   make_promise
     f
@@ -297,6 +287,13 @@ fn __split_promise (#f:vprop) (v1:vprop) (v2:vprop)
   ()
 }
 ```
+
+let split_promise (#f:vprop) (v1:vprop) (v2:vprop)
+  : stt_ghost unit
+              emp_inames
+              (promise f (v1 ** v2))
+              (fun () -> promise f v1 ** promise f v2)
+  = __split_promise #f v1 v2
 
 (* /split_promise *)
 
