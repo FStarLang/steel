@@ -8,30 +8,13 @@ module Lock = Pulse.Lib.SpinLock
 open Pulse.Lib.Pervasives
 open Pulse.Lib.Core
 module HR = Pulse.Lib.HigherReference
-module DI = Pulse.Lib.DisposableInvariant
-module GR = Pulse.Lib.GhostReference
+//module DI = Pulse.Lib.DisposableInvariant
+//module GR = Pulse.Lib.GhostReference
+
+
 
 open FStar.List.Tot.Base
-
 open GhostTaskQueue
-
-let unit_emp_stt_pure_pure a
-  = unit -> stt a emp (fun _ -> emp)
-
-unfold
-let half = half_perm full_perm
-
-unfold
-let one_quart = half_perm (half_perm full_perm)
-
-unfold
-let three_quart = sum_perm (half_perm full_perm) (half_perm (half_perm full_perm))
-
-// ignoring the pure post
-
-// Old version:
-//let own_res r = (exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
-let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r #one_quart v))
 
 ```pulse
 fn read_own_res (#a: Type0) (r: ref (option a))
@@ -46,97 +29,70 @@ fn read_own_res (#a: Type0) (r: ref (option a))
 }
 ```
 
-// TODO: Once it is possible, we should have an SL pre and post
-// TODO: Maybe add an id, such that every task is unique
-let task_elem: Type u#1 = (
-  a: Type0 // return type of the computation
-  //& p: (a -> prop) // postcondition about the return value: Ignored
-  //& (unit_with_inv a) // the computation
-  & (unit_emp_stt_pure_pure a)
-  & r: ref (option a) // the reference where we put the result of the computation
-  & Lock.lock (own_res r)//(exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
-  // can a thread prove that this thing has not been done, before it finishes? Probably not
-  // more ghost stuff
-)
-// depends negatively on par_env
-
 #push-options "--print_universes"
 
-let task_queue: Type u#1 = list task_elem
-let task_plus: Type u#1 = task_with_status task_elem
+(*
+let unit_emp_stt_pure_pure a
+  = (r: ref (option a) -> stt a (own_None r) (fun _ -> own_None r))
+  // this type needs to be changed...
+  // maybe take the current task (with certificate) as a parameter...
+*)
+type comp_task (t: task_elem) =
+  unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
+
+//type task_with_comp = (t:task_elem & comp_task t)
+
+let task_queue: Type u#1 = list (t:task_elem & comp_task t)
+//let task_queue: Type u#1 = list (t:task_elem & comp_task t)
+//let task_plus: Type u#1 = task_with_status task_elem
 
 #push-options "--warn_error -249"
 
-let mono_list_task_plus: Type u#1 = mono_list task_elem
+let deadline (q: HR.ref task_queue) (c: ref int) : vprop
+= exists_ (fun f ->
+  exists_ (fun vq ->
+  exists_ (fun vc ->
+    HR.pts_to q #f vq ** pts_to c #f vc
+  )))
 
-// why not just put all permission here?
-(*
-Phases:
-1. Todo: 1/2 and None
-2. Ongoing: 0
-3. Done: 1/2 and Some
-*)
-let task_res_own (t: task_plus): vprop
-= match t._2 with
-| Todo -> pts_to t._1._3 #three_quart None
-| Ongoing -> emp // in this case, the worker has the half permission
-| Done -> (exists_ (fun v -> pts_to t._1._3 #three_quart v ** pure (Some? v)))
-  
-  (*
-```pulse
-fn fold_done_task_todo (tp: task_plus) //(tp: (tp:task_plus{Todo? tp._2}))
-  requires pts_to tp._1._3 #three_quart None ** pure (Todo? tp._2)
-  ensures task_res_own tp
-{
-  rewrite (pts_to tp._1._3 #three_quart None) as
-  `@(match tp._2 with
-| Todo -> pts_to tp._1._3 #three_quart None
-| Ongoing -> emp // in this case, the worker has the half permission
-| Done -> (exists_ (fun v -> pts_to tp._1._3 #three_quart v ** pure (Some? v))));
-  fold (task_res_own tp);
-  ()
-}
-```
-*)
 
-let rec tasks_res_own (l: mono_list_task_plus): vprop
-=  match l with
-  | [] -> emp
-  | tl::ql -> task_res_own tl ** tasks_res_own ql
+let conditional_half
+  (q: HR.ref task_queue)
+  (c: ref int) (vq: task_queue) (vc: int): vprop =
+  (if length vq = 0 && vc = 0 then deadline q c // we're done
+  else (HR.pts_to q #one_half vq ** pts_to c #one_half vc)) // we have exclusive permission to q and c
 
-//let enqueue_task_plus (t: task_plus) (l: mono_list_task_plus): mono_list_task_plus
- // = t::l
-//let todoify (t: task_elem): task_plus =
- // ( t, Todo )
 
-```pulse
-fn fold_done_task (t: task_elem) (l:mono_list_task_plus)
-  requires pts_to t._3 #three_quart None ** tasks_res_own l
-  ensures tasks_res_own (enqueue_todo l t)._1
-{
-  rewrite (pts_to t._3 #three_quart None) as (task_res_own (t, Todo));
-  fold (task_res_own (t, Todo));
-  rewrite (task_res_own (t, Todo) ** tasks_res_own l)
-    as
-  (tasks_res_own (enqueue_todo l t)._1);
-  ()
-}
-```
-
+// TODO: Support two modes?
+// Once the thing is done...
 let inv_task_queue
   (q: HR.ref task_queue) // the task queue
   (c: ref int) // a counter of how many tasks are currently being performed
-  (l: HR.ref mono_list_task_plus)
+  (r: ghost_mono_ref task_elem)
   : vprop
-= (exists_ (fun vq -> exists_ (fun vc -> exists_ (fun vl ->
-    HR.pts_to q vq **
-    pts_to c vc **
-    HR.pts_to l vl **
-    tasks_res_own vl **
-    pure (pure_inv_queue vq vc vl)
-    ))))
+= (exists_ (fun vq ->
+  exists_ (fun vc -> 
+    HR.pts_to q #one_half vq ** pts_to c #one_half vc ** small_inv r (map dfst vq) vc **
+    conditional_half q c vq vc
+    //** (if length vq = 0 && vc = 0 then emp // we're done
+     // else (HR.pts_to q #one_half vq ** pts_to c #one_half vc) // we have exclusive permission to q and c
+    )))
 
-let par_env = (q: HR.ref task_queue & c: ref int & l: HR.ref mono_list_task_plus & Lock.lock (inv_task_queue q c l))
+let par_env = (q: HR.ref task_queue & c: ref int & r: ghost_mono_ref task_elem & Lock.lock (inv_task_queue q c r))
+// & current_task r)
+
+let current_task (p: par_env) = (t:task_elem & pos:nat & certificate p._3 t pos)
+
+let mk_current_task (p: par_env) (t:task_elem) (pos:nat) (w:certificate p._3 t pos):
+  (ct:current_task p{ct._1 == t})
+= (| t, pos, w |)
+
+let update_par_env
+  #r (#t: task_elem) (#pos: nat)
+  (p: par_env) (w: certificate r t pos)
+= (| p._1, p._2, p._3, p._4, (| t, pos, w |) |)
+
+let is_active #r (ct: current_task r): vprop = pts_to ct._1._2 #three_quart None
 
 let get_queue (p: par_env): HR.ref task_queue
   = p._1
@@ -144,24 +100,26 @@ let get_queue (p: par_env): HR.ref task_queue
 let get_counter (p: par_env): ref int
   = p._2
 
-let get_mono_list (p: par_env): HR.ref mono_list_task_plus
+let get_mono_list (p: par_env): ghost_mono_ref task_elem
   = p._3
 
 let get_lock (p: par_env): Lock.lock (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p))
   = p._4
 
-let create_task_elem #a f r l: task_elem
-  = (| a, f, r, l |)
+//let get_current_task (p: par_env): current_task (get_mono_list p)//Lock.lock (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p))
+ // = p._5
+
+let create_task_elem #a (r: ref (option a)) (l: Lock.lock (own_res r))
+: task_elem
+  = (| a, r, l|)
 
 assume
 val higher_alloc (#a:Type) (x:a)
-  : stt (HR.ref a) emp (fun r -> HR.pts_to r full_perm x)
-//= admit()
-//= (fun _ -> let x = HR.alloc x in return x)
+  : stt (HR.ref a) emp (fun r -> HR.pts_to r x)
 
 assume
 val higher_free (#a:Type) (r: HR.ref a)
-  : stt unit (exists_ (fun v -> HR.pts_to r full_perm v)) (fun _ -> emp)
+  : stt unit (exists_ (fun v -> HR.pts_to r v)) (fun _ -> emp)
 
 assume
 val higher_read (#a:Type)
@@ -169,8 +127,8 @@ val higher_read (#a:Type)
          (#v:Ghost.erased a)
          (r:HR.ref a)
   : stt a
-      (HR.pts_to r p v)
-      (fun x -> HR.pts_to r p v ** pure (x == Ghost.reveal v))
+      (HR.pts_to r #p v)
+      (fun x -> HR.pts_to r #p v ** pure (x == Ghost.reveal v))
       //(requires true)
 //      (ensures fun x -> x == Ghost.reveal v)
 
@@ -179,46 +137,77 @@ assume val higher_write (#a:Type)
           (r:HR.ref a)
           (x:a)
   : stt unit
-      (HR.pts_to r full_perm v)
-      (fun _ -> HR.pts_to r full_perm x)
+      (HR.pts_to r v)
+      (fun _ -> HR.pts_to r x)
 
-
-let enqueue (t: task_elem) (q: task_queue): task_queue
-  = t::q
+let enqueue (t: task_elem) (c:comp_task t) (q: task_queue): task_queue
+  = (|t, c|)::q
 
 ```pulse
 fn acquire_queue_lock
   (p: par_env)
-  //(#q: HR.ref task_queue) (#c: ref int)
-  //(l: Lock.lock (inv_task_queue q c))
   requires emp
-  ensures (exists vq vc vl.
-    HR.pts_to (get_queue p) full_perm vq **
-    pts_to (get_counter p) full_perm vc **
-    HR.pts_to (get_mono_list p) full_perm vl **
-    tasks_res_own vl **
-    pure (pure_inv_queue vq vc vl)
-  )
+  ensures (exists vq vc.
+    HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
+    ** small_inv (get_mono_list p) (map dfst vq) vc
+    ** conditional_half (get_queue p) (get_counter p) vq vc
+    )
 {
   Lock.acquire (get_lock p);
   unfold (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p));
+  with vq vc. assert (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc);
+  assert (small_inv (get_mono_list p) (map dfst vq) vc);
+  ()
+}
+```
+
+```pulse
+fn acquire_queue_lock_ongoing
+  //(#t: task_elem)
+  //(#pos: nat)
+  (p: par_env)
+  //(w:certificate (get_mono_list p) t pos)
+  (ct: current_task p)
+  requires is_active ct //pts_to t._2 #three_quart None
+  ensures (exists vq vc.
+    HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc ** small_inv (get_mono_list p) (map dfst vq) vc)
+    ** is_active ct//pts_to t._2 #three_quart None
+{
+  acquire_queue_lock p;
+  //let q = get_queue p;
+  with vq. assert (HR.pts_to (get_queue p) #one_half vq);
+  with vc. assert (pts_to (get_counter p) #one_half vc);
+  assert (small_inv (get_mono_list p) (map dfst vq) vc);
+  //let ct = get_current_task p;
+  unfold is_active ct;
+  prove_task_ongoing #_ #_ #None (get_mono_list p) (map dfst vq) vc ct._3;
+  //rewrite (pts_to p._5._1._2 #three_quart None) as (is_active p);
+  fold is_active ct;
+  assert (pure (vc > 0));
+  assert (small_inv (get_mono_list p) (map dfst vq) vc);
+  assert (conditional_half (get_queue p) (get_counter p) vq vc);
+  //unfold (conditional_half (get_queue p) (get_counter p) vq vc);
+  rewrite `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) // we're done
+      else (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc))
+    as (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc);
+  assert (HR.pts_to (get_queue p) #one_half vq ** HR.pts_to (get_queue p) #one_half vq);
+    //as (HR.pts_to (get_queue p) #one_half vq ** HR.pts_to (get_counter p) #one_half vc);
+  //assert (small_inv (get_mono_list p) vq vc);
+  HR.gather2 #_ #emp_inames (get_queue p) #vq;
+  gather2 #_ #emp_inames (get_counter p) #vc;
+  //assert (small_inv (get_mono_list p) vq vc);
   ()
 }
 ```
 
 ```pulse
 fn release_queue_lock
-  //(#q: HR.ref task_queue) (#c: ref int)
-  //(l: Lock.lock (inv_task_queue q c))
   (p: par_env)
-  requires (exists vq vc vl.
-    HR.pts_to (get_queue p) full_perm vq **
-    pts_to (get_counter p) full_perm vc **
-    HR.pts_to (get_mono_list p) full_perm vl **
-    tasks_res_own vl **
-    pure (pure_inv_queue vq vc vl)
-  )
-  //requires (exists vq vc. HR.pts_to (get_queue p) full_perm vq ** pts_to (get_counter p) full_perm vc)
+  requires (exists vq vc.
+    HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
+    ** small_inv (get_mono_list p) (map dfst vq) vc
+    ** conditional_half (get_queue p) (get_counter p) vq vc
+    )
   ensures emp
 {
   fold (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p));
@@ -227,77 +216,90 @@ fn release_queue_lock
 }
 ```
 
-let ref_ownership r: vprop
-  = exists_ (fun v -> pts_to r full_perm v)
-
-
-let pure_handler a
-  = (res: ref (option a) & Lock.lock (own_res res)) //(exists_ (fun v -> pts_to res half v ** (if None? v then pts_to res half v else emp))))
-
-let mk_pure_handler #a (r: ref (option a)) (l: Lock.lock (own_res r)) // (exists_ (fun v -> pts_to r full_perm v ** pure (maybe_sat p v))))
- : pure_handler a //(res: ref (option a) & Lock.lock (exists_ (fun v -> pts_to res full_perm v ** pure (maybe_sat p v))))
-= (| r, l |)
-
-(*
 ```pulse
-fn enqueue_plus
-  (t: task_elem) (q: task_queue) (c: int) (l: mono_list_task_plus)
-  requires tasks_res_own q c l' ** pure (pure_inv_queue l)
-  returns l': mono_list_task_plus
-  ensures tasks_res_own (enqueue t q) c l' ** pure (pure_inv_queue l)
+fn release_queue_lock_ongoing
+  //(#t: task_elem)
+  //(#pos: nat)
+  (p: par_env)
+  //(w:certificate (get_mono_list p) t pos)
+  (ct: current_task p)
+  requires is_active ct //pts_to t._2 #three_quart None
+    ** (exists vq vc. HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
+    ** small_inv (get_mono_list p) (map dfst vq) vc)
+  ensures is_active ct//pts_to t._2 #three_quart None
 {
-  let tp = (| t, Todo |);
-  let l' = enqueue_task_plus tp l;
-  assert (pure_inv_queue q c l);
-
-  let q' = enqueue t q;
-
-  assert (pure (squash (memP tp._1 q')));
-  rewrite (pure (squash (memP tp._1 q'))) as
-  (`@(if Todo? tp._2 then pure (squash (memP tp._1 q'))
-    else if Ongoing? tp._2 then emp
-    else (exists_ (fun v -> pts_to tp._1._3 half v ** pure (Some? v)))));
-  fold (good_task_plus tp q');
-  assert (good_task_plus tp q');
-  assert (pure (decrement_if_ongoing tp c = c));
-  assert (pure_inv_queue q c l);
-  pure_inv_mono t q c l;
-  rewrite (pure_inv_queue (enqueue t q) c l) as (pure_inv_queue q' (decrement_if_ongoing tp c) l);
-  //assert (pure_inv_queue q' (decrement_if_ongoing tp c) q);
-
-  assert (good_task_plus tp q' ** pure_inv_queue q' (decrement_if_ongoing tp c) l);
-  fold_inv_queue tp q' c l;
-
-  assert (pure_inv_queue q' c (enqueue_task_plus tp l));
-  assert (pure_inv_queue q' c l');
-  rewrite (pure_inv_queue q' c l') as (pure_inv_queue (enqueue t q) c l');
-  l'
+  with vq vc. assert (HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
+  ** small_inv (get_mono_list p) (map dfst vq) vc);
+  share2 #_ #emp_inames (get_counter p);
+  HR.share2 #_ #emp_inames (get_queue p);
+  //let b: bool = (length vq = 0 && vc = 0);
+  //rewrite (is_active ct) as (pts_to ct._1._2 #three_quart None);
+  unfold is_active ct;
+  prove_task_ongoing #_ #_ #None (get_mono_list p) (map dfst vq) vc ct._3;
+  fold is_active ct;
+  //rewrite (pts_to ct._1._2 #three_quart None) as (is_active ct);
+  //let proof = prove_task_ongoing (get_mono_list p) vq vc w;
+  rewrite 
+      (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)
+    as
+      `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) // we're done
+      else (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc));
+  //fold (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p));
+  //rewrite (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p)) as (get_lock p);
+  //fold (get_lock p);
+  //assert (get_lock p);// (get_queue p) (get_counter p) (get_mono_list p));
+  //Lock.release (get_lock p);
+  release_queue_lock p;
+  ()
 }
 ```
-*)
-  //stt_ghost mono_list_task_plus (FStar.Set.empty) (pure_inv_queue q c l) (fun l' -> pure_inv_queue (enqueue t q) c l')
-  //stt mono_list_task_plus (pure_inv_queue q c l) (fun l' -> pure_inv_queue (enqueue t q) c l')
+
+// the task could also be erased?
+let pure_handler a (p: par_env)
+  = (res: ref (option a) & Lock.lock (own_res res)
+  & t: erased task_elem & pos:erased nat & erased (certificate (get_mono_list p) t pos)
+ // also needed: task, pos, certificate, connection between them 
+  )
+
+let mk_pure_handler #a
+  (#t: task_elem) (#pos: erased nat)
+  (p: par_env)
+  (r: ref (option a)) (l: Lock.lock (own_res r))
+  (w: erased (certificate (get_mono_list p) t pos))
+ : pure_handler a p //(res: ref (option a) & Lock.lock (exists_ (fun v -> pts_to res full_perm v ** pure (maybe_sat p v))))
+= (| r, l, hide t, pos, w |)
 
 #set-options "--debug Domains --debug_level st_app --print_implicits --print_universes --print_full_names"
 
 let typed_id a (x: a): a = x
 
-assume val share (#a:Type0) (r:ref a) (#v:erased a) (#p:perm)
-  : stt_ghost unit emp_inames
-      (pts_to r p v)
-      (fun _ ->
-       pts_to r (half_perm p) v **
-       pts_to r (half_perm p) v)
+```pulse
+ghost
+fn share_quarter
+  (#a: Type0) (r: ref a)
+requires pts_to r v
+ensures pts_to r #one_quart v ** pts_to r #three_quart v
+{
+  share2 #_ #emp_inames r;
+  share #_ #emp_inames r;
+  rewrite (pts_to r #(half_perm one_half) v) as (pts_to r #one_quart v);
+  gather #_ #emp_inames r #v #v #one_half #(half_perm one_half);
+  rewrite (pts_to r #(sum_perm one_half (half_perm one_half)) v) as (pts_to r #three_quart v);
+  ()
+}
+```
 
-assume val gather (#a:Type0) (r:ref a) (#x0 #x1:erased a) (#p0 #p1:perm)
-  : stt_ghost unit emp_inames
-      (pts_to r p0 x0 ** pts_to r p1 x1)
-      (fun _ -> pts_to r (sum_perm p0 p1) x0 ** pure (x0 == x1))
+// assuming because of universe polymorphism
+assume val
+stt_return #a (x:a): stt a emp (fun y -> pure (x == y))
+
+// need to impose relationship between t and ct
+assume val coerce_unit_stt #a #p (ct: erased (current_task p)) (t: task_elem)
+  (comp: (unit -> stt a (is_active ct) (fun _ -> is_active ct)))
+: unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
 
 
-// should give a token
-// which is a suffix of the list
-// with the proof that the task has been spawn (is at the head of this list)
+
 ```pulse
 fn spawn_emp'
   (#a:Type0)
@@ -306,57 +308,75 @@ fn spawn_emp'
   (p: par_env) // par_env'
   //(post: (a -> prop))
   //(l: Lock.lock (inv_task_queue q c))
-  (f : (par_env -> unit_emp_stt_pure_pure a))
- requires emp // requires prop?
- returns r: pure_handler a //(res: ref (option a) & Lock.lock (exists_ (fun v -> pts_to res full_perm v ** pure (maybe_sat post v))))
+  //(f : funct a) //(p':par_env -> unit_emp_stt_pure_pure a p'._5._2))
+  //(f: (p:par_env -> unit -> stt a (is_active p) (fun _ -> is_active p)))
+  (ct: current_task p)
+  //unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
+  (f: (par_env -> ct:erased (current_task p) -> unit -> stt a (is_active ct) (fun _ -> is_active ct)))
+
+  // type comp_task (t: task_elem) =
+  //unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
+
+ requires is_active ct // requires prop?
+ returns r: pure_handler a p //(res: ref (option a) & Lock.lock (exists_ (fun v -> pts_to res full_perm v ** pure (maybe_sat post v))))
   //Lock.lock
- ensures emp
+ ensures is_active ct
+ // should return a promise here?
 {
-  let res = Pulse.Lib.Reference.alloc #(option a) None;
-  share res;
+  let res : ref (option a) = Pulse.Lib.Reference.alloc #(option a) None;
+  share_quarter res;
+  //fold is_active 
+  //share res;
   fold (own_res res);
   let l_res = Lock.new_lock (own_res res); //(exists_ (fun v -> pts_to res full_perm v ** pure (maybe_sat post v)));
-  let task = create_task_elem #a (f p) res l_res;
 
-  acquire_queue_lock p;
+  // needs new environment
+  // cyclic dependency...
 
-  with vq. assert (HR.pts_to (get_queue p) full_perm (Ghost.reveal vq));
-  with vc. assert (pts_to (get_counter p) full_perm (Ghost.reveal vc));
-  with vl. assert (HR.pts_to (get_mono_list p) full_perm (Ghost.reveal vl));
+  //let fp = typed_id (unit_emp_stt_pure_pure a (get_current_task p)._1._2) (f p);
 
-  assert (tasks_res_own vl ** pure (pure_inv_queue vq vc vl));
+  let task: task_elem = stt_return (create_task_elem #a res l_res);// fp;
+
+  acquire_queue_lock_ongoing p ct;
+
+  with vq. assert (HR.pts_to (get_queue p) (Ghost.reveal vq));
+  with vc. assert (pts_to (get_counter p) (Ghost.reveal vc));
+  assert (HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
+    ** small_inv (get_mono_list p) (map dfst vq) vc
+    ** is_active ct);
+
+  // adding the task to the ghost queue
+  rewrite (pts_to res #three_quart None) as (pts_to task._2 #three_quart None);
+  assert (small_inv (get_mono_list p) (map dfst vq) vc);
+  let v_tasks = hide (map dfst vq);
+  rewrite (small_inv (get_mono_list p) (map dfst vq) vc)
+    as (small_inv (get_mono_list p) v_tasks vc);
+  let pos_certif: erased (pos:nat & certificate (get_mono_list p) task pos)
+    = spawn_task_ghost (get_mono_list p) v_tasks vc task;
+  assert (small_inv (get_mono_list p) (task::v_tasks) vc);
+
+  let certif: erased (certificate (get_mono_list p) task ((reveal pos_certif)._1)) =
+    hide ((reveal pos_certif)._2);
+  let ct': erased (current_task p) = hide (mk_current_task p task ((reveal pos_certif)._1) certif); 
+
+
+  let comp_aux: (unit -> stt a (is_active ct') (fun _ -> is_active ct')) = f p ct';
+  let comp: comp_task task = coerce_unit_stt ct' task comp_aux;
 
   let vc' = !(get_counter p);
-
   let vq' = higher_read #_ #full_perm #vq (get_queue p);
-  let vq'' = enqueue task vq';
+  let vq'': task_queue = enqueue task comp vq';
   higher_write #_ #vq (get_queue p) vq'';
-  let vl' = higher_read #_ #full_perm #vl (get_mono_list p);
 
-  let tp = (| task, Todo |);
-  let vl'' = enqueue_task_plus tp vl';
+  rewrite (small_inv (get_mono_list p) (task::v_tasks) vc)
+    as (small_inv (get_mono_list p) (map dfst vq'') vc);
+  
+  assert (HR.pts_to (get_queue p) vq'');
+  assert (exists vc vq. HR.pts_to (get_queue p) vq ** small_inv (get_mono_list p) (map dfst vq) vc
+   ** pts_to (get_counter p) vc);
+  release_queue_lock_ongoing p ct;
 
-  higher_write #mono_list_task_plus #vl' (get_mono_list p) vl'';
-
-  assert (tasks_res_own vl ** pure (pure_inv_queue vq vc vl));
-  assert (pure (pure_inv_queue vq' vc' vl'));
-
-  pure_inv_mono task vq vc vl;
-  rewrite (pts_to res (half_perm full_perm) None) as (pts_to tp._1._3 half None);
-// requires pts_to tp._1._3 half None
-  assert (pts_to tp._1._3 half None ** pure (Todo? tp._2));
-  //let tp = typed_id (tp:task_plus{Todo? tp._2}) tp;
-  //assert (pts_to tp._1._3 half None);
-  rewrite (pts_to tp._1._3 half None) as
-    `@(match tp._2 with
-      | Todo -> pts_to tp._1._3 half None
-      | Ongoing -> emp // in this case, the worker has the half permission
-      | Done -> (exists_ (fun v -> pts_to tp._1._3 half v ** pure (Some? v))));
-  fold (task_res_own tp);
-  //fold_done_task_todo tp; // this call does not work for some reason
-  fold_done_task tp vl';
-  release_queue_lock p;
-  let r = mk_pure_handler res l_res;
+  let r = mk_pure_handler p res l_res certif;
   r
 }
 ```
@@ -366,10 +386,9 @@ let spawn_emp = spawn_emp'
 assume val free_ref (#a:Type) (r: ref a)
  //(x:a)
   : stt unit
-  (exists_ (fun v -> pts_to r full_perm v))
+  (exists_ (fun v -> pts_to r #full_perm v))
   (fun _ -> emp)
   
-
 
 ```pulse
 fn join_emp'
@@ -377,19 +396,19 @@ fn join_emp'
   //(#post: (a -> prop))
   //(#q: HR.ref task_queue) (#c: ref int)
   //(l: Lock.lock (inv_task_queue q c))
-  //(p: par_env)
-  (h: pure_handler a)
+  (p: par_env)
+  (h: pure_handler a p)
  requires emp
  returns res: a
  ensures emp
 {
   let r = Pulse.Lib.Reference.alloc #(option a) None;
   while (let res = !r; None? res)
-    invariant b. (exists res. pts_to r full_perm res ** pure (b == None? res))
+    invariant b. (exists res. pts_to r res ** pure (b == None? res))
     //** pure (maybe_sat post res))
   {
-    with res. assert (pts_to r full_perm res);
-    assert (pts_to r full_perm res);
+    with res. assert (pts_to r res);
+    assert (pts_to r res);
     Lock.acquire h._2;
     let new_res = read_own_res h._1;// !h._1;
     //let new_res = typed_id (option a) None;
@@ -409,28 +428,20 @@ let join_emp = join_emp'
 let len (q: task_queue): nat
 = List.Tot.length q
 
-let pop (q: task_queue{len q > 0}): task_elem & task_queue
+let pop (q: task_queue{len q > 0}): (t:task_elem & comp_task t) & task_queue
 = (hd q, tl q) //let t::q' = q in (t, q')
 
 assume val assert_prop (p: prop): stt unit (pure p) (fun _ -> emp)
 
-      (*
-  a: Type0 // return type of the computation
-  & p: (a -> prop) // postcondition about the return value
-  & (unit_emp_stt_pure_pure a p) // the computation
-  & r: ref (option a) // the reference where we put the result of the computation
-  & Lock.lock (exists_ (fun v -> pts_to r full_perm v ** pure (maybe_sat p v)))
-      *)
-
-let perform_task (t: task_elem): stt (t._1) emp (fun _ -> emp)
-= t._2 ()
+let perform_task #t (comp: comp_task t): stt (t._1) (own_None t._2) (fun _ -> own_None t._2)
+= comp ()
 
 (*
 let perform_task (t: task_elem):
   (res:task._1)
 = task._3 ()
 *)
-let get_ref_res (t: task_elem): ref (option t._1) = t._3
+let get_ref_res (t: task_elem): ref (option t._1) = t._2
 
 //let own_res r = (exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
 
@@ -439,7 +450,7 @@ fn unfold_and_read_own_res
   (#a: Type0) (r: ref (option a))
   requires own_res r
   returns v: option a
-  ensures pts_to r half v
+  ensures pts_to r #one_quart v 
 {
   unfold own_res r;
   let v = !r;
@@ -450,7 +461,7 @@ fn unfold_and_read_own_res
 ```pulse
 fn fold_own_res_Some
 (#a: Type0) (r: ref (option a)) (v: (v:option a{~(None? v)}))
-  requires pts_to r half v
+  requires pts_to r #one_quart v
   ensures own_res r
 {
   fold (own_res r)
@@ -458,25 +469,34 @@ fn fold_own_res_Some
 ```
 
 ```pulse
-fn write_res (t: task_elem) (res: t._1)
-  requires pts_to t._3 half None // we got that from the todo part
-  ensures pts_to t._3 half (Some res)
+ghost
+fn gather_quarter
+  (#a: Type0) (r: ref a)
+requires pts_to r #one_quart v1 ** pts_to r #three_quart v2
+ensures pts_to r v2 ** pure (v1 == v2)
 {
-  assert (pts_to t._3 half None);
-  Lock.acquire t._4;
-  let v = unfold_and_read_own_res t._3;
-  assert (pts_to t._3 half v ** pts_to t._3 half None);
-  gather t._3;
-  rewrite (pts_to t._3 (sum_perm half half) None) as (pts_to t._3 full_perm None);
-  t._3 := Some res;
-  share t._3;
-  rewrite (pts_to t._3 (half_perm full_perm) (Some res)) as (pts_to t._3 half (Some res));
-  rewrite (pts_to t._3 (half_perm full_perm) (Some res)) as (pts_to t._3 half (Some res));
-  fold_own_res_Some t._3 (Some res);
-  Lock.release t._4
+  gather #_ #emp_inames r #v1 #v2 #one_quart #three_quart;
+  rewrite (pts_to r #(sum_perm one_quart three_quart) v1) as (pts_to r v2);
+  ()
 }
 ```
 
+```pulse
+fn write_res (t: task_elem) (res: t._1)
+  requires pts_to t._2 #three_quart None // we got that from the todo part
+  ensures pts_to t._2 #three_quart (Some res)
+{
+  //assert (pts_to t._3 half None);
+  Lock.acquire t._3;
+  let v = unfold_and_read_own_res t._2;
+  assert (pts_to t._2 #one_quart v ** pts_to t._2 #three_quart None);
+  gather_quarter t._2;
+  t._2 := Some res;
+  share_quarter t._2;
+  fold_own_res_Some t._2 (Some res);
+  Lock.release t._3
+}
+```
 
 // need to remove one ongoing task now!
 (*
@@ -492,7 +512,6 @@ fn decrease_counter (p: par_env)// (#q: HR.ref task_queue) (#c: ref int) (l: Loc
   ()
 }
 ```
-*)
 
 ```pulse
 fn update_task_ongoing
@@ -572,99 +591,277 @@ fn declare_task_done (p: par_env) (task: task_elem) (res: task._1)
   //release_queue_lock p;
 }
 ```
+*)
+```pulse
+ghost
+fn duplicate_deadline
+(q: HR.ref task_queue) (c: ref int)
+requires deadline q c
+ensures deadline q c ** deadline q c
+{
+  unfold deadline q c;
+  with f vq vc. assert (HR.pts_to q #f vq ** pts_to c #f vc);
+  HR.share #_ #emp_inames q;
+  share #_ #emp_inames c;
+  assert ((HR.pts_to q #(half_perm f) vq ** pts_to c #(half_perm f) vc)
+    ** (HR.pts_to q #(half_perm f) vq ** pts_to c #(half_perm f) vc));
+  fold deadline q c;
+  fold deadline q c;
+  ()
+}
+```
+
+```pulse
+ghost
+fn combine_deadline
+(q: HR.ref task_queue) (c: ref int)
+requires deadline q c ** deadline q c
+ensures deadline q c
+{
+  unfold deadline q c;
+  with f1 vq vc. assert (HR.pts_to q #f1 vq ** pts_to c #f1 vc);
+  unfold deadline q c;
+  with f2 vq' vc'. assert (HR.pts_to q #f1 vq ** pts_to c #f1 vc ** 
+    HR.pts_to q #f2 vq' ** pts_to c #f2 vc');
+  HR.gather #_ #emp_inames q #vq #vq' #f1 #f2;
+  gather #_ #emp_inames c #vc #vc' #f1 #f2;
+
+  assert (HR.pts_to q #(sum_perm f1 f2) vq' ** pts_to c #(sum_perm f1 f2) vc');
+  fold deadline q c;
+  ()
+}
+```
 
 
+
+
+```pulse
+ghost fn
+rewrite_conditional_maybe_end
+(p: par_env) 
+(vq: task_queue) (vc: int)
+requires HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
+ensures conditional_half (get_queue p) (get_counter p) vq vc
+  ** `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp)
+{
+  if (length vq = 0 && vc = 0)
+  {
+    assert (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc);
+    intro_exists (fun vc -> HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc) vc;
+    intro_exists (fun vq -> exists_ (fun vc -> HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)) vq;
+    intro_exists (fun f -> exists_ (fun vq -> exists_ (fun vc -> HR.pts_to (get_queue p) #f vq ** pts_to (get_counter p) #f vc))) one_half;
+    fold (deadline (get_queue p) (get_counter p));
+    duplicate_deadline(get_queue p) (get_counter p);
+    rewrite (deadline (get_queue p) (get_counter p))
+      as (conditional_half (get_queue p) (get_counter p) vq vc);
+    rewrite (deadline (get_queue p) (get_counter p))
+      as `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp);
+    ()
+  }
+  else {
+    rewrite (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)
+      as (conditional_half (get_queue p) (get_counter p) vq vc);
+    rewrite emp
+      as `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp);
+    ()
+  }
+}
+```
+
+
+
+
+assume val assume_prop (p: prop): stt unit emp (fun () -> pure p)
+assume val free_certificate r t pos : certificate r t pos
+
+assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
+
+let deadline_if (b: bool) (p: par_env): vprop
+  = if b then deadline (get_queue p) (get_counter p) else emp
+
+let worker_inv r_working p
+= (exists_ (fun w -> pts_to r_working #one_half w ** deadline_if (not w) p))
 
 ```pulse
 fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue q c))
   (p: par_env)
   requires emp
-  ensures emp
+  ensures deadline (get_queue p) (get_counter p)
 {
 
   let r_working = alloc #bool true;
-  
+  share2 #_ #emp_inames r_working;
+  // needed to write an invariant that can be verified automatically
+  rewrite emp as (deadline_if (not true) p);
+  intro_exists (fun w -> pts_to r_working #one_half w ** deadline_if (not w) p) true;
+  fold (worker_inv r_working p);
   while (let working = !r_working; working)
-    invariant b. (exists w. pts_to r_working full_perm w ** pure (b == w))
+    invariant b. (exists w. pts_to r_working #one_half w ** pure (b == w)
+    ** worker_inv r_working p)
   {
     acquire_queue_lock p;
+    with gvq gvc. assert (
+      HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
+      ** small_inv (get_mono_list p) (map dfst gvq) gvc
+      ** conditional_half (get_queue p) (get_counter p) gvq gvc
+    );
 
-    with vq. assert (HR.pts_to (get_queue p) full_perm (Ghost.reveal vq));
-    let vq = higher_read #_ #full_perm #vq (get_queue p);
+    //assert (small_inv (get_mono_list p) (map dfst ghost_vq) vc);
+
+    let vq = higher_read #_ #one_half #gvq (get_queue p);
     let vc = !(get_counter p);
-    with vl. assert (HR.pts_to (get_mono_list p) full_perm (Ghost.reveal vl));
-    let vl = higher_read #_ #full_perm #vl (get_mono_list p);
 
     // We check whether there's a task in the queue
     if (len vq > 0) {
+
+      // we then have full permission to everything!
+      rewrite (conditional_half (get_queue p) (get_counter p) gvq gvc)
+          as (HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc);
+      HR.gather2 #_ #emp_inames (get_queue p);
+      gather2 #_ #emp_inames (get_counter p);
+
       // 1. pop the task and increase counter
-      let pair = pop vq;
+      let pair = stt_return (pop vq);
       (get_counter p) := vc + 1;
       higher_write #_ #vq (get_queue p) (pair._2);
-      let task = pair._1;
-      assert (HR.pts_to (get_queue p) full_perm pair._2 **
-        pts_to (get_counter p) full_perm (vc + 1) **
-        HR.pts_to (get_mono_list p) full_perm vl);
-      let vl' = update_task_ongoing task vq vc vl;
-      assert (tasks_res_own vl' ** pts_to task._3 half None ** pure (pure_inv_queue (tl vq) (vc + 1) vl'));
-      assert (tasks_res_own vl' ** pts_to task._3 half None ** pure (pure_inv_queue pair._2 (vc + 1) vl'));
-      higher_write #_ #vl (get_mono_list p) vl';
+      let task = stt_return (pair._1._1);
+      let comp: comp_task task = pair._1._2;
+      assert (HR.pts_to (get_queue p) (tl gvq) **
+        pts_to (get_counter p) (vc + 1));
+        (*
+      assert (small_inv (get_mono_list p) (map dfst gvq) gvc);
+      assert (pure (task == dfst (hd gvq)));
+      assert (pure (task == hd (map dfst gvq)));
+      assert (pure (map dfst (tl gvq) == tl (map dfst gvq)));
+      assert (pure (len gvq > 0));
+      assert (pure (map dfst gvq == task::map dfst (tl gvq)));
+      *)
+      assert (pure (map dfst gvq == task::(map dfst (tl gvq))));
+      rewrite (small_inv (get_mono_list p) (map dfst gvq) gvc)
+        as (small_inv (get_mono_list p) (task::map dfst (tl gvq)) gvc);
+      pop_task_ghost (get_mono_list p) task (map dfst (tl gvq)) gvc;
+      assert (small_inv (get_mono_list p) (map dfst (tl gvq)) (gvc + 1));
 
+      HR.share2 #_ #emp_inames (get_queue p);
+      share2 #_ #emp_inames (get_counter p);
+      assert (HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1));
+      assume_prop (gvc >= 0); // can be derived from small_inv
+      rewrite (HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1))
+        as
+        `@(
+          if length (tl gvq) = 0 && gvc + 1 = 0 then deadline (get_queue p) (get_counter p) // we're done
+          else (HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1)) // we have exclusive permission to q and c
+        );
+      fold (conditional_half (get_queue p) (get_counter p) (tl gvq) (gvc + 1));
+
+      assert (
+        HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1)
+        ** small_inv (get_mono_list p) (map dfst (tl gvq)) (gvc + 1)
+        ** conditional_half (get_queue p) (get_counter p) (tl gvq) (gvc + 1)
+      );
       release_queue_lock p;
 
-      //assert (HR.pts_to (get_queue p) full_perm pair._2 **
-        //pts_to (get_counter p) full_perm (vc + 1) **
-        //HR.pts_to (get_mono_list p) full_perm vl);
-      //assert (pure (pair._2 == tl vq));
-  //(task: task_elem) (vq:(vq:task_queue{len vq > 0})) (vc: int) (vl: mono_list_task_plus)
-  (*
-  requires tasks_res_own vl ** pure (pure_inv_queue vq vc vl)
-  returns vl': mono_list_task_plus
-  ensures tasks_res_own vl' ** pts_to task._3 half None
-    ** pure (pure_inv_queue (tl vq) (vc + 1) vl')
-
-      // 1. We need to remove the task from vl
-      // such that we get back 1/2 permission to the res
-      // FROM
-      assert (tasks_res_own vl);
-      assert (pure (pure_inv_queue vq vc vl));
-      // TO
-      // vl' = vl where the status of "task" has gone from Todo to Ongoing
-      assert (tasks_res_own vl' ** pts_to task._3 half None);
-      assert (pure (pure_inv_queue (tl vq) (vc + 1) vl'));
-      *)
- 
-      (*
-  (q: HR.ref task_queue) // the task queue
-  (c: ref int) // a counter of how many tasks are currently being performed
-  (l: HR.ref mono_list_task_plus)
-  : vprop
-= (exists_ (fun vq -> exists_ (fun vc -> exists_ (fun vl ->
-    HR.pts_to q full_perm vq **
-    pts_to c full_perm vc **
-    HR.pts_to l full_perm vl **
-    tasks_res_own vl **
-    pure (pure_inv_queue vq vc vl)
-    ))))
-      *)
-
-
       // 2. perform the task
-      let res = perform_task task; // (task._3) (); // Actually performing the task
+      assert (pts_to task._2 #three_quart None);
+      rewrite (pts_to task._2 #three_quart None) as (own_None task._2);
+      let res: task._1 = perform_task comp; // (task._3) (); // Actually performing the task
+      rewrite (own_None task._2) as (pts_to task._2 #three_quart None);
 
       // 3. put the result in the reference
       write_res task res;
+      assert (pts_to task._2 #three_quart (Some res));
+      
+      // 4. Conclude the task
+      // TODO:
+      let certif: erased (certificate (get_mono_list p) task 0)
+        = hide (free_certificate (get_mono_list p) task 0);
 
-      assert (pts_to task._3 half (Some res));
-      declare_task_done p task res;
+      acquire_queue_lock p;
+      with gvq gvc. assert (
+        HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
+        ** small_inv (get_mono_list p) (map dfst gvq) gvc
+        ** conditional_half (get_queue p) (get_counter p) gvq gvc
+      );
+
+      prove_task_ongoing #_ #_ #(Some res) (get_mono_list p) (map dfst gvq) gvc certif;
+
+      // decrementing counter
+      rewrite (conditional_half (get_queue p) (get_counter p) gvq gvc)
+          as (HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc);
+      gather2 #_ #emp_inames (get_counter p);
+      let vc = !(get_counter p);
+      assert (pts_to (get_counter p) gvc);
+      (get_counter p) := vc - 1;
+      assert (pts_to (get_counter p) (gvc - 1));
+      share2 #_ #emp_inames (get_counter p);
+
+      conclude_task_ghost (get_mono_list p) (map dfst gvq) gvc res certif;
+      assert (small_inv (get_mono_list p) (map dfst gvq) (gvc - 1));
+
+      rewrite_conditional_maybe_end p gvq (gvc - 1);
+      // if finished, we have the deadline
+      // should be wildcard permission instead of emp, and we keep it
+
+      assert (conditional_half (get_queue p) (get_counter p) gvq (gvc - 1)
+      ** `@(if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp));
+
+      (* We could stop here and not drop the resource, would be more efficient. *)
+      drop (if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp);
+
+      release_queue_lock p;
       ()
     }
     else {
-      release_queue_lock p;
-      r_working := (vc > 0); // we continue working if and only if some task is still running...
-      ()
+      if (vc = 0) {
+        // we're done
+        rewrite (conditional_half (get_queue p) (get_counter p) gvq gvc)
+          as (deadline (get_queue p) (get_counter p));
+        duplicate_deadline (get_queue p) (get_counter p);
+        rewrite (deadline (get_queue p) (get_counter p))
+          as (conditional_half (get_queue p) (get_counter p) gvq gvc);
+
+        assert (
+          HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
+          ** small_inv (get_mono_list p) (map dfst gvq) gvc
+          ** conditional_half (get_queue p) (get_counter p) gvq gvc
+        );
+
+        release_queue_lock p;
+
+        // stoping the loop, and putting the deadline in the invariant
+        unfold worker_inv r_working p;
+        with w. assert (pts_to r_working #one_half w ** deadline_if (not w) p);
+        pts_to_injective_eq #_ #one_half #one_half #w #true r_working;
+
+        rewrite (deadline_if (not w) p) as emp;
+        //assert (deadline_if false p);
+        //rewrite (dead)
+        gather2 #_ #emp_inames r_working;
+        r_working := false;
+        share2 #_ #emp_inames r_working;
+        rewrite (deadline (get_queue p) (get_counter p)) as (deadline_if (not false) p);
+        intro_exists (fun w -> pts_to r_working #one_half w ** deadline_if (not w) p) false;
+        fold worker_inv r_working p;
+        ()
+      }
+      else {
+        assert (
+          HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
+          ** small_inv (get_mono_list p) (map dfst gvq) gvc
+          ** conditional_half (get_queue p) (get_counter p) gvq gvc
+        );
+        release_queue_lock p;
+        ()
+      }
     }
   };
+
+  unfold worker_inv r_working p;
+  with w. assert (pts_to r_working #one_half w ** deadline_if (not w) p);
+  pts_to_injective_eq #_ #one_half #one_half #w #false r_working;
+  rewrite (deadline_if (not w) p) as (deadline (get_queue p) (get_counter p));
+  gather2 #_ #emp_inames r_working;
+ 
   free_ref r_working;
   ()
 }

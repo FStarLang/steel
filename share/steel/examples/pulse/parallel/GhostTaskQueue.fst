@@ -282,7 +282,7 @@ fn spawn_task_ghost'
 (r: ghost_mono_ref task_elem)
 (q: list task_elem) (c: int) (t: task_elem)
   requires small_inv r q c ** pts_to t._2 #three_quart None 
-  returns w: (pos:nat & certificate r t pos)
+  returns w: erased (pos:nat & certificate r t pos)
   ensures small_inv r (t::q) c
 {
   unfold (small_inv r q c);
@@ -297,7 +297,7 @@ fn spawn_task_ghost'
   let w: certificate r t pos = get_certificate t pos r p._1 _;
   fold_done_task t vl;
   fold (small_inv r (t::q) c);
-  let res = (| pos, w |);
+  let res = hide (| pos, w |);
   res
 }
 ```
@@ -349,7 +349,7 @@ ghost
 fn pop_task_ghost'
 (r: ghost_mono_ref task_elem)
 (t: task_elem)
-(q: list task_elem) (c: int) (t: task_elem)
+(q: list task_elem) (c: int)
   requires small_inv r (t::q) c
   ensures small_inv r q (c + 1) ** pts_to t._2 #three_quart None 
 {
@@ -436,29 +436,16 @@ let close_task_bis_preserves_order #a
     Lemma (is_mono_suffix l (close_task_bis t pos l) )
 = close_task_bis_preserves_order_aux t pos l; from_same_to_suffix l (close_task_bis t pos l)
 
-// waiting to have recursion in Pulse
-assume val put_back_permission_cb
-  (t: task_elem)
-  (pos: nat)
-  (l: (l:mono_list_task_plus{task_in_queue t pos l /\ L.length l >= 1}))
-  (x: t._1)
-:
-stt_ghost unit emp_inames
-(tasks_res_own l ** pts_to t._2 #three_quart (Some x))
-(fun () -> tasks_res_own (close_task_bis t pos l) ** pure (
- get_actual_queue (close_task_bis t pos l) == get_actual_queue l
-  /\ count_ongoing (close_task_bis t pos l) + 1 == count_ongoing l))
-
 
 ```pulse
 ghost
-fn derive_status_ongoing (h: (task_elem & task_status)) (x: h._1._1)
-  requires task_res_own h ** (pts_to (h._1._2) #three_quart (Some x))
-  ensures task_res_own h ** (pts_to (h._1._2) #three_quart (Some x)) ** pure (h._2 = Ongoing)
+fn derive_status_ongoing (h: (task_elem & task_status)) (x: option h._1._1)
+  requires task_res_own h ** (pts_to (h._1._2) #three_quart x)
+  ensures task_res_own h ** (pts_to (h._1._2) #three_quart x) ** pure (h._2 = Ongoing)
 {
   if (snd h = Todo) {
     rewrite (task_res_own h) as (pts_to (h._1._2) #three_quart None);
-    derive_false_from_too_much_permission h._1._2 None (Some x);
+    derive_false_from_too_much_permission h._1._2 None x;
     assert (pure (h._2 = Ongoing));
     rewrite (pts_to (h._1._2) #three_quart None) as (task_res_own h);
     ()
@@ -469,7 +456,7 @@ fn derive_status_ongoing (h: (task_elem & task_status)) (x: h._1._1)
       unfold (pts_to_Some h);
       assert (exists_ (fun v -> pts_to (h._1._2) #three_quart v ** pure (Some? v)));
       with v. assert (pts_to (h._1._2) #three_quart v ** pure (Some? v));
-      derive_false_from_too_much_permission h._1._2 v (Some x);
+      derive_false_from_too_much_permission h._1._2 v x;
       fold (pts_to_Some h);
       rewrite (pts_to_Some h) as (task_res_own h);
       ()
@@ -506,6 +493,21 @@ ensures tasks_res_own (h::q)
 }
 ```
 
+// waiting to have recursion in Pulse
+assume val put_back_permission_cb
+  (t: task_elem)
+  (pos: nat)
+  (l: (l:mono_list_task_plus{task_in_queue t pos l /\ L.length l >= 1}))
+  (x: t._1)
+:
+stt_ghost unit emp_inames
+(tasks_res_own l ** pts_to t._2 #three_quart (Some x))
+(fun () -> tasks_res_own (close_task_bis t pos l) ** pure (
+ get_actual_queue (close_task_bis t pos l) == get_actual_queue l
+  /\ count_ongoing (close_task_bis t pos l) + 1 == count_ongoing l))
+
+
+
 ```pulse
 ghost
 fn put_back_permission
@@ -534,7 +536,7 @@ ensures tasks_res_own (close_task_bis t pos l) ** pure (
   {
     assert (task_res_own h);
     rewrite (pts_to (t._2) #three_quart (Some x)) as (pts_to (h._1._2) #three_quart (Some x));
-    derive_status_ongoing h x;
+    derive_status_ongoing h (Some x);
     assert (pure (snd h = Ongoing));
     assert (pts_to (h._1._2) #three_quart (Some x));
 
@@ -570,6 +572,86 @@ ensures tasks_res_own (close_task_bis t pos l) ** pure (
 }
 ```
 
+// waiting to have recursion in Pulse
+assume val prove_task_ongoing_aux_cb
+  (t: task_elem)
+  (pos: nat)
+  (l: (l:mono_list_task_plus{task_in_queue t pos l /\ L.length l >= 1}))
+:
+stt_ghost unit emp_inames
+(tasks_res_own l ** pts_to t._2 #three_quart None)
+(fun () -> tasks_res_own l ** pts_to t._2 #three_quart None
+  ** pure (count_ongoing l > 0))
+// TODO: Implement this thing
+
+```pulse
+ghost
+fn prove_task_ongoing_aux
+  (t: task_elem)
+  (pos: nat)
+  (l: (l:mono_list_task_plus{task_in_queue t pos l /\ L.length l >= 1}))
+//stt_ghost unit emp_inames
+requires tasks_res_own l ** pts_to t._2 #three_quart None
+ensures tasks_res_own l ** pts_to t._2 #three_quart None ** pure (count_ongoing l > 0)
+{
+  let h = L.hd l;
+  let q = L.tl l;
+
+  unfold (tasks_res_own l);
+  rewrite `@(
+  match l with
+    | [] -> emp
+    | tl::ql -> task_res_own tl ** tasks_res_own ql)
+  as (task_res_own h ** tasks_res_own q);
+  assert (pts_to t._2 #three_quart None);
+  assert (task_res_own h ** tasks_res_own q);
+
+  if (pos + 1 = L.length l)
+  {
+    rewrite (pts_to (t._2) #three_quart None) as (pts_to (h._1._2) #three_quart None);
+    derive_status_ongoing h None;
+    assert (pure (count_ongoing l > 0));
+    rewrite (pts_to (h._1._2) #three_quart None) as (pts_to (t._2) #three_quart None);
+    assert (pts_to t._2 #three_quart None);
+    fold_tasks_res_own h q;
+    ()
+  }
+  else {
+    prove_task_ongoing_aux_cb t pos q;
+    rewrite (task_res_own h ** tasks_res_own q) as
+      `@(match l with
+        | [] -> emp
+        | tl::ql -> task_res_own tl ** tasks_res_own ql);
+    fold (tasks_res_own l);
+   ()
+ }
+}
+```
+
+```pulse
+ghost
+fn prove_task_ongoing'
+  (#t: task_elem)
+  (#pos: nat)
+  (r:ghost_mono_ref task_elem)
+  (q: list task_elem) (c: int)
+  //(l: (l:mono_list task_elem{task_in_queue t pos l /\ L.length l >= 1})):
+  (w:certificate r t pos)
+//stt_ghost unit emp_inames
+requires small_inv r q c ** pts_to t._2 #three_quart None
+ensures small_inv r q c ** pts_to t._2 #three_quart None ** pure (c > 0)
+{
+  unfold small_inv r q c;
+  with l. assert (pts_to_ghost_queue r l);
+  let proof = recall #task_elem #t #pos r l w;
+  assert (pure (task_in_queue t pos l));
+  assert (pure (L.length l >= 1));
+  prove_task_ongoing_aux t pos l;
+  fold small_inv r q c;
+  ()
+}
+```
+let prove_task_ongoing = prove_task_ongoing'
 
 // 3: conclude the task
 ```pulse
@@ -652,6 +734,28 @@ ensures tasks_res_own l
 }
 ```
 
+let now #a (f : unit -> a) : a = f ()
+
+```pulse
+ghost
+fn ghost_branch (#a:Type0) (#pre:vprop) (#post : (a -> vprop)) (b:(erased bool))
+   (ft : (unit -> stt_ghost a emp_inames (pre ** pure (b == true)) post))
+   (ff : (unit -> stt_ghost a emp_inames (pre ** pure (b == false)) post))
+   requires pre
+   returns x:a
+   ensures post x
+{
+  let b : bool = stt_ghost_reveal _ b;
+  if (b) {
+    admit()
+    // now ft ()
+  } else {
+    admit()
+    // now ff ()
+  }
+}
+```
+
 ```pulse
 ghost
 fn get_Some_finished'
@@ -663,7 +767,17 @@ returns x: t._1
 ensures small_inv r [] 0
 {
   unfold small_inv r [] 0;
-  with l. assert (pts_to_ghost_queue r l);
+  with l. assert (pts_to_ghost_queue r (reveal l));
+  //with c. assert (pts_to c)
+  //let l : mono_list task_elem = l;
+  let ll = stt_ghost_reveal _ l;
+  if (L.length ll = 0) {
+    admit()
+  }
+  else {
+    admit()
+  }
+  (*
   recall_certificate r l w;
   assert (pure (task_in_queue t pos l));
   assert (tasks_res_own l);
@@ -671,6 +785,7 @@ ensures small_inv r [] 0
   let x = get_Some_finished_aux t pos l;
   fold small_inv r [] 0;
   x
+  *)
 }
 ```
 

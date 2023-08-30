@@ -80,21 +80,24 @@ let one_quart = half_perm (half_perm full_perm)
 
 let own_res (#a: Type0) (r: ref (option a)) = (exists_ (fun v -> pts_to r #one_quart v))
 
-let unit_emp_stt_pure_pure a
-  = unit -> stt a emp (fun _ -> emp)
+let three_quart = sum_perm (half_perm full_perm) (half_perm (half_perm full_perm))
+
+let own_None r = pts_to r #three_quart None
+//let is_active (p: par_env): vprop = pts_to p._5._1._2 #three_quart None
+
+//let current_task r = (t:task_elem & pos:nat & certificate r t pos)
 
 let task_elem: Type u#1 = (
   a: Type0 // return type of the computation
   & r: ref (option a) // the reference where we put the result of the computation
   & Lock.lock (own_res r)//(exists_ (fun v -> pts_to r half v ** (if None? v then pts_to r half v else emp)))
-  & (unit_emp_stt_pure_pure a)
+  //& (unit_emp_stt_pure_pure a)
+  // to create this thing
 )
 
 val ghost_mono_ref (a: Type u#1): Type0
 
 val pts_to_ghost_queue (#a: Type) (r: ghost_mono_ref a) (l: mono_list a): vprop
-
-let three_quart = sum_perm (half_perm full_perm) (half_perm (half_perm full_perm))
 
 val certificate (r:ghost_mono_ref task_elem) (t: task_elem) (pos: nat): Type0
 
@@ -104,7 +107,7 @@ val small_inv (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int): vprop
 val spawn_task_ghost
 (r: ghost_mono_ref task_elem)
 (q: list task_elem) (c: int) (t: task_elem):
-stt_ghost (pos:nat & certificate r t pos) emp_inames
+stt_ghost (erased (pos:nat & certificate r t pos)) emp_inames
 (small_inv r q c ** pts_to t._2 #three_quart None)
 (fun _ -> small_inv r (t::q) c)
 
@@ -112,10 +115,22 @@ stt_ghost (pos:nat & certificate r t pos) emp_inames
 val pop_task_ghost
 (r: ghost_mono_ref task_elem)
 (t: task_elem)
-(q: list task_elem) (c: int) (t: task_elem):
+(q: list task_elem) (c: int):
 stt_ghost unit emp_inames
 (small_inv r (t::q) c)
 (fun () -> small_inv r q (c + 1) ** pts_to t._2 #three_quart None)
+
+val prove_task_ongoing
+  (#t: task_elem)
+  (#pos: nat)
+  (#v: option t._1)
+  (r:ghost_mono_ref task_elem)
+  (q: list task_elem) (c: int)
+  //(l: (l:mono_list task_elem{task_in_queue t pos l /\ L.length l >= 1})):
+  (w:certificate r t pos):
+stt_ghost unit emp_inames
+(small_inv r q c ** pts_to t._2 #three_quart v)
+(fun () -> small_inv r q c ** pts_to t._2 #three_quart v ** pure (c > 0))
 
 // 3. conclude a task
 val conclude_task_ghost
@@ -139,12 +154,6 @@ val recall_certificate (#t: task_elem) (#pos: nat)
                  (pts_to_ghost_queue r v)
                  (fun _ -> pts_to_ghost_queue r v ** pure (task_in_queue t pos v))
 
-// in the end, we want
-// where's the other half permission to the thing?
-// in the handler
-// pool_done = get_actual_queue = [] and get_counter = 0
-// so, with half permission to the thing
-// and the certificate
 val get_Some_finished (#t: task_elem) (#pos: nat)
   (r:ghost_mono_ref task_elem)
   (w:certificate r t pos)
