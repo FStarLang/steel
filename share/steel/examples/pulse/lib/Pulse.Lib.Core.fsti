@@ -69,8 +69,11 @@ val vprop_equiv_ext (p1 p2:vprop) (_:p1 == p2)
 val iname : eqtype
 let inames = erased (FStar.Set.set iname)
 
-val emp_inames : inames
-val all_inames : inames
+// val emp_inames : inames
+let emp_inames : inames = Ghost.hide Set.empty
+
+// val all_inames : inames
+let all_inames : inames = Ghost.hide (Set.complement Set.empty)
 
 val inv (p:vprop) : Type u#0
 

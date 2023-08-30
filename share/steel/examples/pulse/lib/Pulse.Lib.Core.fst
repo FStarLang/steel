@@ -86,8 +86,6 @@ let vprop_equiv_ext p1 p2 _ = equiv_refl p1
 
 (* Invariants, just reexport *)
 let iname = iname
-let emp_inames : inames = Ghost.hide Set.empty
-let all_inames : inames = Ghost.hide (Set.complement Set.empty)
 
 let inv = inv
 let name_of_inv = name_of_inv
