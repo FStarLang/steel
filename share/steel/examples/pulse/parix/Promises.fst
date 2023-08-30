@@ -23,6 +23,8 @@ val elim_imp (p q : vprop)
 let elim_imp p q = admit()
 
 (* A promise is just a magic stick that preserves the antecedent. *)
+(* TODO: can this really be a ghost step? we may need to allocate invariants,
+like in split_promise below, but that's an unobservable step. *)
 let promise f v = f @==> (f ** v)
 
 let return_promise f v =
