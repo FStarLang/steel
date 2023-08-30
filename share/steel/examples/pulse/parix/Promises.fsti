@@ -16,7 +16,15 @@ val redeem_promise (f:vprop) (v:vprop)
   : stt_ghost unit emp_inames (f ** promise f v) (fun () -> f ** v)
 
 val bind_promise (#f:vprop) (#v1:vprop) (#v2:vprop)
-        (extra : vprop) // any better way to propagate context?
+        (extra : vprop)
+        (k : unit -> stt_ghost unit emp_inames (f ** extra ** v1) (fun () -> f ** promise f v2))
+  : stt_ghost unit emp_inames (promise f v1 ** extra) (fun () -> promise f v2)
+
+(* Weaker variant, the proof does not use f. It's implement
+by framing k with f and then using the above combinator. Exposing
+only in case it's useful for inference. *)
+val bind_promise' (#f:vprop) (#v1:vprop) (#v2:vprop)
+        (extra : vprop)
         (k : unit -> stt_ghost unit emp_inames (extra ** v1) (fun () -> promise f v2))
   : stt_ghost unit emp_inames (promise f v1 ** extra) (fun () -> promise f v2)
 

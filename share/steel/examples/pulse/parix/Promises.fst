@@ -2,40 +2,69 @@ module Promises
 
 open Pulse.Lib.Pervasives
 open Pulse.Lib.SpinLock
+open Pulse.Lib.Stick
 
-(* Assuming a magic-wand like operator on stt_ghost. Ideally we should
-connect this to Tahina's magic stick, but I get a whole ton of errors
-trying to do that. *)
-assume val ( @==> ) : vprop -> vprop -> vprop
-val intro_imp (p q : vprop)
-  (extra : vprop)
-  (f_elim : unit -> stt_ghost unit emp_inames (p ** extra) (fun () -> q))
-  : stt_ghost unit emp_inames
-      extra
-      (fun () -> p @==> q)
-let intro_imp p q extra f_elim = admit()
+let comm_pre (#a:Type0) (#o:inames) (#pre1 #pre2 : vprop) (#post : a -> vprop)
+  (f : stt_ghost a o (pre1 ** pre2) post)
+     : stt_ghost a o (pre2 ** pre1) post
+=
+  sub_stt_ghost _ _ (vprop_equiv_comm _ _)
+                    (intro_vprop_post_equiv _ _ (fun _ -> vprop_equiv_refl _))
+                     f
 
-val elim_imp (p q : vprop)
-  : stt_ghost unit emp_inames
-      (p ** (p @==> q))
-      // maybe this should be:   p **  (p -->* p ** q)
-      (fun () -> q)
-let elim_imp p q = admit()
+let comm_post (#a:Type0) (#o:inames) (#pre : vprop) (#post1 #post2 : a -> vprop)
+  (f : stt_ghost a o pre (fun x -> post1 x ** post2 x))
+     : stt_ghost a o pre (fun x -> post2 x ** post1 x)
+=
+  sub_stt_ghost _ _ (vprop_equiv_refl _)
+                    (intro_vprop_post_equiv _ _ (fun _ -> vprop_equiv_comm _ _))
+                     f
 
 (* A promise is just a magic stick that preserves the antecedent. *)
-(* TODO: can this really be a ghost step? we may need to allocate invariants,
-like in split_promise below, but that's an unobservable step. *)
+(* TODO: can this really be a ghost step? would we ever need to allocate invariants
+to redeem? *)
+
 let promise f v = f @==> (f ** v)
 
+(* This should be definable once we fix the inames situation *)
+assume
+val ghost_sub_inv
+  (#a:Type0) (#o1 #o2 : inames) (#pre : vprop) (#post : a -> vprop)
+  (f : stt_ghost a o1 pre post)
+  : Pure (stt_ghost a o2 pre post)
+         (requires Set.subset o1 o2)
+         (ensures fun _ -> True)
+
 let return_promise f v =
-  intro_imp f (f ** v) v
-   (fun () -> return_stt_ghost_noeq () (fun _ -> f ** v))
+  intro_stick f (f ** v) v
+    (fun os ->
+      let ff : stt_ghost unit emp_inames (f ** v) (fun _ -> f ** v) =
+        return_stt_ghost_noeq () (fun _ -> f ** v)
+      in
+      let ff : stt_ghost unit os (f ** v) (fun _ -> f ** v) =
+        ghost_sub_inv ff
+      in
+      let ff : stt_ghost unit os (v ** f) (fun _ -> f ** v) =
+        comm_pre ff
+      in
+      ff)
 
 let make_promise f v extra k =
-  intro_imp f (f ** v) extra k
+  intro_stick f (f ** v) extra
+    (fun os ->
+      let kk : stt_ghost unit emp_inames (f ** extra) (fun _ -> f ** v) =
+        k ()
+      in
+      let kk : stt_ghost unit os (f ** extra) (fun _ -> f ** v) =
+        ghost_sub_inv kk
+      in
+      let kk : stt_ghost unit os (extra ** f) (fun _ -> f ** v) =
+        comm_pre kk
+      in
+      kk)
 
 let redeem_promise f v =
-  elim_imp f (f ** v)
+  comm_pre (elim_stick f (f ** v))
 
 (* Pulse will currently not recognize calls to anything other than
 top-level names, so this allows to force it. *)
@@ -46,11 +75,12 @@ val now
 let now f () = f ()
 
 ```pulse
-ghost fn bind_promise_aux
+ghost
+fn bind_promise_aux
   (f v1 v2 extra : vprop)
   (k : (unit -> stt_ghost unit emp_inames (f ** extra ** v1) (fun _ -> f ** promise f v2)))
   (_:unit)
-  requires f  ** promise f v1 ** extra
+  requires f  ** (extra ** promise f v1)
   returns _:unit
   ensures f ** v2
 {
@@ -60,51 +90,63 @@ ghost fn bind_promise_aux
 }
 ```
 
-// FIXME: This should really work. Steel tactic getting in the way it seems?
 (* If v1 will hold in the future, and if we can in the future make a
 promise that v2 will hold given v1, then we can promise v2 with the
 same deadline. *)
-// ```pulse
-// ghost fn __bind_promise
-//   (#f #v1 #v2 : vprop) (extra : vprop)
-//   (k : (unit -> stt_ghost unit emp_inames (f ** extra ** v1) (fun _ -> f ** promise f v2)))
-//   requires promise f v1 ** extra
-//   returns _:unit
-//   ensures promise f v2
-// {
-//   let k = bind_promise_aux f v1 v2 extra k;
-//   make_promise f v2 (extra ** promise f v1)
-//       k
-// }
-// ```
-
-let __bind_promise
+```pulse
+ghost
+fn __bind_promise
   (#f #v1 #v2 : vprop) (extra : vprop)
   (k : (unit -> stt_ghost unit emp_inames (f ** extra ** v1) (fun _ -> f ** promise f v2)))
-  : stt_ghost unit emp_inames (promise f v1 ** extra) (fun () -> promise f v2)
-  =
-  // make_promise f v2 (extra ** promise f v1)
-  //   (bind_promise_aux f v1 v2 extra k)
-  // Same
-  admit()
+  requires promise f v1 ** extra
+  returns _:unit
+  ensures promise f v2
+{
+  let k
+    : (unit -> stt_ghost unit emp_inames (f ** (extra ** promise f v1))
+                                      (fun _ -> f ** v2))
+    = bind_promise_aux f v1 v2 extra k;
+  make_promise f v2 (extra ** promise f v1)
+      k
+}
+```
 
-let bind_promise #f #v1 #v2 extra k = admit()
+let bind_promise #f #v1 #v2 extra k = __bind_promise #f #v1 #v2 extra k
 
-(* let bind_promise #f #v1 #v2 extra k = *)
-(*   intro_imp f (f ** v2) (promise f v1 ** extra) (fun () -> *)
-(*     mk_stt_ghost (fun () -> *)
-(*       Steel.ST.Util.assert_ (f ** promise f v1 ** extra); *)
-(*       elim_imp f v1 (); *)
-(*       Steel.ST.Util.assert_ (f ** v1 ** extra); *)
-(*       Steel.ST.Util.assert_ (f ** extra ** v1); *)
-(*       reveal_stt_ghost (k ()) () <: Steel.ST.Effect.Ghost.STGhostT unit emp_inames (extra ** v1) (fun () -> promise f v2); *)
-(*       Steel.ST.Util.assert_ (promise f v2 ** f); *)
-(*       Steel.ST.Util.assert_ (f ** promise f v2); *)
-(*       elim_imp f v2 (); *)
-(*       Steel.ST.Util.assert_ (f ** v2); *)
-(*       () *)
-(*     ) *)
-(*   ) *)
+inline_for_extraction
+val frame_stt_ghost_left
+  (#a:Type0)
+  (#opens:inames)
+  (#pre:vprop) (#post:a -> vprop)
+  (frame:vprop)
+  (e:stt_ghost a opens pre post)
+  : stt_ghost a opens (frame ** pre) (fun x -> frame ** post x)
+let frame_stt_ghost_left #a #opens #pre #post frame e =
+  let e : stt_ghost a opens (pre ** frame) (fun x -> post x ** frame) =
+    frame_stt_ghost frame e
+  in
+  let e : stt_ghost a opens (frame ** pre) (fun x -> post x ** frame) =
+    comm_pre e
+  in
+  let e : stt_ghost a opens (frame ** pre) (fun x -> frame ** post x) =
+    comm_post e
+  in
+  e
+
+let bind_promise' #f #v1 #v2 extra k =
+  let k : unit -> stt_ghost unit emp_inames (extra ** v1) (fun _ -> promise f v2) =
+    k
+  in
+  let k : unit -> stt_ghost unit emp_inames (f ** (extra ** v1)) (fun _ -> f ** promise f v2) =
+    fun () -> frame_stt_ghost_left f (k ())
+  in
+  let k : unit -> stt_ghost unit emp_inames (f ** extra ** v1) (fun _ -> f ** promise f v2) =
+    fun () -> sub_stt_ghost _ _ 
+                  (vprop_equiv_sym _ _ (vprop_equiv_assoc _ _ _))
+                  (intro_vprop_post_equiv _ _ (fun _ -> vprop_equiv_refl _))
+                  (k ())
+  in
+  bind_promise #f #v1 #v2 extra k
 
 (* We can define join_promise (NB: very brittle to write this in plain stt *)
 let join_promise (#f:vprop) (v1:vprop) (v2:vprop)
@@ -112,8 +154,8 @@ let join_promise (#f:vprop) (v1:vprop) (v2:vprop)
               emp_inames
               (promise f v1 ** promise f v2)
               (fun () -> promise f (v1 ** v2))
-  = bind_promise (promise f v2) (fun () ->
-    bind_promise v1 (fun () ->
+  = bind_promise' (promise f v2) (fun () ->
+    bind_promise' v1 (fun () ->
     return_promise f (v1 ** v2)))
 
 (* split_promise *)
@@ -237,6 +279,7 @@ fn __elim_r (#f:vprop) (v1:vprop) (v2:vprop) (r1 r2 : GR.ref bool) (i : inv (inv
 }
 ```
 
+(* Kinda bogus.. this is an unobservable step, not ghost *)
 assume
 val new_invariant_ghost #opened (p:vprop) : stt_ghost (inv p) opened p (fun _ -> emp)
 
@@ -311,7 +354,7 @@ let rewrite_promise (#f:vprop) (v1 : vprop) (v2 : vprop)
          (vprop_equiv_sym _ _ (vprop_equiv_unit (promise f v1)))
          (vprop_equiv_comm _ _)))
     (fun () ->
-      bind_promise #_ #v1 #_ emp (fun () ->
+      bind_promise' #_ #v1 #_ emp (fun () ->
         bind_sttg (rewrite (emp ** v1) v1 (vprop_equiv_unit v1)) (fun () ->
         bind_sttg (k ())
           (fun () -> return_promise f v2)))
