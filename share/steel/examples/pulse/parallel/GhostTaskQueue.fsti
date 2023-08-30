@@ -44,7 +44,8 @@ Lemma (is_mono_suffix l (enqueue_todo l t)._1)
 // it updates the task to "ongoing"
 val pop_todo_task (#a: Type) (l: mono_list a{~(get_actual_queue l == [])})
 : (t:a & r:mono_list a{ get_actual_queue l == t::get_actual_queue r
-                /\ count_ongoing r == count_ongoing l + 1 })
+                /\ count_ongoing r == count_ongoing l + 1 }
+  & pos:nat{task_in_queue t pos r})
 
 val pop_preserves_order (#a: Type) (l: mono_list a):
 Lemma (requires ~(get_actual_queue l == []))
@@ -112,13 +113,14 @@ stt_ghost (erased (pos:nat & certificate r t pos)) emp_inames
 (fun _ -> small_inv r (t::q) c)
 
 // 2. pop task todo
+// return certificate?
 val pop_task_ghost
 (r: ghost_mono_ref task_elem)
 (t: task_elem)
 (q: list task_elem) (c: int):
-stt_ghost unit emp_inames
+stt_ghost (erased (pos:nat & certificate r t pos)) emp_inames
 (small_inv r (t::q) c)
-(fun () -> small_inv r q (c + 1) ** pts_to t._2 #three_quart None)
+(fun _ -> small_inv r q (c + 1) ** pts_to t._2 #three_quart None)
 
 val prove_task_ongoing
   (#t: task_elem)
@@ -131,6 +133,13 @@ val prove_task_ongoing
 stt_ghost unit emp_inames
 (small_inv r q c ** pts_to t._2 #three_quart v)
 (fun () -> small_inv r q c ** pts_to t._2 #three_quart v ** pure (c > 0))
+
+val prove_ongoing_non_neg
+  (r:ghost_mono_ref task_elem)
+  (q: list task_elem) (c: int)
+: stt_ghost unit emp_inames
+(small_inv r q c)
+(fun () -> small_inv r q c ** pure (c >= 0))
 
 // 3. conclude a task
 val conclude_task_ghost

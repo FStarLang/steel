@@ -637,7 +637,7 @@ ensures deadline q c
 
 ```pulse
 ghost fn
-rewrite_conditional_maybe_end
+rewrite_conditional_maybe_end_old
 (p: par_env) 
 (vq: task_queue) (vc: int)
 requires HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
@@ -668,13 +668,45 @@ ensures conditional_half (get_queue p) (get_counter p) vq vc
 }
 ```
 
+// this one does not duplicate the deadline
+```pulse
+ghost fn
+rewrite_conditional_maybe_end
+(p: par_env) 
+(vq: task_queue) (vc: int)
+requires HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
+ensures conditional_half (get_queue p) (get_counter p) vq vc
+  //** `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp)
+{
+  if (length vq = 0 && vc = 0)
+  {
+    assert (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc);
+    intro_exists (fun vc -> HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc) vc;
+    intro_exists (fun vq -> exists_ (fun vc -> HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)) vq;
+    intro_exists (fun f -> exists_ (fun vq -> exists_ (fun vc -> HR.pts_to (get_queue p) #f vq ** pts_to (get_counter p) #f vc))) one_half;
+    fold (deadline (get_queue p) (get_counter p));
+    //duplicate_deadline(get_queue p) (get_counter p);
+    rewrite (deadline (get_queue p) (get_counter p))
+      as (conditional_half (get_queue p) (get_counter p) vq vc);
+    ()
+  }
+  else {
+    rewrite (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)
+      as (conditional_half (get_queue p) (get_counter p) vq vc);
+    ()
+  }
+}
+```
 
 
 
-assume val assume_prop (p: prop): stt unit emp (fun () -> pure p)
-assume val free_certificate r t pos : certificate r t pos
 
-assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
+
+
+//assume val assume_prop (p: prop): stt unit emp (fun () -> pure p)
+//assume val free_certificate r t pos : certificate r t pos
+
+//assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
 
 let deadline_if (b: bool) (p: par_env): vprop
   = if b then deadline (get_queue p) (get_counter p) else emp
@@ -737,15 +769,19 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       assert (pure (map dfst gvq == task::map dfst (tl gvq)));
       *)
       assert (pure (map dfst gvq == task::(map dfst (tl gvq))));
+      prove_ongoing_non_neg (get_mono_list p) (map dfst gvq) gvc;
       rewrite (small_inv (get_mono_list p) (map dfst gvq) gvc)
         as (small_inv (get_mono_list p) (task::map dfst (tl gvq)) gvc);
-      pop_task_ghost (get_mono_list p) task (map dfst (tl gvq)) gvc;
+
+      let pair = pop_task_ghost (get_mono_list p) task (map dfst (tl gvq)) gvc;
+      let certif: erased (certificate (get_mono_list p) task (reveal pair)._1)
+        = hide ((reveal pair)._2);
       assert (small_inv (get_mono_list p) (map dfst (tl gvq)) (gvc + 1));
 
       HR.share2 #_ #emp_inames (get_queue p);
       share2 #_ #emp_inames (get_counter p);
       assert (HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1));
-      assume_prop (gvc >= 0); // can be derived from small_inv
+      //assume_prop (gvc >= 0); // can be derived from small_inv
       rewrite (HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1))
         as
         `@(
@@ -773,8 +809,8 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       
       // 4. Conclude the task
       // TODO:
-      let certif: erased (certificate (get_mono_list p) task 0)
-        = hide (free_certificate (get_mono_list p) task 0);
+      //let certif: erased (certificate (get_mono_list p) task 0)
+      //  = hide (free_certificate (get_mono_list p) task 0);
 
       acquire_queue_lock p;
       with gvq gvc. assert (
@@ -802,11 +838,11 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       // if finished, we have the deadline
       // should be wildcard permission instead of emp, and we keep it
 
-      assert (conditional_half (get_queue p) (get_counter p) gvq (gvc - 1)
-      ** `@(if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp));
+      assert (conditional_half (get_queue p) (get_counter p) gvq (gvc - 1));
+      //** `@(if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp));
 
       (* We could stop here and not drop the resource, would be more efficient. *)
-      drop (if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp);
+      //drop (if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp);
 
       release_queue_lock p;
       ()

@@ -107,10 +107,11 @@ Lemma (is_mono_suffix l (enqueue_todo l t)._1)
 // it updates the task to "ongoing"
 let rec pop_todo_task #a (l: mono_list a{~(get_actual_queue l == [])})
 : (t:a & r:mono_list a{ get_actual_queue l == t::get_actual_queue r
-                /\ count_ongoing r == count_ongoing l + 1 })
+                /\ count_ongoing r == count_ongoing l + 1 }
+  & pos:nat{task_in_queue t pos r})
 = match l with
-| (t, Todo)::q -> (| t, (t, Ongoing)::q |)
-| t::q -> let (| x, q' |) = pop_todo_task q in (| x, t::q' |)
+| (t, Todo)::q -> (| t, (t, Ongoing)::q, L.length l - 1 |)
+| t::q -> let (| x, q', pos |) = pop_todo_task q in (| x, t::q', pos |)
 
 let rec pop_preserves_order_aux l:
 Lemma (requires ~(get_actual_queue l == []))
@@ -228,7 +229,7 @@ let certificate (r:ghost_mono_ref task_elem) (t: task_elem) (pos: nat)
 // can witness that task is in queue
 let get_certificate (t: task_elem) (pos: nat)
             (r:ghost_mono_ref task_elem)
-            (l:erased mono_list_task_plus)
+            (l:mono_list_task_plus)
             (_:squash (task_in_queue t pos l))
   : //TODO: SteelAtomicUT
   stt_ghost (certificate r t pos)
@@ -343,6 +344,11 @@ let get_permission_from_todo
   (fun _ -> pts_to (pop_todo_task l)._1._2 #three_quart None ** tasks_res_own (pop_todo_task l)._2)
 = rewrite _ _ (vprop_equiv_test l)
 
+let mk_erased_pair #r #t (pos: nat) (w: certificate r t pos):
+  erased (pos: nat & certificate r t pos)
+= hide (|pos, w|)
+  //returns pair:erased (pos:nat & certificate r t pos)
+
 // 2: Pop
 ```pulse
 ghost
@@ -351,6 +357,7 @@ fn pop_task_ghost'
 (t: task_elem)
 (q: list task_elem) (c: int)
   requires small_inv r (t::q) c
+  returns pair:erased (pos:nat & certificate r t pos)
   ensures small_inv r q (c + 1) ** pts_to t._2 #three_quart None 
 {
   unfold (small_inv r (t::q) c);
@@ -361,12 +368,15 @@ fn pop_task_ghost'
   let order_is_preserved = pop_preserves_order #task_elem l;
   write_ghost_queue #task_elem #l r p._2;
   assert (pts_to_ghost_queue r p._2);
+  let certif: certificate r t p._3 = get_certificate t p._3 r p._2 ();
+  assert (pts_to_ghost_queue r p._2);
   assert (pure (p._1 == t));
   get_permission_from_todo l;
   fold (small_inv r q (c + 1));
   rewrite (pts_to (pop_todo_task l)._1._2 #three_quart None)
     as (pts_to t._2 #three_quart None);
-  ()
+  let pair: erased (pos:nat & certificate r t pos) = mk_erased_pair p._3 certif;//(| p._3, certif |);
+  pair
 }
 ```
 
@@ -576,11 +586,12 @@ ensures tasks_res_own (close_task_bis t pos l) ** pure (
 assume val prove_task_ongoing_aux_cb
   (t: task_elem)
   (pos: nat)
+  (v: option t._1)
   (l: (l:mono_list_task_plus{task_in_queue t pos l /\ L.length l >= 1}))
 :
 stt_ghost unit emp_inames
-(tasks_res_own l ** pts_to t._2 #three_quart None)
-(fun () -> tasks_res_own l ** pts_to t._2 #three_quart None
+(tasks_res_own l ** pts_to t._2 #three_quart v)
+(fun () -> tasks_res_own l ** pts_to t._2 #three_quart v
   ** pure (count_ongoing l > 0))
 // TODO: Implement this thing
 
@@ -589,10 +600,11 @@ ghost
 fn prove_task_ongoing_aux
   (t: task_elem)
   (pos: nat)
+  (v: option t._1)
   (l: (l:mono_list_task_plus{task_in_queue t pos l /\ L.length l >= 1}))
 //stt_ghost unit emp_inames
-requires tasks_res_own l ** pts_to t._2 #three_quart None
-ensures tasks_res_own l ** pts_to t._2 #three_quart None ** pure (count_ongoing l > 0)
+requires tasks_res_own l ** pts_to t._2 #three_quart v
+ensures tasks_res_own l ** pts_to t._2 #three_quart v ** pure (count_ongoing l > 0)
 {
   let h = L.hd l;
   let q = L.tl l;
@@ -603,21 +615,21 @@ ensures tasks_res_own l ** pts_to t._2 #three_quart None ** pure (count_ongoing 
     | [] -> emp
     | tl::ql -> task_res_own tl ** tasks_res_own ql)
   as (task_res_own h ** tasks_res_own q);
-  assert (pts_to t._2 #three_quart None);
+  assert (pts_to t._2 #three_quart v);
   assert (task_res_own h ** tasks_res_own q);
 
   if (pos + 1 = L.length l)
   {
-    rewrite (pts_to (t._2) #three_quart None) as (pts_to (h._1._2) #three_quart None);
-    derive_status_ongoing h None;
+    rewrite (pts_to (t._2) #three_quart v) as (pts_to (h._1._2) #three_quart v);
+    derive_status_ongoing h v;
     assert (pure (count_ongoing l > 0));
-    rewrite (pts_to (h._1._2) #three_quart None) as (pts_to (t._2) #three_quart None);
-    assert (pts_to t._2 #three_quart None);
+    rewrite (pts_to (h._1._2) #three_quart v) as (pts_to (t._2) #three_quart v);
+    assert (pts_to t._2 #three_quart v);
     fold_tasks_res_own h q;
     ()
   }
   else {
-    prove_task_ongoing_aux_cb t pos q;
+    prove_task_ongoing_aux_cb t pos v q;
     rewrite (task_res_own h ** tasks_res_own q) as
       `@(match l with
         | [] -> emp
@@ -633,25 +645,44 @@ ghost
 fn prove_task_ongoing'
   (#t: task_elem)
   (#pos: nat)
+  (#v: option t._1)
   (r:ghost_mono_ref task_elem)
   (q: list task_elem) (c: int)
   //(l: (l:mono_list task_elem{task_in_queue t pos l /\ L.length l >= 1})):
   (w:certificate r t pos)
 //stt_ghost unit emp_inames
-requires small_inv r q c ** pts_to t._2 #three_quart None
-ensures small_inv r q c ** pts_to t._2 #three_quart None ** pure (c > 0)
+requires small_inv r q c ** pts_to t._2 #three_quart v
+ensures small_inv r q c ** pts_to t._2 #three_quart v ** pure (c > 0)
 {
   unfold small_inv r q c;
   with l. assert (pts_to_ghost_queue r l);
   let proof = recall #task_elem #t #pos r l w;
   assert (pure (task_in_queue t pos l));
   assert (pure (L.length l >= 1));
-  prove_task_ongoing_aux t pos l;
+  prove_task_ongoing_aux t pos v l;
   fold small_inv r q c;
   ()
 }
 ```
 let prove_task_ongoing = prove_task_ongoing'
+
+```pulse
+ghost
+fn prove_ongoing_non_neg'
+  (r:ghost_mono_ref task_elem)
+  (q: list task_elem) (c: int)
+requires small_inv r q c
+ensures small_inv r q c ** pure (c >= 0)
+{
+  unfold small_inv r q c;
+  fold small_inv r q c;
+  ()
+}
+```
+
+let prove_ongoing_non_neg = prove_ongoing_non_neg'
+
+
 
 // 3: conclude the task
 ```pulse
@@ -730,28 +761,6 @@ ensures tasks_res_own l
     let x = get_Some_finished_aux_rec t pos q;
     rewrite (task_res_own h ** tasks_res_own q) as (tasks_res_own l);
     x
-  }
-}
-```
-
-let now #a (f : unit -> a) : a = f ()
-
-```pulse
-ghost
-fn ghost_branch (#a:Type0) (#pre:vprop) (#post : (a -> vprop)) (b:(erased bool))
-   (ft : (unit -> stt_ghost a emp_inames (pre ** pure (b == true)) post))
-   (ff : (unit -> stt_ghost a emp_inames (pre ** pure (b == false)) post))
-   requires pre
-   returns x:a
-   ensures post x
-{
-  let b : bool = stt_ghost_reveal _ b;
-  if (b) {
-    admit()
-    // now ft ()
-  } else {
-    admit()
-    // now ff ()
   }
 }
 ```
