@@ -59,6 +59,7 @@ type term' =
   | Tm_ExistsSL of universe * binder * term 
   | Tm_ForallSL of universe * binder * term 
   | Tm_VProp 
+  | Tm_Inv of term 
   | Tm_Inames 
   | Tm_EmpInames 
   | Tm_FStar of host_term 
@@ -78,6 +79,7 @@ let uu___is_Tm_ForallSL uu___ =
   match uu___ with | Tm_ForallSL _ -> true | _ -> false
 let uu___is_Tm_VProp uu___ =
   match uu___ with | Tm_VProp _ -> true | _ -> false
+let uu___is_Tm_Inv uu___ = match uu___ with | Tm_Inv _ -> true | _ -> false
 let uu___is_Tm_Inames uu___ =
   match uu___ with | Tm_Inames _ -> true | _ -> false
 let uu___is_Tm_EmpInames uu___ =
@@ -94,6 +96,8 @@ let (tm_fstar : host_term -> range -> term) =
 let (with_range : term' -> range -> term) =
   fun t -> fun r -> { t; range1 = r }
 let (tm_vprop : term) = with_range Tm_VProp FStar_Range.range_0
+let (tm_inv : term -> term) =
+  fun p -> with_range (Tm_Inv p) FStar_Range.range_0
 let (tm_inames : term) = with_range Tm_Inames FStar_Range.range_0
 let (tm_emp : term) = with_range Tm_Emp FStar_Range.range_0
 let (tm_emp_inames : term) = with_range Tm_EmpInames FStar_Range.range_0
@@ -306,6 +310,11 @@ and st_term'__Tm_ProofHintWithBinders__payload =
   binders: binder Prims.list ;
   v: vprop ;
   t3: st_term }
+and st_term'__Tm_WithInv__payload =
+  {
+  name1: term ;
+  body5: st_term ;
+  returns_inv: vprop FStar_Pervasives_Native.option }
 and st_term' =
   | Tm_Return of st_term'__Tm_Return__payload 
   | Tm_Abs of st_term'__Tm_Abs__payload 
@@ -323,6 +332,7 @@ and st_term' =
   | Tm_Rewrite of st_term'__Tm_Rewrite__payload 
   | Tm_Admit of st_term'__Tm_Admit__payload 
   | Tm_ProofHintWithBinders of st_term'__Tm_ProofHintWithBinders__payload 
+  | Tm_WithInv of st_term'__Tm_WithInv__payload 
 and st_term = {
   term1: st_term' ;
   range2: range }
@@ -354,6 +364,8 @@ let uu___is_Tm_Admit uu___ =
   match uu___ with | Tm_Admit _ -> true | _ -> false
 let uu___is_Tm_ProofHintWithBinders uu___ =
   match uu___ with | Tm_ProofHintWithBinders _ -> true | _ -> false
+let uu___is_Tm_WithInv uu___ =
+  match uu___ with | Tm_WithInv _ -> true | _ -> false
 type branch = (pattern * st_term)
 let (null_binder : term -> binder) =
   fun t -> { binder_ty = t; binder_ppname = ppname_default }
@@ -379,6 +391,7 @@ let rec (eq_tm : term -> term -> Prims.bool) =
       | (Tm_Unknown, Tm_Unknown) -> true
       | (Tm_Star (l1, r1), Tm_Star (l2, r2)) ->
           (eq_tm l1 l2) && (eq_tm r1 r2)
+      | (Tm_Inv p1, Tm_Inv p2) -> eq_tm p1 p2
       | (Tm_Pure p1, Tm_Pure p2) -> eq_tm p1 p2
       | (Tm_ExistsSL (u1, t11, b1), Tm_ExistsSL (u2, t21, b2)) ->
           ((eq_univ u1 u2) && (eq_tm t11.binder_ty t21.binder_ty)) &&
@@ -557,6 +570,10 @@ let rec (eq_st_term : st_term -> st_term -> Prims.bool) =
          { hint_type = ht2; binders = bs2; v = v2; t3 = t21;_}) ->
           (((ht1 = ht2) && (eq_list eq_binder bs1 bs2)) && (eq_tm v1 v2)) &&
             (eq_st_term t11 t21)
+      | (Tm_WithInv { name1; body5 = body1; returns_inv = r1;_}, Tm_WithInv
+         { name1 = name2; body5 = body2; returns_inv = r2;_}) ->
+          ((eq_tm name1 name2) && (eq_tm_opt r1 r2)) &&
+            (eq_st_term body1 body2)
       | uu___ -> false
 and (eq_branch : (pattern * st_term) -> (pattern * st_term) -> Prims.bool) =
   fun b1 ->

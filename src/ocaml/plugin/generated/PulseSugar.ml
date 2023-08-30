@@ -203,6 +203,11 @@ and stmt'__ProofHintWithBinders__payload =
   hint_type: hint_type ;
   binders1: binders ;
   vprop1: vprop }
+and stmt'__WithInvariants__payload =
+  {
+  names: FStar_Parser_AST.term Prims.list ;
+  body2: stmt ;
+  returns_: vprop FStar_Pervasives_Native.option }
 and stmt' =
   | Open of FStar_Ident.lident 
   | Expr of stmt'__Expr__payload 
@@ -218,6 +223,7 @@ and stmt' =
   | Parallel of stmt'__Parallel__payload 
   | Rewrite of stmt'__Rewrite__payload 
   | ProofHintWithBinders of stmt'__ProofHintWithBinders__payload 
+  | WithInvariants of stmt'__WithInvariants__payload 
 and stmt = {
   s: stmt' ;
   range1: rng }
@@ -371,6 +377,18 @@ let (__proj__Mkstmt'__ProofHintWithBinders__payload__item__vprop :
   fun projectee ->
     match projectee with
     | { hint_type = hint_type1; binders1; vprop1;_} -> vprop1
+let (__proj__Mkstmt'__WithInvariants__payload__item__names :
+  stmt'__WithInvariants__payload -> FStar_Parser_AST.term Prims.list) =
+  fun projectee ->
+    match projectee with | { names; body2 = body; returns_;_} -> names
+let (__proj__Mkstmt'__WithInvariants__payload__item__body :
+  stmt'__WithInvariants__payload -> stmt) =
+  fun projectee ->
+    match projectee with | { names; body2 = body; returns_;_} -> body
+let (__proj__Mkstmt'__WithInvariants__payload__item__returns_ :
+  stmt'__WithInvariants__payload -> vprop FStar_Pervasives_Native.option) =
+  fun projectee ->
+    match projectee with | { names; body2 = body; returns_;_} -> returns_
 let (uu___is_Open : stmt' -> Prims.bool) =
   fun projectee -> match projectee with | Open _0 -> true | uu___ -> false
 let (__proj__Open__item___0 : stmt' -> FStar_Ident.lident) =
@@ -436,6 +454,12 @@ let (uu___is_ProofHintWithBinders : stmt' -> Prims.bool) =
 let (__proj__ProofHintWithBinders__item___0 :
   stmt' -> stmt'__ProofHintWithBinders__payload) =
   fun projectee -> match projectee with | ProofHintWithBinders _0 -> _0
+let (uu___is_WithInvariants : stmt' -> Prims.bool) =
+  fun projectee ->
+    match projectee with | WithInvariants _0 -> true | uu___ -> false
+let (__proj__WithInvariants__item___0 :
+  stmt' -> stmt'__WithInvariants__payload) =
+  fun projectee -> match projectee with | WithInvariants _0 -> _0
 let (__proj__Mkstmt__item__s : stmt -> stmt') =
   fun projectee -> match projectee with | { s; range1 = range;_} -> s
 let (__proj__Mkstmt__item__range : stmt -> rng) =
@@ -445,32 +469,32 @@ type decl =
   id2: FStar_Ident.ident ;
   binders2: binders ;
   ascription: computation_type ;
-  body2: stmt ;
+  body3: stmt ;
   range2: rng }
 let (__proj__Mkdecl__item__id : decl -> FStar_Ident.ident) =
   fun projectee ->
     match projectee with
-    | { id2 = id; binders2 = binders1; ascription; body2 = body;
+    | { id2 = id; binders2 = binders1; ascription; body3 = body;
         range2 = range;_} -> id
 let (__proj__Mkdecl__item__binders : decl -> binders) =
   fun projectee ->
     match projectee with
-    | { id2 = id; binders2 = binders1; ascription; body2 = body;
+    | { id2 = id; binders2 = binders1; ascription; body3 = body;
         range2 = range;_} -> binders1
 let (__proj__Mkdecl__item__ascription : decl -> computation_type) =
   fun projectee ->
     match projectee with
-    | { id2 = id; binders2 = binders1; ascription; body2 = body;
+    | { id2 = id; binders2 = binders1; ascription; body3 = body;
         range2 = range;_} -> ascription
 let (__proj__Mkdecl__item__body : decl -> stmt) =
   fun projectee ->
     match projectee with
-    | { id2 = id; binders2 = binders1; ascription; body2 = body;
+    | { id2 = id; binders2 = binders1; ascription; body3 = body;
         range2 = range;_} -> body
 let (__proj__Mkdecl__item__range : decl -> rng) =
   fun projectee ->
     match projectee with
-    | { id2 = id; binders2 = binders1; ascription; body2 = body;
+    | { id2 = id; binders2 = binders1; ascription; body3 = body;
         range2 = range;_} -> range
 let (mk_comp :
   st_comp_tag ->
@@ -551,7 +575,7 @@ let (mk_decl :
               id2 = id;
               binders2 = binders1;
               ascription;
-              body2 = body;
+              body3 = body;
               range2 = range
             }
 let (mk_open : FStar_Ident.lident -> stmt') = fun lid -> Open lid
@@ -567,3 +591,10 @@ let (mk_proof_hint_with_binders : hint_type -> binders -> vprop -> stmt') =
     fun bs ->
       fun p ->
         ProofHintWithBinders { hint_type = ht; binders1 = bs; vprop1 = p }
+let (mk_with_invs :
+  FStar_Parser_AST.term Prims.list ->
+    stmt -> vprop FStar_Pervasives_Native.option -> stmt')
+  =
+  fun names ->
+    fun body ->
+      fun returns_ -> WithInvariants { names; body2 = body; returns_ }

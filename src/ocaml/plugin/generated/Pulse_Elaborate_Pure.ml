@@ -35,6 +35,17 @@ let rec (elab_term : Pulse_Syntax_Base.term -> FStar_Reflection_Types.term) =
              (FStar_Reflection_V2_Data.Tv_FVar
                 (FStar_Reflection_V2_Builtins.pack_fv
                    Pulse_Reflection_Util.emp_lid)))
+    | Pulse_Syntax_Base.Tm_Inv p ->
+        let p1 = elab_term p in
+        let head =
+          FStar_Reflection_V2_Builtins.pack_ln
+            (FStar_Reflection_V2_Data.Tv_FVar
+               (FStar_Reflection_V2_Builtins.pack_fv
+                  Pulse_Reflection_Util.inv_lid)) in
+        w
+          (FStar_Reflection_V2_Builtins.pack_ln
+             (FStar_Reflection_V2_Data.Tv_App
+                (head, (p1, FStar_Reflection_V2_Data.Q_Explicit))))
     | Pulse_Syntax_Base.Tm_Pure p ->
         let p1 = elab_term p in
         let head =
