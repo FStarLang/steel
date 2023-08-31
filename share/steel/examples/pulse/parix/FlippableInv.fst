@@ -4,32 +4,6 @@ open Pulse.Lib.Pervasives
 open Promises.Temp
 module GR = Pulse.Lib.GhostReference
 
-(*
-Random note about fixpoints:
-
-let rec fix_1 (#a : Type) (#b : a -> Type)
-  (ff : (x:a -> (y:a{y << x} -> Tot (b y)) -> Tot (b x)))
-  : x:a -> Tot (b x)
-  = fun x -> ff x (fix_1 ff)
-
-let rec fix_ghost_1 (#a : Type0) (#b : a -> Type0)
-  (ff : (x:a -> (y:a{y << x} -> GTot (b y)) -> GTot (b x)))
-  : x:a -> GTot (b x)
-  = fun x -> ff x (fix_ghost_1 ff)
-
-let rec fix_stt_ghost_1 (#a : Type) (#b : a -> Type) (#pre : a -> vprop) (#post : (x:a -> b x -> vprop))
-  (ff : (x:a -> (y:a{y << x} -> stt_ghost (b y) emp_inames (pre y) (post y)) -> stt_ghost (b x) emp_inames (pre x) (post x)))
-  : x:a -> stt_ghost (b x) emp_inames (pre x) (post x)
-  //= fun x -> ff x (fix_stt_ghost_1 ff)
-  = fix_1 #a #(fun x -> stt_ghost (b x) emp_inames (pre x) (post x)) ff
-
-let rec fix_stt_1 (#a : Type) (#b : a -> Type) (#pre : a -> vprop) (#post : (x:a -> b x -> vprop))
-  (ff : (x:a -> (y:a{y << x} -> stt (b y) (pre y) (post y)) -> stt (b x) (pre x) (post x)))
-  : x:a -> stt (b x) (pre x) (post x)
-  //= fun x -> ff x (fix_stt_1 ff)
-  = fix_1 #a #(fun x -> stt (b x) (pre x) (post x)) ff
-  *)
-
 let finv_p (p:vprop) (r : GR.ref bool) : vprop =
   exists_ (fun (b:bool) -> GR.pts_to r #one_half b ** (if b then p else emp))
 
