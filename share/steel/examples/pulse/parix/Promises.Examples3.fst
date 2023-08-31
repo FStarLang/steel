@@ -24,7 +24,8 @@ let goal : vprop =
 
 
 ```pulse
-fn spoof_proof
+ghost
+fn proof
    (i : inv inv_p) (_:unit)
    requires pts_to done #one_half true ** GR.pts_to claimed #one_half false
    ensures pts_to done #one_half true ** goal
@@ -63,19 +64,6 @@ fn spoof_proof
 
     ()
   }
-}
-```
-
-```pulse
-ghost
-fn proof
-   (i : inv inv_p) (_:unit)
-   requires pts_to done #one_half true ** GR.pts_to claimed #one_half false
-   ensures pts_to done #one_half true ** goal
-{
-  (* The proof is the thing above, tricking the effect system for now
-  as with_inv is not properly implemented  wrt effects. *)
-  admit()
 }
 ```
 
