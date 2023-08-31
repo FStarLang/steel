@@ -22,7 +22,7 @@ we can fill it from the context...? *)
 let asynch (a:Type0) (post : a -> vprop) : Type0 =
   ref (option a) & thread
 
-let async_joinable #a post h =
+let async_joinable #a #post h =
   joinable (snd h) ** promise (done (snd h)) (ref_solves_post (fst h) post)
 
 // val async
@@ -64,7 +64,7 @@ fn __async
   (f : (unit -> stt a pre post))
   requires pre
   returns h : asynch a post
-  ensures async_joinable post h
+  ensures async_joinable h
 {
   let r = alloc (None #a);
 //   let th = fork #(pre ** pts_to r None) #(exists_ (fun (v:a) -> pts_to r (Some v) ** post v))
@@ -83,7 +83,7 @@ fn __async
   assert (joinable th);
   assert (promise (done th) (ref_solves_post r post));
   rewrite (joinable th ** promise (done th) (ref_solves_post r post))
-       as (async_joinable post res);
+       as (async_joinable #_ #post res);
   res
 }
 ```
@@ -94,15 +94,15 @@ fn __await
   (#a : Type0)
   (#post : (a -> vprop))
   (h : asynch a post)
-  requires async_joinable post h
+  requires async_joinable h
   returns x:a
   ensures post x
 {
   let r = fst h;
   let th = snd h;
-  unfold async_joinable post h;
+  unfold async_joinable h;
   assert (joinable th);
-  join th;
+  join th; (* join the thread *)
   assert (done th);
   rewrite (done th) as (done (snd h));
   redeem_promise (done (snd h)) (ref_solves_post r post);
