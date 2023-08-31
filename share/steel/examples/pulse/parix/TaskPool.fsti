@@ -29,18 +29,20 @@ even if that modifies it. How to model this under the hood? *)
 val spawn
   (#a : Type0)
   (#pre : vprop) (#post : a -> vprop)
+  (#[T.exact (`full_perm)]e : perm)
   (p:pool)
   ($f : unit -> stt a pre (fun (x:a) -> post x))
   : stt (task_handle p a post)
-        ((exists_ (fun e -> pool_alive #e p)) ** pre)
-        (fun th -> pool_alive p ** joinable th ** promise (joined th) (handle_solved th))
+        (pool_alive #e p ** pre)
+        (fun th -> pool_alive #e p ** joinable th ** promise (joined th) (handle_solved th))
 
 (* Spawn of a unit-returning task with no intention to join, simpler. *)
 val spawn_
   (#pre #post : _)
+  (#[T.exact (`full_perm)]e : perm)
   (p:pool) (f : unit -> stt unit pre (fun _ -> post))
-  : stt unit ((exists_ (fun e -> pool_alive #e p)) ** pre)
-             (fun prom -> pool_alive p ** promise (pool_done p) post)
+  : stt unit (pool_alive #e p ** pre)
+             (fun prom -> pool_alive #e p ** promise (pool_done p) post)
 
 (* If the pool is done, all pending joinable threads must be done *)
 val must_be_done

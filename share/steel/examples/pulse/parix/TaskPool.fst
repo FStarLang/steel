@@ -18,9 +18,9 @@ let joined   #p #a #post th = magic ()
 
 let handle_solved #p #a #post th = magic()
 
-let spawn = magic ()
+let spawn #a #pre #post #e = magic ()
 
-let spawn_ = magic ()
+let spawn_ #pre #post #e = magic ()
 
 let must_be_done = magic ()
 
