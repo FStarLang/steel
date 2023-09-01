@@ -22,8 +22,8 @@ let inv_task_queue
   : vprop
 = (exists_ (fun vq ->
   exists_ (fun vc -> 
-    HR.pts_to q vq ** pts_to c vc ** small_inv r (map dfst vq) vc **
-    cond_deadline r (map dfst vq) vc // TODO: Remove this!
+    HR.pts_to q vq ** pts_to c vc ** small_inv r (map dfst vq) vc
+    //** cond_deadline r (map dfst vq) vc // TODO: Remove
     )))
 
 let par_env = (q: HR.ref task_queue & c: ref int & r: ghost_mono_ref task_elem & Lock.lock (inv_task_queue q c r))
@@ -37,14 +37,27 @@ let pure_handler a (p: par_env)
 val spawn_emp
   (#a:Type0)
   (p: par_env)
-  (ct: current_task p._3)
+  (ct: current_task (p._3)) // should be erased
   (f: (par_env -> ct:erased (current_task p._3) -> unit -> stt a (is_active ct) (fun _ -> is_active ct)))
+  // TODO: remove par_env arg
 : stt (pure_handler a p) (is_active ct) (fun _ -> is_active ct)
 
 val join_emp (#a:Type0) (p: par_env) (h: pure_handler a p)
 : stt a emp (fun _ -> emp)
 
 val worker (p: par_env): stt unit emp (fun () -> deadline (get_mono_list p))
+
+(*
+fn par_block_pulse_emp' (#a: Type0)
+  (#post: (a -> (prop)))
+  (main_block: (par_env -> (unit_emp_stt_pure_pure a post)))
+  requires emp
+  returns res: a
+  ensures pure (post res)
+
+p = create pool;
+
+*)
 
 (*
 Parallel for loop

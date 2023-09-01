@@ -8,6 +8,16 @@ type task_with_status (a: Type) = a & task_status
 type mono_list (a: Type) = list (task_with_status a)
 //val mono_list (a: Type): Type
 
+(*
+let small_inv (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int): vprop 
+= exists_ (fun l -> pts_to_ghost_queue_half r l **
+  tasks_res_own l one_half **
+  pure (count_ongoing l = c /\ get_actual_queue l == q)
+  ** (if c = 0 && L.length q = 0 then deadline r
+  else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
+)
+*)
+
 open Pulse.Lib.Pervasives
 
 module Lock = Pulse.Lib.SpinLock
@@ -42,13 +52,22 @@ stt_ghost unit emp_inames (deadline r) (fun () -> deadline r ** deadline r)
 
 val small_inv (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int): vprop 
 
+
 val extract_deadline (r: ghost_mono_ref task_elem):
   stt_ghost unit emp_inames (small_inv r [] 0)
     (fun () -> small_inv r [] 0 ** deadline r)
 
+//let current_task (p: par_env) = (t:task_elem & pos:nat & certificate p._3 t pos)
 let current_task r = (t:task_elem & pos:nat & certificate r t pos)
 let is_active #r (ct: current_task r): vprop =
   (exists_ (fun v -> pts_to ct._1._2 #three_quart v))
+
+// 0. init queue with task
+val init_ghost_queue
+(t: task_elem)
+: stt_ghost (erased (r:ghost_mono_ref task_elem & certificate r t 0)) emp_inames
+(pts_to t._2 #three_quart None)
+(fun pair -> small_inv (reveal pair)._1 [t] 0)
 
 // 1. enqueue task
 val spawn_task_ghost
@@ -86,14 +105,6 @@ val prove_ongoing_non_neg
 (small_inv r q c)
 (fun () -> small_inv r q c ** pure (c >= 0))
 
-let imp_vprop (b: erased bool) (p: vprop): vprop
-  = if b then p else emp
-
-let cond_deadline
-(r: ghost_mono_ref task_elem)
- (q: list task_elem) (c: int)
-= imp_vprop (c = 0 && L.length q = 0) (deadline r)
-
 // 3. conclude a task
 val conclude_task_ghost
 (#t: task_elem)
@@ -104,7 +115,9 @@ val conclude_task_ghost
 (w: certificate r t pos):
 stt_ghost unit emp_inames
 (small_inv r q c ** pts_to t._2 #three_quart (Some x))
-(fun () -> small_inv r q (c - 1) ** cond_deadline r q (c - 1)) //imp_vprop (c = 1 && L.length q = 0) (deadline r))
+//(fun () -> small_inv r q (c - 1) ** cond_deadline r q (c - 1)) //imp_vprop (c = 1 && L.length q = 0) (deadline r))
+(fun () -> small_inv r q (c - 1)) //imp_vprop (c = 1 && L.length q = 0) (deadline r))
+// deadline can be extracted using another function
 
 val proof_promise (#t: task_elem) (#pos: nat)
   (r: ghost_mono_ref task_elem)

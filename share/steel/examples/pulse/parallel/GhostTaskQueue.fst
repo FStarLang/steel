@@ -184,6 +184,7 @@ open Pulse.Lib.Pervasives
 
 #push-options "--print_universes"
 
+//unfold
 let ghost_mono_ref a = M.ref (mono_list a) is_mono_suffix
 
 let pts_to_ghost_queue #a (r: ghost_mono_ref a) (l: mono_list a): vprop
@@ -194,18 +195,42 @@ let pts_to_ghost_queue #a (r: ghost_mono_ref a) (l: mono_list a): vprop
 let pts_to_ghost_queue_half #a (r: ghost_mono_ref a) (l: mono_list a): vprop
 = M.pts_to r one_half l
 
+(*
 assume val share_queue_general #a (r: ghost_mono_ref a) (l: mono_list a) f:
 stt_ghost unit emp_inames (M.pts_to r f l)
   (fun () -> M.pts_to r (half_perm f) l ** M.pts_to r (half_perm f) l)
+  *)
 
-// TODO
-assume val share_queue #a (r: ghost_mono_ref a) (l: mono_list a):
-stt_ghost unit emp_inames (pts_to_ghost_queue r l)
-  (fun () -> pts_to_ghost_queue_half r l ** pts_to_ghost_queue_half r l)
+```pulse
+ghost fn
+share_queue (#a: Type) (r: ghost_mono_ref a) (l: mono_list a)
+requires pts_to_ghost_queue r l
+ensures pts_to_ghost_queue_half r l ** pts_to_ghost_queue_half r l
+{
+  unfold pts_to_ghost_queue r l;
+  M.share #emp_inames r full_perm l;
+  rewrite (M.pts_to r (half_perm full_perm) l)
+    as pts_to_ghost_queue_half r l;
+  rewrite (M.pts_to r (half_perm full_perm) l)
+    as pts_to_ghost_queue_half r l;
+  ()
+}
+```
 
-assume val gather_queue #a (r: ghost_mono_ref a) (l1: mono_list a) (l2: mono_list a):
-stt_ghost unit emp_inames (pts_to_ghost_queue_half r l1 ** pts_to_ghost_queue_half r l2)
-  (fun () -> pts_to_ghost_queue r l1 ** pure (l1 == l2))
+```pulse
+ghost fn gather_queue
+(#a: Type) (r: ghost_mono_ref a) (l1: mono_list a) (l2: mono_list a)
+requires pts_to_ghost_queue_half r l1 ** pts_to_ghost_queue_half r l2
+ensures pts_to_ghost_queue r l1 ** pure (l1 == l2)
+{
+  unfold pts_to_ghost_queue_half r l1;
+  unfold pts_to_ghost_queue_half r l2;
+  M.gather #emp_inames r one_half one_half l1 l2;
+  rewrite (M.pts_to r (sum_perm one_half one_half) l1)
+    as (pts_to_ghost_queue r l1);
+  ()
+}
+```
 
 let alloc_ghost_queue (#a:Type)
   : stt_ghost (ghost_mono_ref a) emp_inames emp (fun r -> pts_to_ghost_queue r [])
@@ -290,7 +315,7 @@ let pts_to_Some (t: task_elem & task_status) (f: perm): vprop
 
 let task_res_own (t: task_plus) (f: perm): vprop
 = match t._2 with
-| Todo -> pts_to (t._1._2) #f None
+| Todo -> pts_to (t._1._2) #f None // three_quarter
 | Ongoing -> emp // in this case, the worker has the half permission
 | Done -> pts_to_Some t f  //(exists_ (fun v -> pts_to (t._1._2) #three_quart v ** pure (Some? v)))
 
@@ -349,17 +374,98 @@ stt_ghost unit emp_inames (tasks_res_own p three_quart)
 (fun () -> tasks_res_own p one_half ** tasks_res_own p one_quart)
 *)
 
-assume val share_tasks_res_own (p: mono_list_task_plus):
-stt_ghost unit emp_inames (tasks_res_own p three_quart)
-(fun () -> tasks_res_own p one_half ** tasks_res_own p one_quart)
+```pulse
+ghost fn
+share_task_res_own_generic t (f1 f2: perm)
+requires task_res_own t (sum_perm f1 f2)
+ensures task_res_own t f1 ** task_res_own t f2
+{
+  // TODO
+  admit()
+}
+```
 
-assume val share_tasks_res_own_general (p: mono_list_task_plus) (f: perm):
-stt_ghost unit emp_inames (tasks_res_own p f)
-(fun () -> tasks_res_own p (half_perm f) ** tasks_res_own p (half_perm f))
 
-assume val share_task_res_own t (f: perm):
-stt_ghost unit emp_inames (task_res_own t f)
-(fun () -> task_res_own t (half_perm f) ** task_res_own t (half_perm f))
+
+```pulse
+ghost fn
+share_task_res_own t (f: perm)
+requires task_res_own t f
+ensures task_res_own t (half_perm f) ** task_res_own t (half_perm f)
+{
+  rewrite task_res_own t f
+    as (task_res_own t (sum_perm (half_perm f) (half_perm f)));
+  share_task_res_own_generic t (half_perm f) (half_perm f);
+  ()
+}
+```
+
+// assuming because of universe polymorphism
+assume val
+stt_return #a (x:a): stt a emp (fun y -> pure (x == y))
+
+// assuming because of universe polymorphism
+assume val
+stt_return_ghost #a (x:a): stt_ghost a emp_inames emp (fun y -> pure (x == y))
+
+// Assuming recursion
+assume val share_tasks_res_own_generic_cb (p: mono_list_task_plus) (f1: perm) (f2: perm):
+stt_ghost unit emp_inames (tasks_res_own p (sum_perm f1 f2))
+(fun () -> tasks_res_own p f1 ** tasks_res_own p f2)
+
+```pulse
+ghost fn
+share_tasks_res_own_generic (l: mono_list_task_plus) (f1: perm) (f2: perm)
+requires tasks_res_own l (sum_perm f1 f2)
+ensures tasks_res_own l f1 ** tasks_res_own l f2
+{
+  if (L.length l = 0)
+  {
+    rewrite (tasks_res_own l (sum_perm f1 f2)) as emp;
+    rewrite emp as (tasks_res_own l f1);
+    rewrite emp as (tasks_res_own l f2);
+    ()
+  }
+  else {
+    let tl = stt_return_ghost (L.hd l);
+    let ql = stt_return_ghost (L.tl l);
+    rewrite (tasks_res_own l (sum_perm f1 f2))
+      as (task_res_own tl (sum_perm f1 f2) ** tasks_res_own ql (sum_perm f1 f2));
+    share_task_res_own_generic tl f1 f2;
+    share_tasks_res_own_generic_cb ql f1 f2;
+    rewrite (task_res_own tl f1 ** tasks_res_own ql f1)
+      as (tasks_res_own l f1);
+    rewrite (task_res_own tl f2 ** tasks_res_own ql f2)
+      as (tasks_res_own l f2);
+    ()
+  }
+}
+```
+
+```pulse
+ghost fn
+share_tasks_res_own_general (p: mono_list_task_plus) (f: perm)
+requires tasks_res_own p f
+ensures tasks_res_own p (half_perm f) ** tasks_res_own p (half_perm f)
+{
+  rewrite (tasks_res_own p f) as (tasks_res_own p (sum_perm (half_perm f) (half_perm f)));
+  share_tasks_res_own_generic p (half_perm f) (half_perm f);
+  ()
+}
+```
+
+```pulse
+ghost fn
+share_tasks_res_own (p: mono_list_task_plus)
+requires tasks_res_own p three_quart
+ensures tasks_res_own p one_half ** tasks_res_own p one_quart
+{
+  rewrite (tasks_res_own p three_quart)
+    as (tasks_res_own p (sum_perm one_half one_quart));
+  share_tasks_res_own_generic p one_half one_quart;
+  ()
+}
+```
 
 
 
@@ -381,8 +487,8 @@ ensures deadline r ** deadline r
 {
   unfold deadline r;
   with f1 f2 l. assert (M.pts_to r f1 l ** tasks_res_own l f2
-  ** pure (count_ongoing l = 0 /\ get_actual_queue l == []));
-  share_queue_general r l f1;
+    ** pure (count_ongoing l = 0 /\ get_actual_queue l == []));
+  M.share #emp_inames r f1 l;
   share_tasks_res_own_general l f2;
   fold deadline r;
   fold deadline r;
@@ -448,6 +554,23 @@ ensures exists l. (pts_to_ghost_queue r l
   ** pure (c = count_ongoing l /\ q == get_actual_queue l) 
 )
 {
+  unfold small_inv r q c;
+  with l. assert (pts_to_ghost_queue_half r l);
+  rewrite `@(if c = 0 && L.length q = 0 then deadline r
+  else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
+    as (pts_to_ghost_queue_half r l ** tasks_res_own l one_quart);
+  //share_queue_general r l ;
+  gather_queue r l l;
+  //gather_
+  (*
+let small_inv (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int): vprop 
+= exists_ (fun l -> pts_to_ghost_queue_half r l **
+  tasks_res_own l one_half **
+  pure (count_ongoing l = c /\ get_actual_queue l == q)
+  ** (if c = 0 && L.length q = 0 then deadline r
+  else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
+)
+*)
   admit()
 }
 ```
@@ -475,18 +598,6 @@ assume val pts_to_perm (#a: _) (#p: _) (#v: _) (r: ref a)
       (pts_to r #p v)
       (fun _ -> pts_to r #p v ** pure (p `lesser_equal_perm` full_perm))
     
-assume val gather_pt
-  (#a:Type0) (#p0:perm) (#p1:perm) (#v0 #v1:erased a) (r:ref a)
-: stt_ghost unit emp_inames
-    (pts_to r #p0 v0 ** pts_to r #p1 v1)
-    (fun _ -> pts_to r #(sum_perm p0 p1) v0 ** pure (v0 == v1))
-
-assume val share_pt
-  (#a:Type0) (#p:perm) (#v:erased a) (r:ref a)
-  : stt_ghost unit emp_inames
-    (pts_to r #p v)
-    (fun _ -> pts_to r #(half_perm p) v ** pts_to r #(half_perm p) v)
-
 let hperm = (f:perm{lesser_equal_perm one_half f})
 
 ```pulse
@@ -497,10 +608,10 @@ requires pts_to r #f v1 ** pts_to r #three_quart v2
 ensures pts_to r #f v1 ** pts_to r #three_quart v2
   ** pure (~(r == r))
 {
-  gather_pt #a #f #three_quart #v1 #v2 r;
+  gather #_ #emp_inames r #v1 #v2 #f #three_quart;
   pts_to_perm #_ #(sum_perm f three_quart) #v1 r;
   assert (pure False);
-  share_pt #a #(sum_perm f three_quart) #v1 r;
+  share #_ #emp_inames r #v1 #(sum_perm f three_quart);
   rewrite (pts_to r #(half_perm (sum_perm f three_quart)) v1 **
     pts_to r #(half_perm (sum_perm f three_quart)) v1)
   as (pts_to r #f v1 ** pts_to r #three_quart v2);
@@ -653,6 +764,53 @@ ensures small_inv r q c ** pts_to t._2 #three_quart v ** pure (c > 0)
 
 *)
 
+let convert_to_ghost_mono_ref (r: M.ref (mono_list task_elem) is_mono_suffix):
+  ghost_mono_ref task_elem
+  = r
+
+// 0. init queue with task
+```pulse
+ghost fn init_ghost_queue' (t: task_elem)
+requires pts_to t._2 #three_quart None
+returns pair: erased (r:ghost_mono_ref task_elem & certificate r t 0)
+ensures small_inv (reveal pair)._1 [t] 0
+{
+  let l: mono_list task_elem = [(t, Todo)];
+  let r': M.ref (mono_list task_elem) is_mono_suffix = M.alloc #emp_inames #_ (is_mono_suffix) l;
+  assert (M.pts_to r' full_perm l);
+  let r: ghost_mono_ref task_elem = convert_to_ghost_mono_ref r';
+
+  rewrite (M.pts_to r' full_perm l) as (pts_to_ghost_queue r l);
+  let w: certificate r t 0 = get_certificate t 0 r l _;
+
+
+  let pair': (r:ghost_mono_ref task_elem & certificate r t 0) = (| r, w |);
+  let pair: erased (r:ghost_mono_ref task_elem & certificate r t 0) = hide pair';
+
+  share_queue r l;
+  assert (pure (count_ongoing l = 0 /\ get_actual_queue l == [t]));
+  // now: create tasks_res_own
+  //share pts_to t._2 #three_quart None
+  //share pts_to t._2
+  fold (task_res_own (t, Todo) three_quart);
+  rewrite emp as (tasks_res_own [] three_quart);
+  rewrite (task_res_own (t, Todo) three_quart ** tasks_res_own [] three_quart) as
+    (tasks_res_own l three_quart);
+  //fold (task_res_own t one_quart);
+  share_tasks_res_own l;
+  rewrite (pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
+    as `@(if 1 = 0 && L.length [t] = 0 then deadline r
+  else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart);
+  fold small_inv r [t] 0;
+  rewrite (small_inv r [t] 0) as (small_inv (reveal pair)._1 [t] 0);
+  pair
+}
+```
+
+let init_ghost_queue = init_ghost_queue'
+
+
+
 // 1: Enqueue
 ```pulse
 ghost
@@ -664,21 +822,6 @@ fn spawn_task_ghost'
   returns w: erased (pos:nat & certificate r t pos)
   ensures small_inv r (t::q) c ** is_active ct
 {
-  (*
-fn prove_task_ongoing'
-  (#t: task_elem)
-  (#pos: nat)
-  (#v: option t._1)
-  (r:ghost_mono_ref task_elem)
-  (q: list task_elem) (c: int)
-  //(l: (l:mono_list task_elem{task_in_queue t pos l /\ L.length l >= 1})):
-  (w:certificate r t pos)
-//stt_ghost unit emp_inames
-requires small_inv r q c ** pts_to t._2 #three_quart v
-ensures small_inv r q c ** pts_to t._2 #three_quart v ** pure (c > 0)
-{
-  *)
-
   unfold is_active ct;
   with v. assert (pts_to ct._1._2 #three_quart v);
   prove_task_ongoing' #ct._1 #ct._2 #v r q c ct._3;
@@ -686,8 +829,6 @@ ensures small_inv r q c ** pts_to t._2 #three_quart v ** pure (c > 0)
   fold is_active ct;
 
   unfold_small_inv r q c;
-  //unfold (small_inv r q c);
-
 
   with vl. assert (pts_to_ghost_queue r vl);
   assert (tasks_res_own vl three_quart);
@@ -865,10 +1006,6 @@ stt_ghost unit emp_inames
  get_actual_queue (close_task_bis t pos l) == get_actual_queue l
   /\ count_ongoing (close_task_bis t pos l) + 1 == count_ongoing l))
 
-// assuming because of universe polymorphism
-assume val
-stt_return #a (x:a): stt a emp (fun y -> pure (x == y))
-
 ```pulse
 ghost
 fn fold_tasks_res_own_bis
@@ -982,8 +1119,9 @@ let prove_ongoing_non_neg = prove_ongoing_non_neg'
 
 #push-options "--print_implicits --print_universes"
 
-assume val assume_prop (p: prop): stt_ghost unit emp_inames emp (fun () -> pure p)
+// assume val assume_prop (p: prop): stt_ghost unit emp_inames emp (fun () -> pure p)
 
+(*
 ```pulse
 ghost fn imp_false (b: bool) (p: vprop)
   requires pure (b == false)
@@ -1003,8 +1141,10 @@ ghost fn imp_true (b: bool) (p: vprop)
   ()
 }
 ```
+*)
 
 
+assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
 
 // 3: conclude the task
 ```pulse
@@ -1017,7 +1157,7 @@ fn conclude_task_ghost'
 (x: t._1)
 (w: certificate r t pos)
   requires small_inv r q c ** pts_to t._2 #three_quart (Some x)
-  ensures small_inv r q (c - 1) ** imp_vprop (c = 1 && L.length q = 0) (deadline r)
+  ensures small_inv r q (c - 1) //** imp_vprop (c = 1 && L.length q = 0) (deadline r)
 {
   prove_task_ongoing' #t #pos #(Some x) r q c w;
   assert (pure (c > 0));
@@ -1061,12 +1201,13 @@ fn conclude_task_ghost'
       ** `@(if c - 1 = 0 && L.length q = 0 then deadline r
       else pts_to_ghost_queue_half r p ** tasks_res_own p one_quart));
     fold (small_inv r q (c - 1));
-    imp_true (c = 1 && L.length q = 0) (deadline r);
+    //imp_true (c = 1 && L.length q = 0) (deadline r);
+    drop (deadline r);
     ()
   }
   else {
     fold_small_inv r q (c - 1);
-    imp_false (c = 1 && L.length q = 0) (deadline r);
+    //imp_false (c = 1 && L.length q = 0) (deadline r);
     ()
   }
 }
@@ -1080,7 +1221,6 @@ let recall_certificate (#t: task_elem) (#pos: nat)
            (w:certificate r t pos)
 = recall_full r v w
 
-assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
 
 let pts_to_Some_fract (t:task_elem) (f: perm): vprop
 = (exists_ (fun v -> pts_to t._2 #f v ** pure (Some? v)))

@@ -56,6 +56,7 @@ let create_task_elem #a (r: ref (option a)) (l: Lock.lock (own_res r))
 : task_elem
   = (| a, r, l|)
 
+(*
 assume
 val higher_alloc (#a:Type) (x:a)
   : stt (HR.ref a) emp (fun r -> HR.pts_to r x)
@@ -82,6 +83,7 @@ assume val higher_write (#a:Type)
   : stt unit
       (HR.pts_to r v)
       (fun _ -> HR.pts_to r x)
+*)
 
 let enqueue (t: task_elem) (c:comp_task t) (q: task_queue): task_queue
   = (|t, c|)::q
@@ -92,9 +94,9 @@ fn acquire_queue_lock
   requires emp
   ensures (exists vq vc.
     HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
-    ** small_inv (get_mono_list p) (map dfst vq) vc **
+    ** small_inv (get_mono_list p) (map dfst vq) vc
     //** conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc
-    cond_deadline (get_mono_list p) (map dfst vq) vc
+    //** cond_deadline (get_mono_list p) (map dfst vq) vc
     )
 {
   Lock.acquire (get_lock p);
@@ -159,7 +161,7 @@ fn release_queue_lock
   requires (exists vq vc.
     HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
     ** small_inv (get_mono_list p) (map dfst vq) vc
-    ** cond_deadline (get_mono_list p) (map dfst vq) vc
+    //** cond_deadline (get_mono_list p) (map dfst vq) vc
     )
   ensures emp
 {
@@ -249,6 +251,7 @@ assume val coerce_unit_stt #a (#p: par_env) (ct: erased (current_task p._3)) (t:
   (comp: (unit -> stt a (is_active ct) (fun _ -> is_active ct)))
 : unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
 
+(*
 ```pulse
 ghost fn
 update_cond_deadline_enqueue
@@ -276,6 +279,7 @@ ensures (cond_deadline (get_mono_list p) (map dfst vq) (vc + 1))
   admit()
 }
 ```
+*)
 
 
 
@@ -322,9 +326,9 @@ fn spawn_emp'
   with vq. assert (HR.pts_to (get_queue p) (Ghost.reveal vq));
   with vc. assert (pts_to (get_counter p) (Ghost.reveal vc));
   assert (HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
-    ** small_inv (get_mono_list p) (map dfst vq) vc
+    ** small_inv (get_mono_list p) (map dfst vq) vc);
     //** is_active ct);
-    ** cond_deadline (get_mono_list p) (map dfst vq) vc);
+    //** cond_deadline (get_mono_list p) (map dfst vq) vc);
 
   // adding the task to the ghost queue
   rewrite (pts_to res #three_quart None) as (pts_to task._2 #three_quart None);
@@ -343,7 +347,7 @@ fn spawn_emp'
   //fold is_active ct;
   assert (small_inv (get_mono_list p) (task::v_tasks) vc);
 
-  assert (cond_deadline (get_mono_list p) (map dfst vq) vc);
+  //assert (cond_deadline (get_mono_list p) (map dfst vq) vc);
 
   let certif: erased (certificate (get_mono_list p) task ((reveal pos_certif)._1)) =
     hide ((reveal pos_certif)._2);
@@ -354,9 +358,10 @@ fn spawn_emp'
   let comp: comp_task task = coerce_unit_stt ct' task comp_aux;
 
   let vc' = !(get_counter p);
-  let vq' = higher_read #_ #full_perm #vq (get_queue p);
+  //let vq' = higher_read #_ #full_perm #vq (get_queue p);
+  let vq' = HR.op_Bang (get_queue p);
   let vq'': task_queue = enqueue task comp vq';
-  higher_write #_ #vq (get_queue p) vq'';
+  HR.op_Colon_Equals (get_queue p) vq'';
 
   rewrite (small_inv (get_mono_list p) (task::v_tasks) vc)
     as (small_inv (get_mono_list p) (map dfst vq'') vc);
@@ -372,14 +377,14 @@ fn spawn_emp'
 
   assert (HR.pts_to (get_queue p) vq'');
 
-  assert (cond_deadline (get_mono_list p) (map dfst vq) vc);
-  update_cond_deadline_enqueue p vq vc task comp vq'';
-  assert (cond_deadline (get_mono_list p) (map dfst vq'') vc);
+  //assert (cond_deadline (get_mono_list p) (map dfst vq) vc);
+  //update_cond_deadline_enqueue p vq vc task comp vq'';
+  //assert (cond_deadline (get_mono_list p) (map dfst vq'') vc);
   //rewrite (cond_deadline (get_mono_list p) (map dfst (enqueue task comp vq)) vc)
   //  as (cond_deadline (get_mono_list p) (map dfst vq'') vc);
   assert (HR.pts_to (get_queue p) vq'' ** small_inv (get_mono_list p) (map dfst vq'') vc
    ** pts_to (get_counter p) vc
-   ** cond_deadline (get_mono_list p) (map dfst vq'') vc
+   //** cond_deadline (get_mono_list p) (map dfst vq'') vc
    );
   //(p: par_env) (vq: task_queue) (vc: int) (task: task_elem) (comp: comp_task task)
 
@@ -394,11 +399,13 @@ fn spawn_emp'
 
 let spawn_emp = spawn_emp'
 
+(*
 assume val free_ref (#a:Type) (r: ref a)
  //(x:a)
   : stt unit
   (exists_ (fun v -> pts_to r #full_perm v))
   (fun _ -> emp)
+  *)
   
 
 ```pulse
@@ -429,7 +436,7 @@ fn join_emp'
     ()
   };
   let res = !r;
-  free_ref r;
+  free r;
   Some?.v res
 }
 ```
@@ -442,7 +449,7 @@ let len (q: task_queue): nat
 let pop (q: task_queue{len q > 0}): (t:task_elem & comp_task t) & task_queue
 = (hd q, tl q) //let t::q' = q in (t, q')
 
-assume val assert_prop (p: prop): stt unit (pure p) (fun _ -> emp)
+//assume val assert_prop (p: prop): stt unit (pure p) (fun _ -> emp)
 
 let perform_task #t (comp: comp_task t): stt (t._1) (own_None t._2) (fun _ -> own_None t._2)
 = comp ()
@@ -543,7 +550,6 @@ ensures conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc
 }
 ```
 
-*)
 ```pulse
 ghost fn
 rewrite_conditional_maybe_end
@@ -577,6 +583,7 @@ ensures cond_deadline (get_mono_list p) (map dfst vq) (vc - 1)
   admit()
 }
 ```
+*)
 
 
 assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
@@ -588,6 +595,7 @@ let deadline_if (b: bool) (p: par_env): vprop
 let worker_inv r_working p
 = (exists_ (fun w -> pts_to r_working #one_half w ** deadline_if (not w) p))
 
+(*
 ```pulse
 ghost fn
 get_deadline
@@ -598,7 +606,9 @@ ensures deadline (get_mono_list p)
   admit()
 }
 ```
+*)
 
+(*
 ```pulse
 ghost fn
 intro_deadline (p: par_env)
@@ -608,6 +618,7 @@ ensures cond_deadline (get_mono_list p) [] 0
   admit()
 }
 ```
+*)
 
 ```pulse
 fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue q c))
@@ -622,7 +633,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
   rewrite emp as (deadline_if (not true) p);
   intro_exists (fun w -> pts_to r_working #one_half w ** deadline_if (not w) p) true;
   fold (worker_inv r_working p);
-  while (let working = !r_working; working)
+  while (!r_working)
     invariant b. (exists w. pts_to r_working #one_half w ** pure (b == w)
     ** worker_inv r_working p)
   {
@@ -630,12 +641,12 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
     with gvq gvc. assert (
       HR.pts_to (get_queue p) gvq ** pts_to (get_counter p) gvc
       ** small_inv (get_mono_list p) (map dfst gvq) gvc
-      ** cond_deadline (get_mono_list p) (map dfst gvq) gvc
+      //** cond_deadline (get_mono_list p) (map dfst gvq) gvc
     );
 
     //assert (small_inv (get_mono_list p) (map dfst ghost_vq) vc);
 
-    let vq = higher_read #_ #full_perm #gvq (get_queue p);
+    let vq = HR.op_Bang (get_queue p);
     let vc = !(get_counter p);
 
     // We check whether there's a task in the queue
@@ -644,8 +655,9 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       // 1. pop the task and increase counter
       let pair = stt_return (pop vq);
       (get_counter p) := vc + 1;
-      higher_write #_ #vq (get_queue p) (pair._2);
+      HR.op_Colon_Equals (get_queue p) (pair._2);
       let task = stt_return (pair._1._1);
+      //let task = pair._1._1;
       let comp: comp_task task = pair._1._2;
       assert (HR.pts_to (get_queue p) (tl gvq) **
         pts_to (get_counter p) (vc + 1));
@@ -660,14 +672,14 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
         = hide ((reveal pair)._2);
       assert (small_inv (get_mono_list p) (map dfst (tl gvq)) (gvc + 1));
 
-      assert (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
-      drop (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
-      update_cond_deadline_increment p (tl gvq) gvc;
+      //assert (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
+      //drop (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
+      //update_cond_deadline_increment p (tl gvq) gvc;
 
       assert (
         HR.pts_to (get_queue p) (tl gvq) ** pts_to (get_counter p) (gvc + 1)
         ** small_inv (get_mono_list p) (map dfst (tl gvq)) (gvc + 1)
-        ** cond_deadline (get_mono_list p) (map dfst (tl gvq)) (gvc + 1)
+        //** cond_deadline (get_mono_list p) (map dfst (tl gvq)) (gvc + 1)
       );
       release_queue_lock p;
 
@@ -690,7 +702,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       with gvq gvc. assert (
         HR.pts_to (get_queue p) gvq ** pts_to (get_counter p) gvc
         ** small_inv (get_mono_list p) (map dfst gvq) gvc
-        ** cond_deadline (get_mono_list p) (map dfst gvq) gvc
+        //** cond_deadline (get_mono_list p) (map dfst gvq) gvc
       );
 
       prove_task_ongoing #_ #_ #(Some res) (get_mono_list p) (map dfst gvq) gvc certif;
@@ -704,28 +716,32 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       conclude_task_ghost (get_mono_list p) (map dfst gvq) gvc res certif;
       assert (small_inv (get_mono_list p) (map dfst gvq) (gvc - 1));
 
-      assert (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
-      rewrite_conditional_maybe_end p gvq gvc;
+      //assert (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
+      //rewrite_conditional_maybe_end p gvq gvc;
       release_queue_lock p;
-      drop (cond_deadline (get_mono_list p) (map dfst gvq) (gvc - 1));
+      //drop (cond_deadline (get_mono_list p) (map dfst gvq) (gvc - 1));
       ()
     }
     else {
       if (vc = 0) {
         // we're done
 
-        rewrite (cond_deadline (get_mono_list p) (map dfst gvq) gvc)
-          as (cond_deadline (get_mono_list p) [] 0);
-        get_deadline p;
-        duplicate_deadline (get_mono_list p);
-        intro_deadline p;
-        rewrite (cond_deadline (get_mono_list p) [] 0)
-          as (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
+        rewrite (small_inv (get_mono_list p) (map dfst gvq) gvc)
+          as (small_inv (get_mono_list p) [] 0);
+        //rewrite (cond_deadline (get_mono_list p) (map dfst gvq) gvc)
+        //  as (cond_deadline (get_mono_list p) [] 0);
+        extract_deadline (get_mono_list p);
+        rewrite (small_inv (get_mono_list p) [] 0)
+          as (small_inv (get_mono_list p) (map dfst gvq) gvc);
+        //get_deadline p;
+        //duplicate_deadline (get_mono_list p);
+        //intro_deadline p;
+        //rewrite (cond_deadline (get_mono_list p) [] 0)
+        //  as (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
 
         assert (
           HR.pts_to (get_queue p) gvq ** pts_to (get_counter p) gvc
           ** small_inv (get_mono_list p) (map dfst gvq) gvc
-          ** (cond_deadline (get_mono_list p) (map dfst gvq) gvc)
         );
 
         release_queue_lock p;
@@ -748,7 +764,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
         assert (
           HR.pts_to (get_queue p) gvq ** pts_to (get_counter p) gvc
           ** small_inv (get_mono_list p) (map dfst gvq) gvc
-          ** cond_deadline (get_mono_list p) (map dfst gvq) gvc
+          //** cond_deadline (get_mono_list p) (map dfst gvq) gvc
         );
         release_queue_lock p;
         ()
@@ -762,7 +778,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
   rewrite (deadline_if (not w) p) as (deadline (get_mono_list p));
   gather2 #_ #emp_inames r_working;
  
-  free_ref r_working;
+  free r_working;
   ()
 }
 ```
