@@ -38,8 +38,8 @@ val spawn
 
 (* Spawn of a unit-returning task with no intention to join, simpler. *)
 val spawn_
-  (#pre #post : _)
   (#[T.exact (`full_perm)]e : perm)
+  (#pre #post : _)
   (p:pool) (f : unit -> stt unit pre (fun _ -> post))
   : stt unit (pool_alive #e p ** pre)
              (fun prom -> pool_alive #e p ** promise (pool_done p) post)

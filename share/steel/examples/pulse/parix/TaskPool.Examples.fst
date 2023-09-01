@@ -9,6 +9,8 @@ val qsv : nat -> vprop
 assume
 val qsc : n:nat -> stt unit emp (fun _ -> qsv n)
 
+let spawn_ #pre #post p f = spawn_ #full_perm #pre #post p f
+
 ```pulse
 fn qs (n:nat)
   requires emp
