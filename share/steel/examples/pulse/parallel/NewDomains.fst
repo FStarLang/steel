@@ -12,6 +12,46 @@ module HR = Pulse.Lib.HigherReference
 //module GR = Pulse.Lib.GhostReference
 
 
+(*
+Parallel for loop
+
+(parallel)
+for i in ...
+  invariant to_consume(i)
+  invariant produced(i)
+{
+  // to_consume(i) ** produced(i)
+  ghost_prep
+  // to_consume(i+1) ** pre(i) ** produced(i)
+  actual_task // might contain ghost code
+  // to_consume(i+1) ** post(i) ** produced(i)
+  ghost_post
+  // to_consume(i+1) ** produced(i+1)
+}
+
+can be compiled into
+
+for i in ...
+  invariant to_consume(i)
+         ** P(produced(i))
+{
+  // to_consume(i) ** P(produced(i))
+  ghost_prep
+  // to_consume(i+1) ** pre(i) ** P(produced(i))
+  spawn_task(actual_task)
+  // to_consume(i+1) ** P(post(i)) ** P(produced(i))
+  bind_promise(post(i), produced(i))
+  // to_consume(i+1) ** P(post(i) ** produced(i))
+  modify_promise(ghost_post)
+  // to_consume(i+1) ** P(produced(i+1))
+}
+
+redeem P(produced(n))
+
+1. pre and post can be inferred using the extract_frame technique
+2. the ghost prep and the ghost_post might be inferred
+*)
+
 
 open FStar.List.Tot.Base
 open GhostTaskQueue
@@ -31,20 +71,10 @@ fn read_own_res (#a: Type0) (r: ref (option a))
 
 #push-options "--print_universes"
 
-(*
-let unit_emp_stt_pure_pure a
-  = (r: ref (option a) -> stt a (own_None r) (fun _ -> own_None r))
-  // this type needs to be changed...
-  // maybe take the current task (with certificate) as a parameter...
-*)
 type comp_task (t: task_elem) =
   unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
 
-//type task_with_comp = (t:task_elem & comp_task t)
-
 let task_queue: Type u#1 = list (t:task_elem & comp_task t)
-//let task_queue: Type u#1 = list (t:task_elem & comp_task t)
-//let task_plus: Type u#1 = task_with_status task_elem
 
 #push-options "--warn_error -249"
 
@@ -55,6 +85,11 @@ let deadline (q: HR.ref task_queue) (c: ref int) : vprop
     HR.pts_to q #f vq ** pts_to c #f vc
   )))
 
+// with deadline + lock:
+// can prove that the invariant
+// exists vq vc. small_inv r (map dfst vq) vc 
+// holds!
+// transition from small_inv r [] 0 to "deadline"
 
 let conditional_half
   (q: HR.ref task_queue)
@@ -62,9 +97,6 @@ let conditional_half
   (if length vq = 0 && vc = 0 then deadline q c // we're done
   else (HR.pts_to q #one_half vq ** pts_to c #one_half vc)) // we have exclusive permission to q and c
 
-
-// TODO: Support two modes?
-// Once the thing is done...
 let inv_task_queue
   (q: HR.ref task_queue) // the task queue
   (c: ref int) // a counter of how many tasks are currently being performed
@@ -74,13 +106,13 @@ let inv_task_queue
   exists_ (fun vc -> 
     HR.pts_to q #one_half vq ** pts_to c #one_half vc ** small_inv r (map dfst vq) vc **
     conditional_half q c vq vc
-    //** (if length vq = 0 && vc = 0 then emp // we're done
-     // else (HR.pts_to q #one_half vq ** pts_to c #one_half vc) // we have exclusive permission to q and c
     )))
 
+// moved to GhostTaskQueue
 let par_env = (q: HR.ref task_queue & c: ref int & r: ghost_mono_ref task_elem & Lock.lock (inv_task_queue q c r))
 // & current_task r)
 
+// moved to GhostTaskQueue
 let current_task (p: par_env) = (t:task_elem & pos:nat & certificate p._3 t pos)
 
 let mk_current_task (p: par_env) (t:task_elem) (pos:nat) (w:certificate p._3 t pos):
@@ -92,6 +124,7 @@ let update_par_env
   (p: par_env) (w: certificate r t pos)
 = (| p._1, p._2, p._3, p._4, (| t, pos, w |) |)
 
+// moved to GhostTaskQueue
 let is_active #r (ct: current_task r): vprop = pts_to ct._1._2 #three_quart None
 
 let get_queue (p: par_env): HR.ref task_queue
