@@ -92,7 +92,7 @@ let imp_vprop (b: erased bool) (p: vprop): vprop
 let cond_deadline
 (r: ghost_mono_ref task_elem)
  (q: list task_elem) (c: int)
-= imp_vprop (c = 1 && L.length q = 0) (deadline r)
+= imp_vprop (c = 0 && L.length q = 0) (deadline r)
 
 // 3. conclude a task
 val conclude_task_ghost
@@ -104,7 +104,7 @@ val conclude_task_ghost
 (w: certificate r t pos):
 stt_ghost unit emp_inames
 (small_inv r q c ** pts_to t._2 #three_quart (Some x))
-(fun () -> small_inv r q (c - 1) ** cond_deadline r q c) //imp_vprop (c = 1 && L.length q = 0) (deadline r))
+(fun () -> small_inv r q (c - 1) ** cond_deadline r q (c - 1)) //imp_vprop (c = 1 && L.length q = 0) (deadline r))
 
 val proof_promise (#t: task_elem) (#pos: nat)
   (r: ghost_mono_ref task_elem)

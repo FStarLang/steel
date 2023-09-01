@@ -23,7 +23,7 @@ let inv_task_queue
 = (exists_ (fun vq ->
   exists_ (fun vc -> 
     HR.pts_to q vq ** pts_to c vc ** small_inv r (map dfst vq) vc **
-    cond_deadline r (map dfst vq) vc
+    cond_deadline r (map dfst vq) vc // TODO: Remove this!
     )))
 
 let par_env = (q: HR.ref task_queue & c: ref int & r: ghost_mono_ref task_elem & Lock.lock (inv_task_queue q c r))
