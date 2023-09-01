@@ -6,6 +6,28 @@ open TaskPool
 open FStar.Real
 open Promises
 
+```pulse
+ghost
+fn aux_squash_promise (f v : vprop) (_:unit)
+  requires f ** promise f (promise f v)
+  ensures f ** v
+{
+  redeem_promise f (promise f v);
+  redeem_promise f v
+}
+```
+
+```pulse
+ghost
+fn squash_promise (f v : vprop)
+  requires promise f (promise f v)
+  ensures promise f v
+{
+  make_promise f v (promise f (promise f v))
+   (aux_squash_promise f v)
+}
+```
+
 let div_perm (p:perm) (n:pos) : perm =
   let open Steel.FractionalPermission in
   MkPerm ((MkPerm?.v p) /. of_int n)
@@ -75,6 +97,7 @@ let p_combine_equiv p1 p2 i j = magic()
 let rewrite_ = Pulse.Lib.Core.rewrite
 
 ```pulse
+ghost
 fn p_join (p : (nat->vprop)) (i j k : nat) (_ : squash (i <= j /\ j <= k))
   requires range p i j ** range p j k
   ensures range p i k
@@ -84,6 +107,7 @@ fn p_join (p : (nat->vprop)) (i j k : nat) (_ : squash (i <= j /\ j <= k))
 ```
 
 ```pulse
+ghost
 fn p_split (p : (nat->vprop)) (i j k : nat) (_ : squash (i <= j /\ j <= k))
   requires range p i k
   ensures range p i j ** range p j k
@@ -93,6 +117,7 @@ fn p_split (p : (nat->vprop)) (i j k : nat) (_ : squash (i <= j /\ j <= k))
 ```
 
 ```pulse
+ghost
 fn p_join_last (p : (nat->vprop)) (n : nat) (_ : squash (n > 0))
   requires range p 0 (n-1) ** p (n-1)
   ensures range p 0 n
@@ -102,6 +127,7 @@ fn p_join_last (p : (nat->vprop)) (n : nat) (_ : squash (n > 0))
 ```
 
 ```pulse
+ghost
 fn p_split_last (p : (nat->vprop)) (n : nat) (_ : squash (n > 0))
   requires range p 0 n
   ensures range p 0 (n-1) ** p (n-1)
@@ -111,6 +137,7 @@ fn p_split_last (p : (nat->vprop)) (n : nat) (_ : squash (n > 0))
 ```
 
 ```pulse
+ghost
 fn p_combine (p1 p2 : (nat->vprop)) (i j : nat)
   requires range p1 i j ** range p2 i j
   ensures range (fun i -> p1 i ** p2 i) i j
@@ -121,6 +148,7 @@ fn p_combine (p1 p2 : (nat->vprop)) (i j : nat)
 ```
 
 ```pulse
+ghost
 fn p_uncombine (p1 p2 : (nat->vprop)) (i j : nat)
   requires range (fun i -> p1 i ** p2 i) i j
   ensures range p1 i j ** range p2 i j
@@ -181,6 +209,21 @@ let simple_for  :
      stt unit (r ** range pre 0 n) (fun _ -> r ** range post 0 n)
   = 
   fun pre post r f -> fix_stt_1 (__simple_for pre post r f)
+
+```pulse
+fn for_loop
+   (pre post : (nat -> vprop))
+   (r : vprop) // This resource is passed around through iterations.
+   (f : (i:nat -> stt unit (r ** pre i) (fun () -> (r ** post i))))
+   (lo hi : nat)
+   requires r ** range pre lo hi
+   ensures r ** range post lo hi
+{
+  (* TODO: implement by just shifting simple_for? *)
+  admit()
+}
+```
+
 
 assume val frac_n (n:pos) (p:pool) (e:perm)
   : stt unit (pool_alive #e p)
@@ -440,7 +483,7 @@ parallel_for_wsr
   (post : (nat -> vprop))
   (full_pre : (nat -> vprop))
   (full_post : (nat -> vprop))
-  (f : (i:nat -> stt unit (pre i) (fun () -> (post i))))
+  (f : (i:nat -> stt unit (pre i) (fun () -> post i)))
   (unfold_pre : (i:nat -> stt_ghost unit emp_inames (full_pre (i+1)) (fun () -> pre i ** full_pre i)))
   (fold_post : (i:nat -> stt_ghost unit emp_inames (post i ** full_post i) (fun () -> full_post (i+1))))
   (n : pos)
@@ -452,3 +495,152 @@ parallel_for_wsr
   ffold post full_post fold_post n 0
 }
 ```
+
+assume
+val frame_stt_left
+  (#a:Type u#a)
+  (#pre:vprop) (#post:a -> vprop)
+  (frame:vprop)
+  (e:stt a pre post)
+  : stt a (frame ** pre) (fun x -> frame ** post x)
+
+#set-options "--ext pulse:guard_policy=SMTSync"
+
+```pulse
+fn h_for_task__
+  (p:pool)
+  (e:perm)
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (f : (i:nat -> stt unit (pre i) (fun () -> post i)))
+  (lo hi : nat)
+  (_:unit)
+  requires pool_alive #e p ** range pre lo hi
+  ensures promise (pool_done p) (range post lo hi)
+{
+  admit()
+}
+```
+
+```pulse
+fn h_for_task
+  (p:pool)
+  (e:perm)
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (f : (i:nat -> stt unit (pre i) (fun () -> post i)))
+  (lo hi : nat)
+  (_:unit)
+  requires pool_alive #e p ** range pre lo hi
+  ensures promise (pool_done p) (range post lo hi)
+{
+  if (hi - lo < 100) {
+    (* Too small, just run sequentially *)
+    drop_ (pool_alive #e p); // won't use the pool
+    for_loop pre post emp
+             (fun i -> frame_stt_left emp (f i)) lo hi;
+
+    return_promise (pool_done p) (range post lo hi)
+  } else {
+    let mid = (hi+lo)/2;
+    assert (pure (lo <= mid /\ mid <= hi));
+
+    split_alive p e;
+    split_alive p (half_perm e);
+
+    p_split pre lo mid hi ();
+
+    gspawn_ #(pool_alive #(half_perm (half_perm e)) p ** range pre lo mid)
+            #(promise (pool_done p) (range post lo mid))
+            #(half_perm e)
+            p
+            (h_for_task__ p (half_perm (half_perm e)) pre post f lo mid);
+
+    gspawn_ #(pool_alive #(half_perm (half_perm e)) p ** range pre mid hi)
+            #(promise (pool_done p) (range post mid hi))
+            #(half_perm e)
+            p
+            (h_for_task__ p (half_perm (half_perm e)) pre post f mid hi);
+
+    (* We get this complicated promise from the spawns above. We can
+    massage it before even waiting. *)
+    assert (promise (pool_done p) (promise (pool_done p) (range post lo mid)));
+    assert (promise (pool_done p) (promise (pool_done p) (range post mid hi)));
+
+    squash_promise (pool_done p) (range post lo mid);
+    squash_promise (pool_done p) (range post mid hi);
+
+    join_promise #(pool_done p) (range post lo mid) (range post mid hi);
+    rewrite_promise #(pool_done p) (range post lo mid ** range post mid hi) (range post lo hi)
+        (fun () -> p_join post lo mid hi ());
+
+    (* Better *)
+    assert (promise (pool_done p) (range post lo hi));
+
+    drop_ (pool_alive #(half_perm e) p);
+
+    ()
+  }
+}
+```
+
+(* Assuming a wait that only needs epsilon permission, I think that's ok *)
+assume
+val wait_pool
+  (p:pool)
+  (e:perm)
+  : stt unit (pool_alive #e p) (fun _ -> pool_done p)
+
+```pulse
+fn
+parallel_for_hier
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (f : (i:nat -> stt unit (pre i) (fun () -> (post i))))
+  (n : pos)
+  requires range pre 0 n
+  ensures range post 0 n
+{
+  let p = setup_pool 42;
+
+(*
+  // Spawning the first task: useless! Just call
+
+  assert (pool_alive #full_perm p);
+  split_alive p full_perm;
+
+  rewrite (pool_alive #(half_perm full_perm) p ** pool_alive #(half_perm full_perm) p)
+       as (pool_alive #one_half p ** pool_alive #one_half p);
+  assert (pool_alive #one_half p ** pool_alive #one_half p);
+
+
+  gspawn_ #(pool_alive #one_half p ** range pre 0 n)
+          #(promise (pool_done p) (range post 0 n))
+          #one_half
+          p
+          (h_for_task p one_half pre post f 0 n);
+
+  (* We get this complicated promise from the spawn above. We can
+  massage it before even waiting. *)
+  assert (promise (pool_done p) (promise (pool_done p) (range post 0 n)));
+
+  squash_promise (pool_done p) (range post 0 n);
+
+  (* Better *)
+  assert (promise (pool_done p) (range post 0 n));
+*)
+
+  split_alive p full_perm;
+  h_for_task p (half_perm full_perm) pre post f 0 n ();
+
+  wait_pool p (half_perm full_perm);
+
+  assert (pool_done p);
+
+  redeem_promise (pool_done p) (range post 0 n);
+
+  drop_ (pool_done p);
+  ()
+}
+```
+

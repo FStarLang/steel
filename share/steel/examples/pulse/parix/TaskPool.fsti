@@ -66,6 +66,13 @@ val extract
   (th : task_handle p a post)
   : stt a (handle_solved th) (fun x -> post x)
   
+val split_alive
+  (p:pool)
+  (e:perm)
+  : stt_ghost unit emp_inames
+              (pool_alive #e p)
+              (fun () -> pool_alive #(half_perm e) p ** pool_alive #(half_perm e) p)
+
 val join
   (#p:pool)
   (#a:Type0)

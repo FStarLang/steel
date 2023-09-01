@@ -41,6 +41,8 @@ fn __extract
 ``` 
 let extract = __extract
 
+let split_alive _ _ = admit()
+
 ```pulse
 fn __join
   (#p:pool)
