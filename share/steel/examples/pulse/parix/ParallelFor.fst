@@ -137,17 +137,24 @@ val now
   : unit -> stt a pre post
 let now f () = f ()
 
+val now_ghost
+  (#a #pre #post #opens: _)
+  (f : unit -> stt_ghost a opens pre post)
+  : unit -> stt_ghost a opens pre post
+let now_ghost f () = f ()
+
 ```pulse
 fn __simple_for
    (pre post : (nat -> vprop))
-   (f : (i:nat -> stt unit (pre i) (fun () -> (post i))))
+   (r : vprop) // This resource is passed around through iterations.
+   (f : (i:nat -> stt unit (r ** pre i) (fun () -> (r ** post i))))
    (kk : (
      (n : nat) ->
-     stt unit (range pre 0 n) (fun _ -> range post 0 n)
+     stt unit (r ** range pre 0 n) (fun _ -> r ** range post 0 n)
    ))
    (n : nat)
-   requires range pre 0 n
-   ensures range post 0 n
+   requires r ** range pre 0 n
+   ensures r ** range post 0 n
 {
   (* Couldn't use a while loop here, weird errors, try again. *)
   if (n = 0) {
@@ -168,11 +175,12 @@ fn __simple_for
 let simple_for  :
      (pre : (nat -> vprop)) ->
      (post : (nat -> vprop)) ->
-     (f : (i:nat -> stt unit (pre i) (fun () -> (post i)))) ->
+     (r : vprop) -> // This resource is passed around through iterations.
+     (f : (i:nat -> stt unit (r ** pre i) (fun () -> r ** post i))) ->
      (n : nat) ->
-     stt unit (range pre 0 n) (fun _ -> range post 0 n)
+     stt unit (r ** range pre 0 n) (fun _ -> r ** range post 0 n)
   = 
-  fun pre post f -> fix_stt_1 (__simple_for pre post f)
+  fun pre post r f -> fix_stt_1 (__simple_for pre post r f)
 
 assume val frac_n (n:pos) (p:pool) (e:perm)
   : stt unit (pool_alive #e p)
@@ -182,18 +190,30 @@ assume val unfrac_n (n:pos) (p:pool) (e:perm)
   : stt unit (range (fun i -> pool_alive #(div_perm e n) p) 0 n)
              (fun () -> pool_alive #e p)
 
+#set-options "--print_implicits --print_universes"
+
+// FIXME: arguments with defaults (i.e. metaargs with tactics)
+// make functions not be recognized by Pulse
+val gspawn_
+  (#pre #post : _)
+  (#e : perm)
+  (p:pool) (f : unit -> stt unit pre (fun _ -> post))
+  : stt unit (pool_alive #e p ** pre)
+             (fun prom -> pool_alive #e p ** promise (pool_done p) post)
+let gspawn_ p f = TaskPool.spawn_ p f
+
 ```pulse
 fn spawned_f_i 
   (p:pool)
   (pre : (nat -> vprop))
   (post : (nat -> vprop))
+  (e:perm)
   (f : (i:nat -> stt unit (pre i) (fun () -> post i)))
-  (n:pos)
   (i:nat)
-  requires pre i ** pool_alive #(div_perm full_perm n) p
-  ensures promise (pool_done p) (post i) ** pool_alive #(div_perm full_perm n) p
+  requires emp ** (pre i ** pool_alive #e p)
+  ensures emp ** (promise (pool_done p) (post i) ** pool_alive #e p)
 {
-  spawn_ #(pre i) #(post i) #(div_perm full_perm n) p (fun () -> f i)
+  gspawn_ #(pre i) #(post i) #e p (fun () -> f i)
 }
 ```
 
@@ -256,7 +276,8 @@ parallel_for
   simple_for
     (fun i -> pre i ** pool_alive #(div_perm full_perm n) p)
     (fun i -> promise (pool_done p) (post i) ** pool_alive #(div_perm full_perm n) p)
-    (spawned_f_i p pre post f n)
+    emp // Alternative: pass pool_alive p here and forget about the n-way split. See below.
+    (spawned_f_i p pre post (div_perm full_perm n) f)
     n;
     
   p_uncombine (fun i -> promise (pool_done p) (post i)) (fun i -> pool_alive #(div_perm full_perm n) p) 0 n;
@@ -268,5 +289,166 @@ parallel_for
   drop_ (pool_done p);
 
   ()
+}
+```
+
+
+```pulse
+fn spawned_f_i_alt
+  (p:pool)
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (f : (i:nat -> stt unit (pre i) (fun () -> post i)))
+  (i:nat)
+  requires pool_alive p ** pre i
+  ensures pool_alive p ** promise (pool_done p) (post i)
+{
+  gspawn_ #(pre i) #(post i) #full_perm p (fun () -> f i)
+}
+```
+
+(* Alternative; not splitting the pool_alive resource. We are anyway
+spawning sequentially. *)
+```pulse
+fn
+parallel_for_alt
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (f : (i:nat -> stt unit (pre i) (fun () -> (post i))))
+  (n : pos)
+  requires range pre 0 n
+  ensures range post 0 n
+{
+  let p = setup_pool 42;
+
+  simple_for
+    pre
+    (fun i -> promise (pool_done p) (post i))
+    (pool_alive p)
+    (spawned_f_i_alt p pre post f)
+    n;
+    
+  teardown_pool p;
+  redeem_range post (pool_done p) n;
+  drop_ (pool_done p);
+  ()
+}
+```
+
+#push-options "--using_facts_from '* -FStar.Tactics -FStar.Reflection'"
+#push-options "--retry 2 --ext 'pulse:rvalues'" // GM: Part of this VC fails on batch mode, not on ide...
+
+let wsr_loop_inv_f
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (full_post : (nat -> vprop))
+  (n : pos)
+  (i : ref int)
+  (b:bool)
+  : Tot vprop
+  =
+  exists_ (fun (ii:nat) ->
+       pts_to i ii
+    ** full_post ii
+    ** range post ii n
+    ** pure (b == (Prims.op_LessThan ii n)))
+
+let wsr_loop_inv_tf
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (full_post : (nat -> vprop))
+  (n : pos)
+  (i : ref int)
+  : Tot vprop =
+  exists_ (fun (b:bool) -> wsr_loop_inv_f pre post full_post n i b)
+  
+(* This can be ghost. *)
+```pulse
+fn
+__ffold
+  (p : (nat -> vprop))
+  (fp : (nat -> vprop))
+  (ss : (i:nat -> stt_ghost unit emp_inames (p i ** fp i) (fun () -> fp (i+1))))
+  (n : nat)
+  (kk: (
+        (i:nat) -> stt unit (pure (i <= n) ** fp i ** range p i n) (fun _ -> fp n)
+  ))
+  (i : nat)
+  requires pure (i <= n) ** fp i ** range p i n
+  ensures fp n
+{
+   if (i = n) {
+     rewrite (range p i n) as emp;
+     rewrite fp i as fp n;
+     ()
+   } else {
+     assert (fp i ** range p i n);
+     rewrite (range p i n) as (p i ** range p (i+1) n);
+     now_ghost (fun () -> ss i) ();
+     now (fun () -> kk (i+1)) ();
+     ()
+   }
+}
+```
+let ffold
+  (p : (nat -> vprop))
+  (fp : (nat -> vprop))
+  (ss : (i:nat -> stt_ghost unit emp_inames (p i ** fp i) (fun () -> fp (i+1))))
+  (n:nat)
+  : (i:nat) -> stt unit (pure (i <= n) ** fp i ** range p i n) (fun _ -> fp n)
+  = fix_stt_1 (__ffold p fp ss n)
+
+(* This can be ghost. *)
+```pulse
+fn
+__funfold
+  (p : (nat -> vprop))
+  (fp : (nat -> vprop))
+  (ss : (i:nat -> stt_ghost unit emp_inames (fp (i+1)) (fun () -> p i ** fp i)))
+  (kk: (
+        (n:nat) -> stt unit (fp n) (fun _ -> fp 0 ** range p 0 n)
+  ))
+  (n : nat)
+  requires fp n
+  ensures fp 0 ** range p 0 n
+{
+   if (n = 0) {
+     rewrite fp n as fp 0;
+     rewrite emp as range p 0 n;
+     ()
+   } else {
+     assert (fp n);
+     rewrite fp n as fp ((n-1)+1);
+     now_ghost (fun () -> ss (n-1)) ();
+     assert (p (n-1) ** fp (n-1));
+     now (fun () -> kk (n-1)) ();
+     p_join_last p n ()
+   }
+}
+```
+let funfold
+  (p : (nat -> vprop))
+  (fp : (nat -> vprop))
+  (ss : (i:nat -> stt_ghost unit emp_inames (fp (i+1)) (fun () -> p i ** fp i)))
+  : (n:nat) -> stt unit (fp n) (fun _ -> fp 0 ** range p 0 n)
+  = fix_stt_1 (__funfold p fp ss)
+
+```pulse
+fn
+parallel_for_wsr
+  (pre : (nat -> vprop))
+  (post : (nat -> vprop))
+  (full_pre : (nat -> vprop))
+  (full_post : (nat -> vprop))
+  (f : (i:nat -> stt unit (pre i) (fun () -> (post i))))
+  (unfold_pre : (i:nat -> stt_ghost unit emp_inames (full_pre (i+1)) (fun () -> pre i ** full_pre i)))
+  (fold_post : (i:nat -> stt_ghost unit emp_inames (post i ** full_post i) (fun () -> full_post (i+1))))
+  (n : pos)
+  requires full_pre n ** full_post 0
+  ensures full_pre 0 ** full_post n
+{
+  funfold pre full_pre unfold_pre n;
+  parallel_for pre post f n;
+  ffold post full_post fold_post n 0
 }
 ```
