@@ -64,10 +64,9 @@ val pop_task_ghost
 (r: ghost_mono_ref task_elem)
 (t: task_elem)
 (q: list task_elem) (c: int)
-(ct: current_task r)
 : stt_ghost (erased (pos:nat & certificate r t pos)) emp_inames
-(small_inv r (t::q) c ** is_active ct)
-(fun _ -> small_inv r q (c + 1) ** pts_to t._2 #three_quart None ** is_active ct)
+(small_inv r (t::q) c)
+(fun _ -> small_inv r q (c + 1) ** pts_to t._2 #three_quart None)
 
 val prove_task_ongoing
   (#t: task_elem)
@@ -87,8 +86,13 @@ val prove_ongoing_non_neg
 (small_inv r q c)
 (fun () -> small_inv r q c ** pure (c >= 0))
 
-let imp_vprop (b: bool) (p: vprop): vprop
+let imp_vprop (b: erased bool) (p: vprop): vprop
   = if b then p else emp
+
+let cond_deadline
+(r: ghost_mono_ref task_elem)
+ (q: list task_elem) (c: int)
+= imp_vprop (c = 1 && L.length q = 0) (deadline r)
 
 // 3. conclude a task
 val conclude_task_ghost
@@ -100,7 +104,7 @@ val conclude_task_ghost
 (w: certificate r t pos):
 stt_ghost unit emp_inames
 (small_inv r q c ** pts_to t._2 #three_quart (Some x))
-(fun () -> small_inv r q (c - 1) ** imp_vprop (c = 1 && L.length q = 0) (deadline r))
+(fun () -> small_inv r q (c - 1) ** cond_deadline r q c) //imp_vprop (c = 1 && L.length q = 0) (deadline r))
 
 val proof_promise (#t: task_elem) (#pos: nat)
   (r: ghost_mono_ref task_elem)

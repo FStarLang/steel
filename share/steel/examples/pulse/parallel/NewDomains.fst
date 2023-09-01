@@ -78,12 +78,14 @@ let task_queue: Type u#1 = list (t:task_elem & comp_task t)
 
 #push-options "--warn_error -249"
 
+(*
 let deadline (q: HR.ref task_queue) (c: ref int) : vprop
 = exists_ (fun f ->
   exists_ (fun vq ->
   exists_ (fun vc ->
     HR.pts_to q #f vq ** pts_to c #f vc
   )))
+  *)
 
 // with deadline + lock:
 // can prove that the invariant
@@ -92,9 +94,10 @@ let deadline (q: HR.ref task_queue) (c: ref int) : vprop
 // transition from small_inv r [] 0 to "deadline"
 
 let conditional_half
+  (r: ghost_mono_ref task_elem)
   (q: HR.ref task_queue)
   (c: ref int) (vq: task_queue) (vc: int): vprop =
-  (if length vq = 0 && vc = 0 then deadline q c // we're done
+  (if length vq = 0 && vc = 0 then deadline r // we're done
   else (HR.pts_to q #one_half vq ** pts_to c #one_half vc)) // we have exclusive permission to q and c
 
 let inv_task_queue
@@ -105,7 +108,7 @@ let inv_task_queue
 = (exists_ (fun vq ->
   exists_ (fun vc -> 
     HR.pts_to q #one_half vq ** pts_to c #one_half vc ** small_inv r (map dfst vq) vc **
-    conditional_half q c vq vc
+    conditional_half r q c vq vc
     )))
 
 // moved to GhostTaskQueue
@@ -113,10 +116,10 @@ let par_env = (q: HR.ref task_queue & c: ref int & r: ghost_mono_ref task_elem &
 // & current_task r)
 
 // moved to GhostTaskQueue
-let current_task (p: par_env) = (t:task_elem & pos:nat & certificate p._3 t pos)
+//let current_task (p: par_env) = (t:task_elem & pos:nat & certificate p._3 t pos)
 
 let mk_current_task (p: par_env) (t:task_elem) (pos:nat) (w:certificate p._3 t pos):
-  (ct:current_task p{ct._1 == t})
+  (ct:current_task p._3{ct._1 == t})
 = (| t, pos, w |)
 
 let update_par_env
@@ -125,7 +128,9 @@ let update_par_env
 = (| p._1, p._2, p._3, p._4, (| t, pos, w |) |)
 
 // moved to GhostTaskQueue
-let is_active #r (ct: current_task r): vprop = pts_to ct._1._2 #three_quart None
+//let pool_alive #r (ct: current_task r): vprop =
+//  is_active ct
+//pts_to ct._1._2 #three_quart None
 
 let get_queue (p: par_env): HR.ref task_queue
   = p._1
@@ -183,7 +188,7 @@ fn acquire_queue_lock
   ensures (exists vq vc.
     HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
     ** small_inv (get_mono_list p) (map dfst vq) vc
-    ** conditional_half (get_queue p) (get_counter p) vq vc
+    ** conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc
     )
 {
   Lock.acquire (get_lock p);
@@ -200,7 +205,7 @@ fn acquire_queue_lock_ongoing
   //(#pos: nat)
   (p: par_env)
   //(w:certificate (get_mono_list p) t pos)
-  (ct: current_task p)
+  (ct: current_task p._3)
   requires is_active ct //pts_to t._2 #three_quart None
   ensures (exists vq vc.
     HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc ** small_inv (get_mono_list p) (map dfst vq) vc)
@@ -211,16 +216,21 @@ fn acquire_queue_lock_ongoing
   with vq. assert (HR.pts_to (get_queue p) #one_half vq);
   with vc. assert (pts_to (get_counter p) #one_half vc);
   assert (small_inv (get_mono_list p) (map dfst vq) vc);
-  //let ct = get_current_task p;
+  //let ct = get_current_task p._3;
+  //unfold pool_alive ct;
   unfold is_active ct;
-  prove_task_ongoing #_ #_ #None (get_mono_list p) (map dfst vq) vc ct._3;
-  //rewrite (pts_to p._5._1._2 #three_quart None) as (is_active p);
+  with v. assert (pts_to ct._1._2 #three_quart v);
+  //(exists_ (fun v -> pts_to ct._1._2 #three_quart v))
+  //rewrite (is_active ct) as ( pts_to ct._1._2 #three_quart );
+  prove_task_ongoing #ct._1 #ct._2 #v (get_mono_list p) (map dfst vq) vc ct._3;
   fold is_active ct;
+  //rewrite (pts_to p._5._1._2 #three_quart None) as (pool_alive p);
+  //fold pool_alive ct;
   assert (pure (vc > 0));
   assert (small_inv (get_mono_list p) (map dfst vq) vc);
-  assert (conditional_half (get_queue p) (get_counter p) vq vc);
-  //unfold (conditional_half (get_queue p) (get_counter p) vq vc);
-  rewrite `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) // we're done
+  assert (conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc);
+  unfold (conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc);
+  rewrite `@(if length vq = 0 && vc = 0 then deadline (get_mono_list p) // we're done
       else (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc))
     as (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc);
   assert (HR.pts_to (get_queue p) #one_half vq ** HR.pts_to (get_queue p) #one_half vq);
@@ -239,7 +249,7 @@ fn release_queue_lock
   requires (exists vq vc.
     HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
     ** small_inv (get_mono_list p) (map dfst vq) vc
-    ** conditional_half (get_queue p) (get_counter p) vq vc
+    ** conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc
     )
   ensures emp
 {
@@ -255,7 +265,7 @@ fn release_queue_lock_ongoing
   //(#pos: nat)
   (p: par_env)
   //(w:certificate (get_mono_list p) t pos)
-  (ct: current_task p)
+  (ct: current_task p._3)
   requires is_active ct //pts_to t._2 #three_quart None
     ** (exists vq vc. HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
     ** small_inv (get_mono_list p) (map dfst vq) vc)
@@ -266,16 +276,19 @@ fn release_queue_lock_ongoing
   share2 #_ #emp_inames (get_counter p);
   HR.share2 #_ #emp_inames (get_queue p);
   //let b: bool = (length vq = 0 && vc = 0);
-  //rewrite (is_active ct) as (pts_to ct._1._2 #three_quart None);
+  //rewrite (pool_alive ct) as (pts_to ct._1._2 #three_quart None);
+  //unfold  ct;
   unfold is_active ct;
-  prove_task_ongoing #_ #_ #None (get_mono_list p) (map dfst vq) vc ct._3;
+  with v. assert (pts_to ct._1._2 #three_quart v);
+  prove_task_ongoing #ct._1 #ct._2 #v (get_mono_list p) (map dfst vq) vc ct._3;
   fold is_active ct;
-  //rewrite (pts_to ct._1._2 #three_quart None) as (is_active ct);
+  //fold pool_alive ct;
+  //rewrite (pts_to ct._1._2 #three_quart None) as (pool_alive ct);
   //let proof = prove_task_ongoing (get_mono_list p) vq vc w;
   rewrite 
       (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)
     as
-      `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) // we're done
+      `@(if length vq = 0 && vc = 0 then deadline (get_mono_list p) // we're done
       else (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc));
   //fold (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p));
   //rewrite (inv_task_queue (get_queue p) (get_counter p) (get_mono_list p)) as (get_lock p);
@@ -327,7 +340,7 @@ assume val
 stt_return #a (x:a): stt a emp (fun y -> pure (x == y))
 
 // need to impose relationship between t and ct
-assume val coerce_unit_stt #a #p (ct: erased (current_task p)) (t: task_elem)
+assume val coerce_unit_stt #a (#p: par_env) (ct: erased (current_task p._3)) (t: task_elem)
   (comp: (unit -> stt a (is_active ct) (fun _ -> is_active ct)))
 : unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
 
@@ -342,10 +355,10 @@ fn spawn_emp'
   //(post: (a -> prop))
   //(l: Lock.lock (inv_task_queue q c))
   //(f : funct a) //(p':par_env -> unit_emp_stt_pure_pure a p'._5._2))
-  //(f: (p:par_env -> unit -> stt a (is_active p) (fun _ -> is_active p)))
-  (ct: current_task p)
+  //(f: (p:par_env -> unit -> stt a (pool_alive p) (fun _ -> pool_alive p)))
+  (ct: current_task p._3)
   //unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
-  (f: (par_env -> ct:erased (current_task p) -> unit -> stt a (is_active ct) (fun _ -> is_active ct)))
+  (f: (par_env -> ct:erased (current_task p._3) -> unit -> stt a (is_active ct) (fun _ -> is_active ct)))
 
   // type comp_task (t: task_elem) =
   //unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
@@ -358,7 +371,7 @@ fn spawn_emp'
 {
   let res : ref (option a) = Pulse.Lib.Reference.alloc #(option a) None;
   share_quarter res;
-  //fold is_active 
+  //fold pool_alive 
   //share res;
   fold (own_res res);
   let l_res = Lock.new_lock (own_res res); //(exists_ (fun v -> pts_to res full_perm v ** pure (maybe_sat post v)));
@@ -366,7 +379,7 @@ fn spawn_emp'
   // needs new environment
   // cyclic dependency...
 
-  //let fp = typed_id (unit_emp_stt_pure_pure a (get_current_task p)._1._2) (f p);
+  //let fp = typed_id (unit_emp_stt_pure_pure a (get_current_task p._3)._1._2) (f p);
 
   let task: task_elem = stt_return (create_task_elem #a res l_res);// fp;
 
@@ -384,13 +397,20 @@ fn spawn_emp'
   let v_tasks = hide (map dfst vq);
   rewrite (small_inv (get_mono_list p) (map dfst vq) vc)
     as (small_inv (get_mono_list p) v_tasks vc);
+  //unfold pool_alive ct;
+  assert (is_active ct);
+  let ct'': current_task (get_mono_list p) = ct;
+  rewrite (is_active ct) as (is_active ct'');
   let pos_certif: erased (pos:nat & certificate (get_mono_list p) task pos)
-    = spawn_task_ghost (get_mono_list p) v_tasks vc task;
+    = spawn_task_ghost (get_mono_list p) v_tasks vc task ct'';
+  assert is_active ct'';
+  //fold pool_alive ct'';
+  //fold is_active ct;
   assert (small_inv (get_mono_list p) (task::v_tasks) vc);
 
   let certif: erased (certificate (get_mono_list p) task ((reveal pos_certif)._1)) =
     hide ((reveal pos_certif)._2);
-  let ct': erased (current_task p) = hide (mk_current_task p task ((reveal pos_certif)._1) certif); 
+  let ct': erased (current_task p._3) = hide (mk_current_task p task ((reveal pos_certif)._1) certif); 
 
 
   let comp_aux: (unit -> stt a (is_active ct') (fun _ -> is_active ct')) = f p ct';
@@ -407,6 +427,10 @@ fn spawn_emp'
   assert (HR.pts_to (get_queue p) vq'');
   assert (exists vc vq. HR.pts_to (get_queue p) vq ** small_inv (get_mono_list p) (map dfst vq) vc
    ** pts_to (get_counter p) vc);
+  //let ct''': current_task (get_mono_list p) = ct'';
+  //rewrite (pool_alive ct'') as (pool_alive ct''');
+  let ct: current_task p._3 = ct'';
+  rewrite (is_active ct'') as (is_active ct);
   release_queue_lock_ongoing p ct;
 
   let r = mk_pure_handler p res l_res certif;
@@ -625,57 +649,18 @@ fn declare_task_done (p: par_env) (task: task_elem) (res: task._1)
 }
 ```
 *)
-```pulse
-ghost
-fn duplicate_deadline
-(q: HR.ref task_queue) (c: ref int)
-requires deadline q c
-ensures deadline q c ** deadline q c
-{
-  unfold deadline q c;
-  with f vq vc. assert (HR.pts_to q #f vq ** pts_to c #f vc);
-  HR.share #_ #emp_inames q;
-  share #_ #emp_inames c;
-  assert ((HR.pts_to q #(half_perm f) vq ** pts_to c #(half_perm f) vc)
-    ** (HR.pts_to q #(half_perm f) vq ** pts_to c #(half_perm f) vc));
-  fold deadline q c;
-  fold deadline q c;
-  ()
-}
-```
-
-```pulse
-ghost
-fn combine_deadline
-(q: HR.ref task_queue) (c: ref int)
-requires deadline q c ** deadline q c
-ensures deadline q c
-{
-  unfold deadline q c;
-  with f1 vq vc. assert (HR.pts_to q #f1 vq ** pts_to c #f1 vc);
-  unfold deadline q c;
-  with f2 vq' vc'. assert (HR.pts_to q #f1 vq ** pts_to c #f1 vc ** 
-    HR.pts_to q #f2 vq' ** pts_to c #f2 vc');
-  HR.gather #_ #emp_inames q #vq #vq' #f1 #f2;
-  gather #_ #emp_inames c #vc #vc' #f1 #f2;
-
-  assert (HR.pts_to q #(sum_perm f1 f2) vq' ** pts_to c #(sum_perm f1 f2) vc');
-  fold deadline q c;
-  ()
-}
-```
 
 
 
-
+(*
 ```pulse
 ghost fn
 rewrite_conditional_maybe_end_old
 (p: par_env) 
 (vq: task_queue) (vc: int)
 requires HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
-ensures conditional_half (get_queue p) (get_counter p) vq vc
-  ** `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp)
+ensures conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc
+  ** `@(if length vq = 0 && vc = 0 then deadline (get_mono_list p) else emp)
 {
   if (length vq = 0 && vc = 0)
   {
@@ -683,17 +668,17 @@ ensures conditional_half (get_queue p) (get_counter p) vq vc
     intro_exists (fun vc -> HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc) vc;
     intro_exists (fun vq -> exists_ (fun vc -> HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)) vq;
     intro_exists (fun f -> exists_ (fun vq -> exists_ (fun vc -> HR.pts_to (get_queue p) #f vq ** pts_to (get_counter p) #f vc))) one_half;
-    fold (deadline (get_queue p) (get_counter p));
-    duplicate_deadline(get_queue p) (get_counter p);
+    fold (deadline (get_mono_list p));
+    duplicate_deadline (get_mono_list p);
     rewrite (deadline (get_queue p) (get_counter p))
-      as (conditional_half (get_queue p) (get_counter p) vq vc);
+      as (conditional_half (get_mono_list) (get_queue p) (get_counter p) vq vc);
     rewrite (deadline (get_queue p) (get_counter p))
       as `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp);
     ()
   }
   else {
     rewrite (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)
-      as (conditional_half (get_queue p) (get_counter p) vq vc);
+      as (conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq vc);
     rewrite emp
       as `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp);
     ()
@@ -701,16 +686,18 @@ ensures conditional_half (get_queue p) (get_counter p) vq vc
 }
 ```
 
-// this one does not duplicate the deadline
+*)
 ```pulse
 ghost fn
 rewrite_conditional_maybe_end
 (p: par_env) 
 (vq: task_queue) (vc: int)
-requires HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
-ensures conditional_half (get_queue p) (get_counter p) vq vc
+requires cond_deadline (get_mono_list p) (map dfst vq) vc
+ //HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc
+ensures conditional_half (get_mono_list p) (get_queue p) (get_counter p) vq (vc - 1)
   //** `@(if length vq = 0 && vc = 0 then deadline (get_queue p) (get_counter p) else emp)
 {
+  (*
   if (length vq = 0 && vc = 0)
   {
     assert (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc);
@@ -720,17 +707,18 @@ ensures conditional_half (get_queue p) (get_counter p) vq vc
     fold (deadline (get_queue p) (get_counter p));
     //duplicate_deadline(get_queue p) (get_counter p);
     rewrite (deadline (get_queue p) (get_counter p))
-      as (conditional_half (get_queue p) (get_counter p) vq vc);
+      as (conditional_half r (get_queue p) (get_counter p) vq vc);
     ()
   }
   else {
     rewrite (HR.pts_to (get_queue p) #one_half vq ** pts_to (get_counter p) #one_half vc)
-      as (conditional_half (get_queue p) (get_counter p) vq vc);
+      as (conditional_half r (get_queue p) (get_counter p) vq vc);
     ()
   }
+  *)
+  admit()
 }
 ```
-
 
 
 
@@ -739,10 +727,11 @@ ensures conditional_half (get_queue p) (get_counter p) vq vc
 //assume val assume_prop (p: prop): stt unit emp (fun () -> pure p)
 //assume val free_certificate r t pos : certificate r t pos
 
-//assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
+assume val drop (p: vprop): stt_ghost unit emp_inames p (fun () -> emp)
 
 let deadline_if (b: bool) (p: par_env): vprop
-  = if b then deadline (get_queue p) (get_counter p) else emp
+  = imp_vprop b (deadline (get_mono_list p))
+//  = if b then deadline (get_queue p) (get_counter p) else emp
 
 let worker_inv r_working p
 = (exists_ (fun w -> pts_to r_working #one_half w ** deadline_if (not w) p))
@@ -751,7 +740,7 @@ let worker_inv r_working p
 fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue q c))
   (p: par_env)
   requires emp
-  ensures deadline (get_queue p) (get_counter p)
+  ensures deadline (get_mono_list p)
 {
 
   let r_working = alloc #bool true;
@@ -768,7 +757,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
     with gvq gvc. assert (
       HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
       ** small_inv (get_mono_list p) (map dfst gvq) gvc
-      ** conditional_half (get_queue p) (get_counter p) gvq gvc
+      ** conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc
     );
 
     //assert (small_inv (get_mono_list p) (map dfst ghost_vq) vc);
@@ -780,7 +769,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
     if (len vq > 0) {
 
       // we then have full permission to everything!
-      rewrite (conditional_half (get_queue p) (get_counter p) gvq gvc)
+      rewrite (conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc)
           as (HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc);
       HR.gather2 #_ #emp_inames (get_queue p);
       gather2 #_ #emp_inames (get_counter p);
@@ -818,15 +807,15 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       rewrite (HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1))
         as
         `@(
-          if length (tl gvq) = 0 && gvc + 1 = 0 then deadline (get_queue p) (get_counter p) // we're done
+          if length (tl gvq) = 0 && gvc + 1 = 0 then deadline (get_mono_list p) // we're done
           else (HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1)) // we have exclusive permission to q and c
         );
-      fold (conditional_half (get_queue p) (get_counter p) (tl gvq) (gvc + 1));
+      fold (conditional_half (get_mono_list p) (get_queue p) (get_counter p) (tl gvq) (gvc + 1));
 
       assert (
         HR.pts_to (get_queue p) #one_half (tl gvq) ** pts_to (get_counter p) #one_half (gvc + 1)
         ** small_inv (get_mono_list p) (map dfst (tl gvq)) (gvc + 1)
-        ** conditional_half (get_queue p) (get_counter p) (tl gvq) (gvc + 1)
+        ** conditional_half (get_mono_list p) (get_queue p) (get_counter p) (tl gvq) (gvc + 1)
       );
       release_queue_lock p;
 
@@ -849,13 +838,13 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       with gvq gvc. assert (
         HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
         ** small_inv (get_mono_list p) (map dfst gvq) gvc
-        ** conditional_half (get_queue p) (get_counter p) gvq gvc
+        ** conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc
       );
 
       prove_task_ongoing #_ #_ #(Some res) (get_mono_list p) (map dfst gvq) gvc certif;
 
       // decrementing counter
-      rewrite (conditional_half (get_queue p) (get_counter p) gvq gvc)
+      rewrite (conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc)
           as (HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc);
       gather2 #_ #emp_inames (get_counter p);
       let vc = !(get_counter p);
@@ -867,32 +856,27 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
       conclude_task_ghost (get_mono_list p) (map dfst gvq) gvc res certif;
       assert (small_inv (get_mono_list p) (map dfst gvq) (gvc - 1));
 
-      rewrite_conditional_maybe_end p gvq (gvc - 1);
-      // if finished, we have the deadline
-      // should be wildcard permission instead of emp, and we keep it
-
-      assert (conditional_half (get_queue p) (get_counter p) gvq (gvc - 1));
-      //** `@(if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp));
-
-      (* We could stop here and not drop the resource, would be more efficient. *)
-      //drop (if length gvq = 0 && gvc - 1 = 0 then deadline (get_queue p) (get_counter p) else emp);
-
+      //let b: erased bool = hide (gvc = 1 && length gvq = 0);
+      assert (cond_deadline (get_mono_list p) (map dfst gvq) gvc);
+      rewrite_conditional_maybe_end p gvq gvc;
       release_queue_lock p;
+      drop (HR.pts_to (get_queue p) #one_half gvq);
+      drop (pts_to (get_counter p) #one_half (gvc - 1));
       ()
     }
     else {
       if (vc = 0) {
         // we're done
-        rewrite (conditional_half (get_queue p) (get_counter p) gvq gvc)
-          as (deadline (get_queue p) (get_counter p));
-        duplicate_deadline (get_queue p) (get_counter p);
-        rewrite (deadline (get_queue p) (get_counter p))
-          as (conditional_half (get_queue p) (get_counter p) gvq gvc);
+        rewrite (conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc)
+          as (deadline (get_mono_list p));
+        duplicate_deadline (get_mono_list p);
+        rewrite (deadline (get_mono_list p))
+          as (conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc);
 
         assert (
           HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
           ** small_inv (get_mono_list p) (map dfst gvq) gvc
-          ** conditional_half (get_queue p) (get_counter p) gvq gvc
+          ** conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc
         );
 
         release_queue_lock p;
@@ -908,7 +892,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
         gather2 #_ #emp_inames r_working;
         r_working := false;
         share2 #_ #emp_inames r_working;
-        rewrite (deadline (get_queue p) (get_counter p)) as (deadline_if (not false) p);
+        rewrite (deadline (get_mono_list p)) as (deadline_if (not false) p);
         intro_exists (fun w -> pts_to r_working #one_half w ** deadline_if (not w) p) false;
         fold worker_inv r_working p;
         ()
@@ -917,7 +901,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
         assert (
           HR.pts_to (get_queue p) #one_half gvq ** pts_to (get_counter p) #one_half gvc
           ** small_inv (get_mono_list p) (map dfst gvq) gvc
-          ** conditional_half (get_queue p) (get_counter p) gvq gvc
+          ** conditional_half (get_mono_list p) (get_queue p) (get_counter p) gvq gvc
         );
         release_queue_lock p;
         ()
@@ -928,7 +912,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
   unfold worker_inv r_working p;
   with w. assert (pts_to r_working #one_half w ** deadline_if (not w) p);
   pts_to_injective_eq #_ #one_half #one_half #w #false r_working;
-  rewrite (deadline_if (not w) p) as (deadline (get_queue p) (get_counter p));
+  rewrite (deadline_if (not w) p) as (deadline (get_mono_list p));
   gather2 #_ #emp_inames r_working;
  
   free_ref r_working;

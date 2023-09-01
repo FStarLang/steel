@@ -442,7 +442,7 @@ let extract_deadline = extract_deadline'
 ghost
 fn unfold_small_inv
 (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int)
-requires small_inv r q c ** pure (c > 0)
+requires small_inv r q c ** pure (c > 0 \/ L.length q > 0)
 ensures exists l. (pts_to_ghost_queue r l
   ** tasks_res_own l three_quart
   ** pure (c = count_ongoing l /\ q == get_actual_queue l) 
@@ -765,16 +765,16 @@ fn pop_task_ghost'
 (r: ghost_mono_ref task_elem)
 (t: task_elem)
 (q: list task_elem) (c: int)
-(ct: current_task r)
-  requires small_inv r (t::q) c ** is_active ct
+//(ct: current_task r)
+  requires small_inv r (t::q) c //** is_active ct
   returns pair:erased (pos:nat & certificate r t pos)
-  ensures small_inv r q (c + 1) ** pts_to t._2 #three_quart None ** is_active ct
+  ensures small_inv r q (c + 1) ** pts_to t._2 #three_quart None //** is_active ct
 {
-  unfold is_active ct;
-  with v. assert (pts_to ct._1._2 #three_quart v);
-  prove_task_ongoing' #ct._1 #ct._2 #v r (t::q) c ct._3;
-  assert (pure (c > 0));
-  fold is_active ct;
+  //unfold is_active ct;
+  //with v. assert (pts_to ct._1._2 #three_quart v);
+  //prove_task_ongoing' #ct._1 #ct._2 #v r (t::q) c ct._3;
+  //assert (pure (c > 0));
+  //fold is_active ct;
   unfold_small_inv r (t::q) c;
 
   //unfold (small_inv r (t::q) c);
