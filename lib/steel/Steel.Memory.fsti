@@ -136,7 +136,7 @@ val h_and (p1 p2:slprop u#a) : slprop u#a
 val h_or  (p1 p2:slprop u#a) : slprop u#a
 val star  (p1 p2:slprop u#a) : slprop u#a
 val wand  (p1 p2:slprop u#a) : slprop u#a
-val h_exists (#a:Type u#b) (f: (a -> slprop u#a)) : slprop u#a
+val h_exists (# [@@@strictly_positive] a:Type u#b) ([@@@strictly_positive] f: (a -> slprop u#a)) : slprop u#a
 val h_forall (#a:Type u#b) (f: (a -> slprop u#a)) : slprop u#a
 
 (***** Properties of separation logic equivalence *)
@@ -501,7 +501,7 @@ val recall (#a:Type u#1) (#pcm:pcm a) (#fact:property a)
 (**** Invariants *)
 
 (**[i : inv p] is an invariant whose content is [p] *)
-val inv (p:slprop u#1) : Type0
+val inv ([@@@unused] p:slprop u#1) : Type0
 
 val name_of_inv (#p:slprop) (i:inv p) : GTot iname
 

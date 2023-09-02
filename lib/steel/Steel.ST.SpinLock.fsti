@@ -22,7 +22,7 @@ open Steel.ST.Util
 
 /// The type of a lock.  This is implemented as a pair of a boolean
 /// reference, and an invariant name
-val lock (p:vprop): Type u#0
+val lock ([@@@unused] p:vprop): Type u#0
 
 /// If we have vprop [p] in the context, we can create a new lock
 /// associated to [p]. [p] is then removed from the context, and only
