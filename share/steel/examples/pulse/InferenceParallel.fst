@@ -67,7 +67,13 @@ fn test_par (r1 r2 r3 r4:ref U32.t)
 {
   parallel
     requires (_) and (_)
-    ensures  (_) and (_)
+    //requires (pts_to r4 full_perm n1) and (_)
+    //requires (_) and (pts_to r4 full_perm n1)
+    //requires (_) and (pts_to r4 full_perm n4 ** pts_to r2 full_perm n2)
+    //ensures  (_) and (_)
+    //ensures (pts_to r4 full_perm 1ul) and (_)
+    //ensures (pts_to r1 full_perm 1ul ** pts_to r3 full_perm 1ul) and (_)
+    ensures (_) and (pts_to r2 full_perm 1ul ** pts_to r4 full_perm 1ul)
   {
      //write r1 #n1 // Goes to C_ST
     r1 := 1ul; // r3 * r4 (r2)

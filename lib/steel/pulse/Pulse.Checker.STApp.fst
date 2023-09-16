@@ -34,7 +34,7 @@ let canonicalize_st_typing (#g:env) (#t:st_term) (#c:comp_st) (d:st_typing g t c
     T_Equiv _ _ _ _ d st_eq
 
 
-
+#push-options "--z3rlimit 40"
 let check_stapp
   (allow_inst:bool)
   (g:env)
@@ -95,10 +95,21 @@ let check_stapp
            // This is a real ST application
            let d : st_typing _ _ (open_comp_with comp_typ arg) = T_STApp g head formal qual comp_typ arg (E dhead) (E darg) in
            let d' = canonicalize_st_typing d in
-          //  T.print (Printf.sprintf "ST application trying to frame, context: %s and pre: %s\n"
-          //             (Pulse.Syntax.Printer.term_to_string pre)
-          //             (Pulse.Syntax.Printer.term_to_string (comp_pre (open_comp_with comp_typ arg))));
-           repack (try_frame_pre pre_typing d') post_hint
+            T.print (Printf.sprintf "ST application trying to frame, context: %s and pre: %s\n"
+                       (Pulse.Syntax.Printer.term_to_string pre)
+                       (Pulse.Syntax.Printer.term_to_string (comp_pre (open_comp_with comp_typ arg))));
+            let frame_info = try_frame_pre pre_typing d' in
+           repack frame_info post_hint
+(*
+val try_frame_pre (#g:env)
+                  (#t:st_term)
+                  (#pre:term)
+                  (pre_typing: tot_typing g pre tm_vprop)
+                  (#c:comp_st)
+                  (t_typing: st_typing g t c)
+  : T.Tac (c':comp_st { comp_pre c' == pre } &
+           st_typing g t c')
+*)
          | _ ->
            fail g (Some t.range) "Expected an effectful application; got a pure term (could it be partially applied by mistake?)"
         else 
@@ -120,3 +131,4 @@ let check_stapp
     check' false g t pre pre_typing post_hint
   | _ ->
     check_st_app ()
+#pop-options
