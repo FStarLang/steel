@@ -41,7 +41,9 @@ let task_elem: Type u#1 = (
   // to create this thing
 )
 
+[@@erasable]
 val ghost_mono_ref (a: Type u#1): Type0
+let gmref = ghost_mono_ref task_elem
 
 val certificate (r:ghost_mono_ref task_elem) (t: task_elem) (pos: nat): Type0
 
@@ -50,10 +52,10 @@ val deadline (r: ghost_mono_ref task_elem): vprop
 val duplicate_deadline (r: ghost_mono_ref task_elem):
 stt_ghost unit emp_inames (deadline r) (fun () -> deadline r ** deadline r)
 
-val small_inv (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int): vprop 
+val small_inv (r: erased (ghost_mono_ref task_elem)) (q: list task_elem) (c: int): vprop 
 
 
-val extract_deadline (r: ghost_mono_ref task_elem):
+val extract_deadline (r: gmref):
   stt_ghost unit emp_inames (small_inv r [] 0)
     (fun () -> small_inv r [] 0 ** deadline r)
 
@@ -65,13 +67,13 @@ let is_active #r (ct: current_task r): vprop =
 // 0. init queue with task
 val init_ghost_queue
 (t: task_elem)
-: stt_ghost (erased (r:ghost_mono_ref task_elem & certificate r t 0)) emp_inames
+: stt_ghost (r:gmref & certificate r t 0) emp_inames
 (pts_to t._2 #three_quart None)
-(fun pair -> small_inv (reveal pair)._1 [t] 0)
+(fun pair -> small_inv pair._1 [t] 0)
 
 // 1. enqueue task
 val spawn_task_ghost
-(r: ghost_mono_ref task_elem)
+(r: gmref)
 (q: list task_elem) (c: int) (t: task_elem)
 (ct: current_task r)
 : stt_ghost (erased (pos:nat & certificate r t pos)) emp_inames
@@ -80,7 +82,7 @@ val spawn_task_ghost
 
 // 2. pop task todo
 val pop_task_ghost
-(r: ghost_mono_ref task_elem)
+(r: gmref)
 (t: task_elem)
 (q: list task_elem) (c: int)
 : stt_ghost (erased (pos:nat & certificate r t pos)) emp_inames
@@ -91,7 +93,7 @@ val prove_task_ongoing
   (#t: task_elem)
   (#pos: nat)
   (#v: option t._1)
-  (r:ghost_mono_ref task_elem)
+  (r:gmref)
   (q: list task_elem) (c: int)
   (w:certificate r t pos)
 : stt_ghost unit emp_inames
@@ -99,7 +101,7 @@ val prove_task_ongoing
 (fun () -> small_inv r q c ** pts_to t._2 #three_quart v ** pure (c > 0))
 
 val prove_ongoing_non_neg
-  (r:ghost_mono_ref task_elem)
+  (r: gmref)
   (q: list task_elem) (c: int)
 : stt_ghost unit emp_inames
 (small_inv r q c)
@@ -109,7 +111,7 @@ val prove_ongoing_non_neg
 val conclude_task_ghost
 (#t: task_elem)
 (#pos: nat)
-(r: ghost_mono_ref task_elem)
+(r: gmref)
 (q: list task_elem) (c: int)
 (x: t._1)
 (w: certificate r t pos):
@@ -120,7 +122,7 @@ stt_ghost unit emp_inames
 // deadline can be extracted using another function
 
 val proof_promise (#t: task_elem) (#pos: nat)
-  (r: ghost_mono_ref task_elem)
+  (r: gmref)
   (w:certificate r t pos)
 : stt_ghost unit emp_inames
 (deadline r)

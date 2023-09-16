@@ -1,4 +1,4 @@
-module GhostTaskQueue
+module GhostTaskQueuePoolAlive
 module L = FStar.List.Tot.Base
 module P = FStar.Preorder
 
@@ -562,13 +562,12 @@ let small_inv (r: erased (ghost_mono_ref task_elem)) (q: list task_elem) (c: int
 
 ```pulse
 ghost fn
-extract_deadline' (r: gmref)
+extract_deadline' (r: erased (ghost_mono_ref task_elem))
 requires small_inv r [] 0
 ensures small_inv r [] 0 ** deadline r
 {
   unfold small_inv r [] 0;
-  with l. assert (pts_to_ghost_queue_half (reveal r) l);
-  // FIXME: why do we need reveal r here?
+  with l. assert (pts_to_ghost_queue_half r l);
   rewrite `@(if (0<:nat) = 0 && L.length ([] <: list task_elem) = 0 then deadline r
     else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
   as deadline r;
@@ -594,14 +593,11 @@ ensures exists l. (pts_to_ghost_queue r l
 )
 {
   unfold small_inv r q c;
-  with l. assert (pts_to_ghost_queue_half (reveal r) l);
+  with l. assert (pts_to_ghost_queue_half r l);
   rewrite `@(if c = 0 && L.length q = 0 then deadline r
   else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
     as (pts_to_ghost_queue_half r l ** tasks_res_own l one_quart);
   //share_queue_general r l ;
-  rewrite (pts_to_ghost_queue_half (reveal (hide r)) (reveal l))
-    as (pts_to_ghost_queue_half r (reveal l));
-  // FIXME: This rewrite should not be needed
   gather_queue r l l;
   gather_tasks_res_own l one_half one_quart;
   rewrite (tasks_res_own l (sum_perm one_half one_quart))

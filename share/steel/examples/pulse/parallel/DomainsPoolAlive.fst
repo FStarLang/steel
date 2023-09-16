@@ -1,4 +1,4 @@
-module NewDomains
+module DomainsPoolAlive
 
 open Steel.Memory
 open Steel.ST.Effect
@@ -281,37 +281,6 @@ ensures (cond_deadline (get_mono_list p) (map dfst vq) (vc + 1))
 ```
 *)
 
-```pulse
-ghost fn
-prove_promise (#a: Type) (p: par_env) (h: pure_handler a p) (_: unit)
-requires deadline_env p ** emp
-ensures deadline_env p ** //holds_res h
-  (exists f v. pts_to (reveal h._3)._2 #f v ** pure (Some? v))
-{
-  let t: erased task_elem = h._3;
-  let pos: erased nat = h._4;
-  let r: gmref = p._3;
-  let w: erased (certificate (get_mono_list p) t pos) = h._5;
-
-  unfold deadline_env p;
-  assert (deadline r);
-  proof_promise r w;
-  //fold holds_res h;
-  assert (exists f v. pts_to (reveal t)._2 #f v ** pure (Some? v));
-  with f v. assert (pts_to (reveal t)._2 #f v ** pure (Some? v));
-  rewrite (pts_to (reveal t)._2 #f v)
-    as (pts_to (reveal h._3)._2 #f v);
-  //rewrite (exists f v. pts_to (reveal t)._2 #f v ** pure (Some? v))
-  assert (pts_to (reveal h._3)._2 #f v ** pure (Some? v));
-  intro_exists (fun v -> pts_to (reveal h._3)._2 #f v ** pure (Some? v)) v;
-  //assert (exists_ (fun v -> pts_to (reveal h._3)._2 #f v ** pure (Some? v));
-  intro_exists (fun f -> (exists_ (fun v -> pts_to (reveal h._3)._2 #f v ** pure (Some? v))))  f;
-  assert (exists_ (fun f -> (exists_ (fun v ->
-                          pts_to (reveal h._3)._2 #f v ** pure (Some? v)))));
-  fold deadline_env p;
-  ()
-}
-```
 
 
 
@@ -335,26 +304,8 @@ fn spawn_emp'
  requires is_active ct // requires prop?
  returns r: pure_handler a p //(res: ref (option a) & Lock.lock (exists_ (fun v -> pts_to res full_perm v ** pure (maybe_sat post v))))
   //Lock.lock
- ensures is_active ct ** promise (deadline_env p) (exists_ (fun f -> (exists_ (fun v ->
-    pts_to (reveal r._3)._2 #f v ** pure (Some? v)))))
+ ensures is_active ct
  // should return a promise here?
- (*
-val spawn_emp
-  (#a:Type0)
-  (p: par_env)
-  (ct: current_task (p._3)) // should be erased
-  (f: (par_env -> ct:erased (current_task p._3) -> unit -> stt a (is_active ct) (fun _ -> is_active ct)))
-  // TODO: remove par_env arg
-: stt (pure_handler a p) (is_active ct)
-  (fun h -> is_active ct ** promise (deadline_env p) (holds_res h))
-
-val join_emp (#a:Type0) (p: par_env) (h: pure_handler a p)
-: stt a emp (fun _ -> emp)
-
-val worker (p: par_env): stt unit emp (fun () -> deadline_env p)
-
-
- *)
 {
   let res : ref (option a) = Pulse.Lib.Reference.alloc #(option a) None;
   share_quarter res;
@@ -442,10 +393,6 @@ val worker (p: par_env): stt unit emp (fun () -> deadline_env p)
   release_queue_lock p;
 
   let r = mk_pure_handler p res l_res certif;
-
-  make_promise (deadline_env p)
-  (exists_ (fun f -> (exists_ (fun v -> pts_to (reveal r._3)._2 #f v ** pure (Some? v)))))
-    emp (prove_promise p r);
   r
 }
 ```
@@ -716,7 +663,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
         pts_to (get_counter p) (vc + 1));
 
       assert (pure (map dfst gvq == task::(map dfst (tl gvq))));
-      //prove_ongoing_non_neg (get_mono_list p) (map dfst gvq) gvc;
+      prove_ongoing_non_neg (get_mono_list p) (map dfst gvq) gvc;
       rewrite (small_inv (get_mono_list p) (map dfst gvq) gvc)
         as (small_inv (get_mono_list p) (task::map dfst (tl gvq)) gvc);
 
@@ -758,7 +705,7 @@ fn worker' //(#q: HR.ref task_queue) (#c: ref int) (l: Lock.lock (inv_task_queue
         //** cond_deadline (get_mono_list p) (map dfst gvq) gvc
       );
 
-      //prove_task_ongoing #_ #_ #(Some res) (get_mono_list p) (map dfst gvq) gvc certif;
+      prove_task_ongoing #_ #_ #(Some res) (get_mono_list p) (map dfst gvq) gvc certif;
 
       // decrementing counter
       let vc = !(get_counter p);
@@ -840,64 +787,14 @@ let worker = worker'
 
 assume val assume_prop (p:prop): stt unit emp (fun () -> pure p)
 
-(*
 assume val exchange_dfst #t (t_plus:(t:task_elem & comp_task t))
   (pair: erased (r:gmref & certificate r t 0))
 : stt unit (small_inv (reveal pair)._1 [t] 0)
     (fun () -> small_inv (reveal pair)._1 (map dfst [t_plus]) 0)
-*)
 
 let mk_task_queue_single t c: task_queue = [(|t, c|)]
 
-//unfold let syn
-//let complicated_stuff a
-//= (p:par_env -> ct:erased (current_task p._3) -> unit -> stt a (is_active ct) (fun _ -> is_active ct))
-
-let par_env_and_current_task = (p:par_env & erased (current_task p._3))
-
-// hacky, but can be constructed
-assume val get_arbitrary_par_env_curr_task (t: task_elem):
-  pair:par_env_and_current_task{ (reveal pair._2)._1 == t }
-
-let now
-  #a #pre #post
-  (f: unit -> stt a pre post)
-= f ()
-
-//assume val fake_comp_task (t: task_elem): comp_task t
-```pulse
-fn convert_comp_task (t: task_elem)
-  (p_ref: HR.ref par_env_and_current_task)
-  (l: Lock.lock (exists_ (fun v -> HR.pts_to p_ref v ** pure ((reveal v._2)._1 == t))))
-  (f: (p:par_env -> ct:erased (current_task p._3) -> unit -> stt t._1 (is_active ct) (fun _ -> own_None (reveal ct)._1._2)))
-  (u: unit)
-requires own_None t._2
-returns x: t._1
-ensures own_None t._2
-{
-  Lock.acquire l;
-  let v = HR.op_Bang p_ref;
-  Lock.release l;
-  //let ct: erased (current_task)
-  unfold (own_None t._2);
-  //assert (pts_to t._2 #three_quart None);
-  //assert (pure ((reveal v._2)._1 == t));
-  //assert (pure ((reveal v._2)._1._2 == t._2));
-  //assert (exists r. pts_to (reveal v._2)._1._2 #three_quart r);
-  rewrite (pts_to t._2 #three_quart None) as
-    (pts_to (reveal v._2)._1._2 #three_quart None);
-  //intro_exists (fun r -> pts_to (reveal v._2)._1._2 #three_quart r) None;
-  fold (is_active (reveal v._2));
-  let x: t._1 = now (f v._1 v._2);
-  rewrite (own_None (reveal v._2)._1._2) as (own_None t._2);
-  x
-}
-```
-
-//type comp_task (t: task_elem) =
-//  unit -> stt t._1 (own_None t._2) (fun _ -> own_None t._2)
-
-
+assume val fake_comp_task (t: task_elem): comp_task t
 
 ```pulse
 ghost fn
@@ -914,7 +811,6 @@ ensures inv_task_queue work_queue counter (reveal pair)._1
   let pair: (r:gmref & certificate r t 0) = init_ghost_queue t;
   // from here I have the certificate!
   assert (small_inv pair._1 [t] 0);
-  //assert (pure (mk_task_queue_single t c == [t]));
   rewrite (small_inv pair._1 [t] 0) as (small_inv pair._1 (map dfst (mk_task_queue_single t c)) 0);
   assert (HR.pts_to work_queue (mk_task_queue_single t c) ** pts_to counter 0 ** small_inv pair._1 (map dfst (mk_task_queue_single t c)) 0);
   fold (inv_task_queue work_queue counter pair._1);
@@ -922,36 +818,16 @@ ensures inv_task_queue work_queue counter (reveal pair)._1
 }
 ```
 
-assume val
-assert_prop (p: prop): stt unit (pure p) (fun () -> emp)
-
-
-(*
-let par_env =
-(q: HR.ref task_queue & c: ref int & r: erased (ghost_mono_ref task_elem) & Lock.lock (inv_task_queue q c r))
-*)
-let mk_par_env
-  (q: HR.ref task_queue) 
-  (c: ref int)
-  (r: erased (ghost_mono_ref task_elem))
-  (l: Lock.lock (inv_task_queue q c r)):
-  par_env
-  = (| q, c, r, l |)
-
-//#push-options "--dump_module RevealHideCoercions --print_implicits"
+let mk_par_env q c r l: par_env = (| q, c, r, l |)
 
 // 0. Initializing the pool
-// Hacky implementation
 ```pulse
-fn init_par_env
+fn init_par_env_ghost
   (#a: Type0) 
-  (f: (p:par_env -> ct:erased (current_task p._3) -> unit -> stt a (is_active ct) (fun _ -> own_None (reveal ct)._1._2)))
- // is_active ct)))
-  // ignored for now...
-  requires emp
-  returns r: (par_env & ref (option a))
-  ensures promise (deadline_env p) (exists_ (fun f -> (exists_ (fun v ->
-    pts_to r._2 #f v ** pure (Some? v)))))
+// (t: task_elem) (c: comp_task t)
+  requires emp //pts_to t._2 #three_quart None
+  returns p: par_env
+  ensures emp
 {
   let res : ref (option a) = Pulse.Lib.Reference.alloc #(option a) None;
   share_quarter res;
@@ -962,82 +838,22 @@ fn init_par_env
 
   rewrite (pts_to res #three_quart None) as (pts_to task._2 #three_quart None);
 
-  let v: par_env_and_current_task = stt_return #par_env_and_current_task (get_arbitrary_par_env_curr_task task);
-  let p_ref: HR.ref par_env_and_current_task = HR.alloc v;
-//assume val get_arbitrary_par_env_curr_task (t: task_elem):
- // pair:par_env_and_current_task{ (reveal pair._2)._1 == t }
-  //assert (pure (reveal v._2)._1 == t);
-  let l = Lock.new_lock (exists_ (fun v -> HR.pts_to p_ref v ** pure ((reveal v._2)._1 == task)));
-  let task_fun = convert_comp_task task p_ref l f;
-  // chicken and egg issue...
-  let work_queue: HR.ref task_queue = HR.alloc (mk_task_queue_single task task_fun);
+  let work_queue: HR.ref task_queue = HR.alloc (mk_task_queue_single task (fake_comp_task task));
   let counter: ref int = alloc 0;
-  let pair: erased (r:gmref & certificate r task 0) = finish_create_par_env task task_fun work_queue;
-  //let r: erased (ghost_mono_ref task_elem) = stt_return #(erased (ghost_mono_ref task_elem)) ((reveal pair)._1);
-  let r: erased (ghost_mono_ref task_elem) = (reveal pair)._1;
-  assert (pure (eq2 #(erased _) r (reveal pair)._1));
-  //rewrite (inv_task_queue work_queue counter (reveal pair)._1)
-  //  as (inv_task_queue work_queue counter r);
-  //assert (inv_task_queue work_queue counter r);
-  //let lock = Lock.new_lock (inv_task_queue work_queue counter r);
-  //let p: par_env = mk_par_env work_queue counter r lock;
-  //assert (pure (p == mk_par_env work_queue counter r lock));
-  //assert_prop ((reveal pair)._1 == get_mono_list p);
-  //assert (pure ((reveal pair)._1 == get_mono_list p));
-  (*
+  let pair = finish_create_par_env task (fake_comp_task task) work_queue;
+  assert (inv_task_queue work_queue counter (reveal pair)._1);
+  let lock = Lock.new_lock (inv_task_queue work_queue counter (reveal pair)._1);
+  let p: par_env = mk_par_env work_queue counter (reveal pair)._1 lock;
 
   acquire_queue_lock p;
   with vq vc. assert (HR.pts_to (get_queue p) vq ** pts_to (get_counter p) vc
     ** small_inv (get_mono_list p) (map dfst vq) vc);
   release_queue_lock p;
 
-
-  let w: erased (certificate (reveal pair)._1 task 0) = hide ((reveal pair)._2);
-  *)
-  //let certif = hide ((reveal pair)._2);
-  //assert (pure )
-  //let ct: erased (current_task (reveal pair)._1) = hide (mk_current_task p task 0 (reveal w));
-
-(*
-let mk_current_task (p: par_env) (t:task_elem) (pos:nat) (w:certificate p._3 t pos):
-  (ct:current_task p._3{ct._1 == t})
-= (| t, pos, w |)
-
-
-*)
-
-  //let v': par_env_and_current_task = (| p, (reveal pair)._r |);
-  (*
-
-let current_task r = (t:task_elem & pos:nat & certificate r t pos)
-  *)
-
-(*
-  make_promise (deadline_env p)
-  (exists_ (fun f -> (exists_ (fun v -> pts_to (reveal r._3)._2 #f v ** pure (Some? v)))))
-    emp (prove_promise p r);
-    *)
- 
-  admit()
+  p
 }
 ```
 
-// 0. Initializing the pool
-```pulse
-fn par_block
-  (#a: Type0) 
-  (f: (p:par_env -> ct:erased (current_task p._3) -> unit -> stt a (is_active ct) (fun _ -> is_active ct)))
-  // ignored for now...
-  requires emp
-  returns r: (p:par_env & pure_handler a p)
-  ensures promise (deadline_env p) (exists_ (fun f -> (exists_ (fun v ->
-    pts_to (reveal r._2._3)._2 #f v ** pure (Some? v)))))
-{
-
-  let r = init_par_env #a f;
-  admit()
-}
-```
 
 
 (*

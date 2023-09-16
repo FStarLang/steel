@@ -1,68 +1,63 @@
 module Domains
 
 open Pulse.Lib.Pervasives
+open Promises
 
-let unit_emp_stt_pure_pure a p
-  = unit -> stt a emp (fun x -> pure (p x))
+val pool: Type u#2
+val handler (p: pool) (a: Type0) (post: a -> vprop): Type
 
-val task_queue: Type u#1
+val pool_alive (f: perm) (p: pool): vprop
+val pool_done (p: pool): vprop // duplicable
+val active (#p: pool) (#a:Type0)
+  (#post: a -> vprop) (h: handler p a post): vprop
 
-val par_env: Type0
+val share_pool_alive (p: pool) (f1 f2: perm):
+stt_ghost unit emp_inames
+  (pool_alive (sum_perm f1 f2) p)
+  (fun () -> pool_alive f1 p ** pool_alive f2 p)
 
-// ---------------------------------------------
-// Pure interface (without resources)
-// ---------------------------------------------
+val gather_pool_alive (p: pool) (f1 f2: perm):
+stt_ghost unit emp_inames
+  (pool_alive f1 p ** pool_alive f2 p)
+  (fun () -> pool_alive (sum_perm f1 f2) p)
 
-val pure_handler (#a: Type0) (post: a -> prop): Type0
 
-val spawn_emp
-  (#a:Type0)
-  (p: par_env)
-  (post: (a -> prop))
-  (f : (par_env -> unit_emp_stt_pure_pure a post))
-: stt (pure_handler post) emp (fun _ -> emp)
 
-val join_emp
-  (#a:Type0)
-  (#post: (a -> prop))
-  (h: pure_handler post)
-: stt a emp (fun res -> pure (post res))
+// number of threads
+val create_pool (n: nat):
+stt pool emp (fun p -> pool_alive full_perm p)
 
-val worker (p: par_env): stt unit emp (fun _ -> emp)
+let stt_funct (a: Type0) pre post = (unit -> stt a pre post)
 
-val init_par_env (_: unit): stt par_env emp (fun _ -> emp)
+val spawn //(#a: Type0)
+  (#pre: vprop) (#post: unit -> vprop)
+  (p: pool)
+  (funct: stt_funct unit pre post)
+  (#f: perm)
+: stt (handler p unit post)
+(pool_alive f p ** pre)
+(fun h -> pool_alive f p ** active h)
 
-val par_block_pulse_emp (#a: Type0)
-  (#post: (a -> (prop)))
-  (main_block: (par_env -> (unit_emp_stt_pure_pure a post)))
-: stt a emp (fun res -> pure (post res))
+val join (#p: pool) (#a: Type0)
+  (#post: a -> vprop) (h: handler p a post):
+stt a (active h) post
 
-// ---------------------------------------------
-// Interface with resources
-// ---------------------------------------------
+(*
+val get_promise (#p: pool)
+  (#a: Type0) (#post: a -> vprop)
+  (h: handler p a post)
+: stt_ghost unit emp_inames (active h)
+(fun () -> promise (pool_done p) (exists_ (fun v -> post v)))
+*)
+val get_promise (#p: pool)
+  //(#a: Type0)
+  (#post: unit -> vprop)
+  (h: handler p unit post)
+: stt_ghost unit emp_inames (active h)
+(fun () -> promise (pool_done p) (post ()))
 
-val handler (#a: Type0) (post: a -> vprop): Type0
-
-val spawn
-  (#a:Type0)
-  (#pre: vprop)
-  (#post : (a -> vprop))
-  (p: par_env)
-  (f : (par_env -> unit -> stt a pre post))
-: stt (handler post) pre (fun _ -> emp)
-// alt: stt (handler post) pre (fun _ -> joinable p post)
-// maybe joinable also needs handler
-
-// (joinable p post) can be converted to (promise p post)
-// bind_promises
-
-val join
-  (#a:Type0)
-  (#post: (a -> vprop))
-  (h: handler post)
-: stt a emp (fun res -> post res)
-
-val par_block_pulse (#a: Type0) (#pre: vprop)
-  (#post: (a -> vprop))
-  (main_block: (par_env -> unit -> (stt a pre post)))
-: stt a pre (fun res -> post res)
+// maybe pool done is a bit too much for this?
+val teardown_pool (p: pool) (f1: perm) (f2: perm{sum_perm f1 f2 == full_perm}):
+stt unit
+  (pool_alive f1 p ** promise (pool_done p) (pool_alive f2 p))
+  (fun () -> pool_done p)
