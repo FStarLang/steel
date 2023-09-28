@@ -167,6 +167,61 @@ let st_term_of_stapp_or_return (t:stapp_or_return_t) : SW.st_term =
   | STTerm t -> t
   | Return t -> ret t
 
+let type_is_stt_fun (env:env_t) (t:S.term) (args : list S.arg) : bool =
+  match pulse_arrow_formals t with
+  | None -> false
+  | Some formals ->
+    let is_binder_implicit (b:S.binder) =
+      match b.binder_qual with
+      | Some (S.Implicit _)
+      | Some (S.Meta _) -> true
+      | _ -> false
+    in
+    let is_arg_implicit (aq:S.arg) =
+      match snd aq with
+      | Some {aqual_implicit=b} -> b
+      | _ -> false
+    in
+    let rec uninst_formals formals args =
+      match formals, args with
+      | _, [] ->
+        Some formals
+
+      | [], _ -> //too many args, ill-typed
+        None
+
+      | f::formals, a::args ->
+        if is_binder_implicit f
+        then (
+          if is_arg_implicit a
+          then uninst_formals formals args
+          else uninst_formals formals (a::args)
+        )
+        else if is_arg_implicit a
+        then // this looks ill-typed
+             None
+        else //both explicit
+             uninst_formals formals args
+    in
+    match uninst_formals formals args with
+    | None -> //likely ill-typed; do not treat as stt
+      false
+
+    | Some formals ->
+      if L.for_all is_binder_implicit formals
+      then (
+         //this is an st app
+        true
+      ) else (
+        //partial app of a stateful function
+        false
+      )
+
+let mk_st_app rng (head:S.term) (args : list _) : SW.st_term =
+  let head = S.mk_Tm_app head (L.init args) rng in
+  let last, q = L.last args in
+  SW.(tm_st_app (tm_expr head head.pos) q (as_term last) rng)
+
 let stapp_or_return (env:env_t) (s:S.term)
   : stapp_or_return_t
   = let r = s.pos in
@@ -175,61 +230,14 @@ let stapp_or_return (env:env_t) (s:S.term)
     | S.Tm_fvar fv -> (
       if S.fv_eq_lid fv admit_lid
       then STTerm (SW.tm_admit r) 
-      else
-      match TcEnv.try_lookup_lid env.tcenv fv.fv_name.v with
+      else match TcEnv.try_lookup_lid env.tcenv fv.fv_name.v with
       | None -> Return s
-      | Some ((_, t), _) ->
-        match pulse_arrow_formals t with
-        | None -> Return s
-        | Some formals ->
-          let is_binder_implicit (b:S.binder) =
-            match b.binder_qual with
-            | Some (S.Implicit _)
-            | Some (S.Meta _) -> true
-            | _ -> false
-          in
-          let is_arg_implicit (aq:S.arg) =
-            match snd aq with
-            | Some {aqual_implicit=b} -> b
-            | _ -> false
-          in
-          let rec uninst_formals formals args =
-            match formals, args with
-            | _, [] ->
-              Some formals
-
-            | [], _ -> //too many args, ill-typed
-              None
-
-            | f::formals, a::args ->
-              if is_binder_implicit f
-              then (
-                if is_arg_implicit a
-                then uninst_formals formals args
-                else uninst_formals formals (a::args)
-              )
-              else if is_arg_implicit a
-              then // this looks ill-typed
-                   None
-              else //both explicit
-                   uninst_formals formals args
-          in
-          match uninst_formals formals args with
-          | None -> //likely ill-typed; leave as is
-            Return s
-
-          | Some formals ->
-            if L.for_all is_binder_implicit formals
-            then ( //this is an st app
-              let head = S.mk_Tm_app head (L.init args) s.pos in
-              let last, q = L.last args in
-              STTerm SW.(tm_st_app (tm_expr head head.pos) q (as_term last) r)
-            )
-            else (
-              //partial app of a stateful function
-              Return s
-            )
+      | Some ((_, t), _) -> (
+        if type_is_stt_fun env t args
+        then STTerm (mk_st_app r head args)
+        else Return s
       )
+    )
     | _ -> Return s
 
 let prepend_ctx_issue (c : Pprint.document) (i : Errors.issue) : Errors.issue =
