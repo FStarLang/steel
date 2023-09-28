@@ -954,37 +954,102 @@ and transform_stmt (m:menv) (p:Sugar.stmt)
     let? p, needs, m = transform_stmt_with_reads m p in
     return (add_derefs_in_scope needs p)      
 
-let desugar_decl (env:env_t)
-                 (p:Sugar.decl)
+let rec vprop_to_ast_term (v:Sugar.vprop)
+  : err A.term
+  = let open FStar.Parser.AST in
+    match v.v with
+    | Sugar.VPropTerm t -> return t
+    | Sugar.VPropStar (v1, v2) ->
+      let t = mk_term (Var star_lid) v.vrange Expr in
+      let? vv1 = vprop_to_ast_term v1 in
+      let t = mk_term (App (t, vv1, Nothing)) v.vrange Expr in
+      let? vv2 = vprop_to_ast_term v2 in
+      let t = mk_term (App (t, vv2, Nothing)) v.vrange Expr in
+      return t
+
+    | Sugar.VPropExists { binders; body } ->
+      fail "IOU :(" v.vrange
+
+let comp_to_ast_term (c:Sugar.computation_type) : err A.term =
+  let open FStar.Parser.AST in
+  let return_ty = c.return_type in
+  let r = c.range in
+  let head =
+    match c.tag with
+    | Sugar.ST ->
+      let h = mk_term (Var stt_lid) r Expr in
+      let h = mk_term (App (h, return_ty, Nothing)) r Expr in
+      h
+    | Sugar.STAtomic is ->
+      let h = mk_term (Var stt_atomic_lid) r Expr in
+      let h = mk_term (App (h, return_ty, Nothing)) r Expr in
+      mk_term (App (h, is, Nothing)) r Expr
+    | Sugar.STGhost is ->
+      let h = mk_term (Var stt_ghost_lid) r Expr in
+      let h = mk_term (App (h, return_ty, Nothing)) r Expr in
+      mk_term (App (h, is, Nothing)) r Expr
+  in
+  let? pre = vprop_to_ast_term c.precondition in
+  let? post = vprop_to_ast_term c.postcondition in
+  let post =
+    let pat = mk_pattern (PatVar (c.return_name, None, [])) r in
+    let pat = mk_pattern (PatAscribed (pat, (return_ty, None))) r in
+    mk_term (Abs ([pat], post)) r Expr
+  in
+  let t = mk_term (App (head, pre, Nothing)) r Expr in
+  let t = mk_term (App (t, post, Nothing)) r Expr in
+  return t
+
+let mk_arr (env:env_t) (bs:Sugar.binders) (res:Sugar.computation_type)
+: err A.term
+=
+  let r = range_of_id res.return_name in
+  let? env, bs', _ = desugar_binders env bs in
+  let? res_t = comp_to_ast_term res in
+  let bs'' = bs |> L.map (fun (q, x, ty) ->
+    A.mk_binder (A.Annotated (x, ty)) r A.Expr q)
+  in
+  return (A.mk_term (A.Product (bs'', res_t)) r A.Expr)
+
+let rec desugar_decl (env:env_t)
+                     (d:Sugar.decl)
   : err SW.st_term 
-  = let? env, bs, bvs = desugar_binders env p.binders in
-    let fvs = free_vars_comp env p.ascription in
-    let? env, bs', bvs' = idents_as_binders env fvs in
-    let bs = bs@bs' in
-    let bvs = bvs@bvs' in
-    let? comp = desugar_computation_type env p.ascription in
-    let? body = 
-      if FStar.Options.ext_getv "pulse:rvalues" <> ""
-      then transform_stmt { map=[]; env=env} p.body
-      else return p.body
-    in
-    let? body = desugar_stmt env body in
-    let rec aux (bs:list (option SW.qualifier & SW.binder)) (bvs:list S.bv) =
-      match bs, bvs with
-      | [(q, last)], [last_bv] -> 
-        let body = SW.close_st_term body last_bv.S.index in
-        let comp = SW.close_comp comp last_bv.S.index in
-        return (SW.tm_abs last q comp
-                          body
-                          p.range)
-      | (q, b)::bs, bv::bvs ->
-        let? body = aux bs bvs in
-        let body = SW.close_st_term body bv.index in
-        let comp = SW.mk_tot (SW.tm_unknown r_) in
-        return (SW.tm_abs b q comp body p.range)
-      | _ -> fail "Unexpected empty binders in decl" r_
-    in
-    aux bs bvs
+  = match d with
+    | Sugar.FnDecl p when p.is_rec ->
+      let? ty = mk_arr env p.binders p.ascription in
+      let binders' = p.binders @ [ (None, p.id, ty) ] in
+      let p' = { p with is_rec = false; binders = binders' } in
+      desugar_decl env (Sugar.FnDecl p')
+
+    | Sugar.FnDecl p ->
+      let? env, bs, bvs = desugar_binders env p.binders in
+      let fvs = free_vars_comp env p.ascription in
+      let? env, bs', bvs' = idents_as_binders env fvs in
+      let bs = bs@bs' in
+      let bvs = bvs@bvs' in
+      let? comp = desugar_computation_type env p.ascription in
+      let? body = 
+        if FStar.Options.ext_getv "pulse:rvalues" <> ""
+        then transform_stmt { map=[]; env=env} p.body
+        else return p.body
+      in
+      let? body = desugar_stmt env body in
+      let rec aux (bs:list (option SW.qualifier & SW.binder)) (bvs:list S.bv) =
+        match bs, bvs with
+        | [(q, last)], [last_bv] -> 
+          let body = SW.close_st_term body last_bv.S.index in
+          let comp = SW.close_comp comp last_bv.S.index in
+          return (SW.tm_abs last q comp
+                            body
+                            p.range)
+        | (q, b)::bs, bv::bvs ->
+          let? body = aux bs bvs in
+          let body = SW.close_st_term body bv.index in
+          let comp = SW.mk_tot (SW.tm_unknown r_) in
+          return (SW.tm_abs b q comp body p.range)
+        | _ -> fail "Unexpected empty binders in decl" r_
+      in
+      aux bs bvs
 
 let name = list string
 
