@@ -553,11 +553,16 @@ and desugar_bind (env:env_t) (lb:_) (s2:Sugar.stmt) (r:R.range)
         let? s1 = tosyntax env e1 in
         let b = SW.mk_binder lb.id annot in
         let t =
-          match stapp_or_return env s1 with
-          | STTerm s1 ->
+          if lb.isnow then
+            let head, args = U.head_and_args_full s1 in
+            let s1 = mk_st_app s1.pos head args in
             mk_bind b s1 s2 r
-          | Return s1 ->
-            mk_totbind b (as_term s1) s2 r
+          else
+            match stapp_or_return env s1 with
+            | STTerm s1 ->
+              mk_bind b s1 s2 r
+            | Return s1 ->
+              mk_totbind b (as_term s1) s2 r
         in
         return t
       | Some MUT //these are handled the same for now
@@ -758,13 +763,15 @@ let add_derefs_in_scope (n:needs_derefs) (p:Sugar.stmt)
   = L.fold_right
        (fun (x, y) (p:Sugar.stmt) ->
          let lb : Sugar.stmt =
-           { s=Sugar.LetBinding { qualifier=None; id=y; typ=None; init=Some (read x)};
+           { s=Sugar.LetBinding { isnow=false; qualifier=None; id=y; typ=None; init=Some (read x)};
              range=p.range } in
          { s=Sugar.Sequence { s1=lb; s2=p }; range=p.range})
        n p
 
 let term'_of_id (y:ident) = A.Var (Ident.lid_of_ids [y])
 
+(* Collects all unbound variables in order to automatically
+bind/quantify them *)
 let rec transform_term (m:menv) (e:A.term) 
   : err (A.term & needs_derefs & menv)
   = let open A in
@@ -858,7 +865,7 @@ let rec transform_stmt_with_reads (m:menv) (p:Sugar.stmt)
       let p = { p with s=ArrayAssignment {arr;index;value} } in
       return (p, arr_needs@index_needs@value_needs, m)
 
-    | LetBinding { qualifier; id; typ; init } -> (
+    | LetBinding { isnow; qualifier; id; typ; init } -> (
       let? init, needs, m =
           match init with
           | None -> return (None, [], m)
@@ -884,7 +891,7 @@ let rec transform_stmt_with_reads (m:menv) (p:Sugar.stmt)
           )
       in
       let m = menv_push_bv m id qualifier in
-      let p = { p with s=LetBinding { qualifier; id; typ; init } } in
+      let p = { p with s=LetBinding { isnow; qualifier; id; typ; init } } in
       return (p, needs, m)
       )
 

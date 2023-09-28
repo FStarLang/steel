@@ -20,6 +20,7 @@ let rewrite_token (tok:FP.token)
     | IDENT "fold" -> PP.FOLD
     | IDENT "atomic" -> PP.ATOMIC
     | IDENT "ghost" -> PP.GHOST
+    | IDENT "now" -> PP.NOW
     (* the rest are just copied from FStar_Parser_Parse *)
     | IDENT s -> PP.IDENT s
     | AMP -> PP.AMP

@@ -57,7 +57,7 @@ let r p = rng (fst p) (snd p)
 %}
 
 /* pulse specific tokens; rest are inherited from F* */
-%token MUT FN INVARIANT WHILE REF PARALLEL REWRITE FOLD GHOST ATOMIC EACH
+%token MUT FN INVARIANT WHILE REF PARALLEL REWRITE FOLD GHOST ATOMIC EACH NOW
 
 %start pulseDecl
 %start peekFnId
@@ -119,8 +119,8 @@ pulseStmtNoSeq:
     }
   | lhs=appTermNoRecordExp COLON_EQUALS a=noSeqTerm
     { PulseSugar.mk_assignment lhs a }
-  | LET q=option(mutOrRefQualifier) i=lident typOpt=option(preceded(COLON, appTerm)) EQUALS tm=noSeqTerm
-    { PulseSugar.mk_let_binding q i typOpt (Some tm) }
+  | LET isnow=option(NOW) q=option(mutOrRefQualifier) i=lident typOpt=option(preceded(COLON, appTerm)) EQUALS tm=noSeqTerm
+    { PulseSugar.mk_let_binding (match isnow with | Some _ -> true | _ -> false) q i typOpt (Some tm) }
   | LBRACE s=pulseStmt RBRACE
     { PulseSugar.mk_block s }
   | IF tm=appTermNoRecordExp vp=option(ensuresVprop) LBRACE th=pulseStmt RBRACE e=option(elseBlock)
@@ -191,6 +191,7 @@ elseBlock:
 mutOrRefQualifier:
   | MUT { MUT }
   | REF { REF }
+  | NOW { NOW }
 
 maybeHash:
   |      { Nothing }
