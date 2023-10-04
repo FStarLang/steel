@@ -9,11 +9,6 @@
    (progn
     (run cargo build)
     (run cp target/debug/deps/librustast_bindings.a ./librustast_bindings.a)
-    ; (run sh -c
-    ;   "cp target/debug/librustast_bindings.so ./dllrustast_bindings.so")
-    ; (run cp target/debug/librustast_bindings.a ./librustast_bindings.a)
-    ; (run cp target/debug/deps/rustast_bindings.o ./rustast_bindings.o)
-    ; (run cp target/debug/build/ocaml-boxroot-sys-8fae56126b5cf589/out/vendor/boxroot/boxroot.o ./boxroot.o)
    ))))
 
 (library
@@ -25,7 +20,6 @@
     menhirLib
     ; steel.rustast_bindings
  )
- ; (extra_objects boxroot rustast_bindings)
  (foreign_archives rustast_bindings)
  (modes native)
  (wrapped false)
