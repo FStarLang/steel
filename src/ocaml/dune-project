@@ -1,4 +1,4 @@
-(lang dune 3.2)
+(lang dune 3.5)
 (name steel)
 (generate_opam_files false)
 (using menhir 2.1)

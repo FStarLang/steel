@@ -8,6 +8,7 @@ edition = "2018"
 
 [lib]
 crate-type = ["staticlib", "cdylib"]
+path = "rust/src/lib.rs"
 
 [dependencies]
 ocaml-interop = "0.9.2"

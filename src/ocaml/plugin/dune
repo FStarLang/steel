@@ -1,5 +1,21 @@
 (include_subdirs unqualified)
 
+(rule
+ ; (targets librustast_bindings.a dllrustast_bindings.so)
+ (targets librustast_bindings.a)
+ (deps (source_tree .))
+ (action
+  (no-infer
+   (progn
+    (run cargo build)
+    (run cp target/debug/deps/librustast_bindings.a ./librustast_bindings.a)
+    ; (run sh -c
+    ;   "cp target/debug/librustast_bindings.so ./dllrustast_bindings.so")
+    ; (run cp target/debug/librustast_bindings.a ./librustast_bindings.a)
+    ; (run cp target/debug/deps/rustast_bindings.o ./rustast_bindings.o)
+    ; (run cp target/debug/build/ocaml-boxroot-sys-8fae56126b5cf589/out/vendor/boxroot/boxroot.o ./boxroot.o)
+   ))))
+
 (library
  (name steel)
  (public_name steel)
@@ -7,10 +23,13 @@
     batteries
     fstar.lib
     menhirLib
+    ; steel.rustast_bindings
  )
+ ; (extra_objects boxroot rustast_bindings)
+ (foreign_archives rustast_bindings)
  (modes native)
  (wrapped false)
- (flags (:standard -w -A))
+ (flags (:standard -w -A -linkall))
 )
 
 (menhir
