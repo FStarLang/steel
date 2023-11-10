@@ -230,7 +230,7 @@ let (check_fndecl :
                                                                = comp;
                                                              Pulse_Syntax_Base.meas
                                                                = meas;
-                                                             Pulse_Syntax_Base.body6
+                                                             Pulse_Syntax_Base.body7
                                                                = body;_}
                                                            ->
                                                            Obj.magic

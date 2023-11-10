@@ -170,7 +170,7 @@ let (add_knot :
                       Pulse_Syntax_Base.bs = bs;
                       Pulse_Syntax_Base.comp = comp;
                       Pulse_Syntax_Base.meas = meas;
-                      Pulse_Syntax_Base.body6 = body;_}
+                      Pulse_Syntax_Base.body7 = body;_}
                     ->
                     Obj.magic
                       (FStar_Tactics_Effect.tac_bind
@@ -896,7 +896,7 @@ let (add_knot :
                                                                     Pulse_Syntax_Base.meas
                                                                     =
                                                                     FStar_Pervasives_Native.None;
-                                                                    Pulse_Syntax_Base.body6
+                                                                    Pulse_Syntax_Base.body7
                                                                     = body
                                                                     });
                                                                     Pulse_Syntax_Base.range3
