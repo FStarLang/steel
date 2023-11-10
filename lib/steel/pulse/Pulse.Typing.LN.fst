@@ -46,9 +46,13 @@ let rec open_term_ln' (e:term)
     | Tm_EmpInames
     | Tm_Unknown -> ()
 
+    | Tm_Inv p ->
+      open_term_ln' p x i
+
     | Tm_Pure p ->
       open_term_ln' p x i
 
+    | Tm_AddInv l r
     | Tm_Star l r ->
       open_term_ln' l x i;
       open_term_ln' r x i
@@ -190,6 +194,7 @@ and open_pattern_args_ln (pats:list (pattern & bool)) (x:term) (i:index)
       open_pattern_ln hd x i;
       open_pattern_args_ln tl x (i + pattern_shift_n hd)
 
+#push-options "--z3rlimit 20"
 let rec open_st_term_ln' (e:st_term)
                          (x:term)
                          (i:index)
@@ -278,6 +283,10 @@ let rec open_st_term_ln' (e:st_term)
       open_proof_hint_ln hint_type x (i + n);
       open_st_term_ln' t x (i + n)
 
+    | Tm_WithInv { name; body } ->
+      open_term_ln' name x i;
+      open_st_term_ln' body x i
+
 // The Tm_Match? and __brs_of conditions are to prove that the ln_branches' below
 // satisfies the termination refinment.
 and open_branches_ln' (t:st_term{Tm_Match? t.term})
@@ -337,10 +346,13 @@ let rec ln_weakening (e:term) (i j:int)
     | Tm_Inames
     | Tm_EmpInames
     | Tm_Unknown -> ()
+    | Tm_Inv p ->
+      ln_weakening p i j
     | Tm_Pure p ->
       ln_weakening p i j
       
     // | Tm_PureApp l _ r
+    | Tm_AddInv l r
     | Tm_Star l r ->
       ln_weakening l i j;
       ln_weakening r i j
@@ -352,6 +364,7 @@ let rec ln_weakening (e:term) (i j:int)
 
     | Tm_FStar t ->
       r_ln_weakening t i j
+#pop-options
 
 let ln_weakening_comp (c:comp) (i j:int)
   : Lemma 
@@ -502,6 +515,10 @@ let rec ln_weakening_st (t:st_term) (i j:int)
       ln_weakening_proof_hint hint_type (i + n) (j + n);
       ln_weakening_st t (i + n) (j + n)
 
+    | Tm_WithInv { name; body } ->
+      ln_weakening name i j;
+      ln_weakening_st body i j
+
 assume
 val r_open_term_ln_inv' (e:R.term) (x:R.term { RT.ln x }) (i:index)
   : Lemma 
@@ -523,10 +540,13 @@ let rec open_term_ln_inv' (e:term)
     | Tm_Unknown ->
       ln_weakening x (-1) (i - 1)
 
+    | Tm_Inv p ->
+      open_term_ln_inv' p x i
     | Tm_Pure p ->
       open_term_ln_inv' p x i
 
     // | Tm_PureApp l _ r
+    | Tm_AddInv l r
     | Tm_Star l r ->
       open_term_ln_inv' l x i;
       open_term_ln_inv' r x i
@@ -701,6 +721,10 @@ let rec open_term_ln_inv_st' (t:st_term)
       open_proof_hint_ln_inv hint_type x (i + n);
       open_term_ln_inv_st' t x (i + n)
 
+    | Tm_WithInv { name; body } ->
+      open_term_ln_inv' name x i;
+      open_term_ln_inv_st' body x i
+
 #pop-options
 
 assume
@@ -723,9 +747,12 @@ let rec close_term_ln' (e:term)
     | Tm_EmpInames
     | Tm_Unknown -> ()
 
+    | Tm_Inv p ->
+      close_term_ln' p x i
     | Tm_Pure p ->
       close_term_ln' p x i
 
+    | Tm_AddInv l r
     | Tm_Star l r ->
       close_term_ln' l x i;
       close_term_ln' r x i
@@ -894,6 +921,10 @@ let rec close_st_term_ln' (t:st_term) (x:var) (i:index)
       close_proof_hint_ln hint_type x (i + n);
       close_st_term_ln' t x (i + n)
       
+    | Tm_WithInv { name; body } ->
+      close_term_ln' name x i;
+      close_st_term_ln' body x i
+
 let close_comp_ln (c:comp) (v:var)
   : Lemma 
     (requires ln_c c)
@@ -1172,4 +1203,13 @@ let rec st_typing_ln (#g:_) (#t:_) (#c:_)
       tot_or_ghost_typing_ln pre_typing;
       tot_or_ghost_typing_ln post_typing;
       open_term_ln' s.post (term_of_no_name_var x) 0
+
+    | T_WithInv _ _ _ _ _ _ _ _ ->
+      admit() // IOU
+
+    | T_SubInvsGhost _ _ _ inames2 _ _ d ->
+      st_typing_ln d;
+      assume (ln inames2);
+     // FIXME: get this from inversion, or add it to the rule
+     ()
 #pop-options

@@ -97,14 +97,28 @@ let check_effect_annotation g r (c_annot c_computed:comp) =
   match c_annot, c_computed with
   | C_Tot _, C_Tot _ -> ()
   | C_ST _, C_ST _ -> ()
-  | C_STAtomic i _, C_STAtomic j _
-  | C_STGhost i _, C_STGhost j _ ->
-    if eq_tm i j
-    then ()
-    else fail g (Some i.range)
-                (Printf.sprintf "Annotated effect expects only invariants in %s to be opened; but computed effect claims that invariants %s are opened"
-                  (P.term_to_string i)
-                  (P.term_to_string j))
+  | C_STAtomic i c1, C_STAtomic j c2
+  | C_STGhost i c1, C_STGhost j c2 ->
+    if eq_tm i j then () else
+
+    let b = mk_binder "res" Range.range_0 c2.res in
+    let phi =
+      // mk_forall c1.u c1.res
+       mk_sq_eq2 u_zero tm_inames i j
+                      //  (tm_pureabs (Sealed.seal "res") c1.res None i)
+                      //  (tm_pureabs (Sealed.seal "res") c2.res None j)
+    in
+    info g (Some r) ("Checking " ^ P.term_to_string phi);
+    let (| phi, typing |) = check_term_with_expected_type_and_effect g phi T.E_Total tm_prop in
+    let ok = T.with_policy T.SMTSync (fun () -> try_check_prop_validity g phi typing) in
+    if Some? ok then () else
+      let open Pulse.PP in
+      fail_doc g (Some i.range) [
+        text "Annotated effect expects only invariants in" ^/^
+          pp i ^/^
+        text "to be opened; but computed effect claims that invariants" ^/^
+          pp j ^/^
+        text "are opened"]
   | _, _ ->
     fail g (Some r)
            (Printf.sprintf "Expected effect %s but this function body has effect %s"
@@ -142,7 +156,7 @@ let rec check_abs_core
       let tres = tm_arrow {binder_ty=t;binder_ppname=ppname} qual (close_comp c_body x) in
       (| _, C_Tot tres, tt |)
     | _ ->
-      let pre_opened, ret_ty, post_hint_body = 
+      let pre_opened, inames_opened, ret_ty, post_hint_body = 
         match c with
         | C_Tot _ ->
           fail g (Some body.range)
@@ -150,6 +164,7 @@ let rec check_abs_core
 
         | _ -> 
           open_term_nv (comp_pre c) px,
+          (if C_ST? c then tm_emp_inames else open_term_nv (comp_inames c) px),
           Some (open_term_nv (comp_res c) px),
           Some (open_term' (comp_post c) var 1)
       in
@@ -157,7 +172,9 @@ let rec check_abs_core
       let pre = close_term pre_opened x in
       let post : post_hint_opt g' =
         match post_hint_body with
-        | None -> fail g (Some body.range) "Top-level functions must be annotated with pre and post conditions"
+        | None ->
+          let open Pulse.PP in
+          fail_doc g (Some body.range) [text "Top-level functions must be annotated with pre and post conditions"]
         | Some post ->
           let post_hint_typing
             : post_hint_t
@@ -171,7 +188,22 @@ let rec check_abs_core
       let (| body, c_body, body_typing |) : st_typing_in_ctxt g' pre_opened post =
         apply_checker_result_k #_ #_ #(Some?.v post) r ppname in
 
-      check_effect_annotation g' body.range c c_body;
+      let c'' = match c with
+      | C_ST _ -> c
+      | C_STGhost inames c_st -> C_STGhost inames_opened c_st
+      | C_STAtomic inames c_st -> C_STGhost inames_opened c_st
+      in
+
+      check_effect_annotation g' body.range c'' c_body;
+
+      (* HACK: preserve invariants *)
+      let old_c_body = c_body in
+      let c_body = match c_body, c with
+      | C_STGhost _ c_st, C_STGhost inames _ -> C_STGhost inames c_st
+      | C_STAtomic _ c_st, C_STAtomic inames _ -> C_STAtomic inames c_st
+      | _ -> c_body
+      in
+      assume (old_c_body == c_body);
 
       FV.st_typing_freevars body_typing;
       let body_closed = close_st_term body x in
@@ -179,6 +211,14 @@ let rec check_abs_core
       let b = {binder_ty=t;binder_ppname=ppname} in
       let tt = T_Abs g x qual b u body_closed c_body t_typing body_typing in
       let tres = tm_arrow {binder_ty=t;binder_ppname=ppname} qual (close_comp c_body x) in
+
+      let open Pulse.PP in
+      warn_doc g (Some body.range) [
+        text "Returning type" ^/^ pp tres;
+        text "c_body = " ^/^ pp (c_body <: comp);
+        text "original asc = " ^/^ pp c;
+      ];
+
       (| _, C_Tot tres, tt |)
 
 let check_abs (g:env) (t:st_term{Tm_Abs? t.term}) (check:check_t)

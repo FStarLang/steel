@@ -70,7 +70,7 @@ effect STAtomicU (a:Type)
                  (post:post_t a)
                  (req:pure_pre)
                  (ens:pure_post a)
-  = STAtomicBase a false opened Unobservable pre post req ens
+  = STAtomicBase a true opened Unobservable pre post req ens
 
 (* Composing SteelAtomic and Pure computations *)
 polymonadic_bind (PURE, STAtomicBase) |> STAtomicBase = STAG.bind_pure_stag
@@ -82,7 +82,7 @@ effect STAtomicBaseT (a:Type) (opened:inames) (obs:observability) (pre:pre_t) (p
 effect STAtomicT (a:Type) (opened:inames) (pre:pre_t) (post:post_t a) =
   STAtomic a opened pre post True (fun _ -> True)
 
-/// A version of the SteelAtomic effect with trivial requires and ensures clauses
+/// A version of the SteelAtomicU effect with trivial requires and ensures clauses
 effect STAtomicUT (a:Type) (opened:inames) (pre:pre_t) (post:post_t a) =
   STAtomicU a opened pre post True (fun _ -> True)
 

@@ -312,7 +312,10 @@ let rec extract (g:env) (p:st_term)
         let mllb = mk_mut_mllb mlident ([], mlty) allocator in
         let mlletbinding = mk_mlletbinding false [mllb] in
         mle_let mlletbinding body, e_tag_impure
-        
+
+      | Tm_WithInv { body } ->
+        extract g body
+    
       | Tm_ProofHintWithBinders { t } -> T.fail "Unexpected constructor: ProofHintWithBinders should have been desugared away"
       | Tm_Admit _ -> T.raise (Extraction_failure (Printf.sprintf "Cannot extract code with admit: %s\n" (Pulse.Syntax.Printer.st_term_to_string p)))
     end

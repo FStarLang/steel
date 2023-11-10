@@ -285,6 +285,16 @@ let rec elab_st_typing (#g:env)
        | STT_Atomic -> mk_stt_atomic_admit ru rres rpre rpost
        | STT_Ghost -> mk_stt_ghost_admit ru rres rpre rpost)
 
+    | T_WithInv _ _ _ _ _ _ _ _ ->
+      `("IOU: elab_st_typing of T_WithInv")
+
+    | T_SubInvsGhost _ _ i1 i2 c pf d ->
+      let cc = elab_st_typing d in
+      let rpre = elab_term c.pre in
+      let rret_t = elab_term c.res in
+      let rpost = mk_abs rret_t R.Q_Explicit (elab_term c.post) in
+      mk_sub_inv_ghost c.u rret_t (elab_term i1) (elab_term i2) rpre rpost cc
+
 and elab_br (#g:env)
             (#c:comp_st)
             (#sc_u:universe) (#sc_ty:typ) (#sc:term)
