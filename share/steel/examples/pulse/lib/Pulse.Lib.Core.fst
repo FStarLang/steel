@@ -136,7 +136,7 @@ let reveal_stt #a #pre #post e = e
 unfold
 let inames_disj (ictx:inames) : Type = is:inames{is /! ictx}
 
-inline_for_extraction
+// inline_for_extraction
 type stt_unobservable (a:Type u#a) (opens:inames) (pre:vprop) (post:a -> vprop) =
   (#ictx : inames_disj opens) ->
   unit -> 
