@@ -354,9 +354,10 @@ let __with_invariant_g (#a:Type)
                      (i:inv p{not (mem_inv f_opens i)})
                      ($f: unit -> stt_ghost a f_opens (p `star` fp) (fun x -> p `star` fp' x))
    : stt_unobservable (erased a) (add_inv f_opens i) fp fp'
-   = fun #ictx () ->
-       let ictx' : inames_disj f_opens = add_inv ictx i in
-       Steel.ST.Util.with_invariant_g i (f () #ictx')
+   = admit () // needs unifier fix and then the defn below works
+    //  fun #ictx () ->
+      //  let ictx' : inames_disj f_opens = add_inv ictx i in
+      //  Steel.ST.Util.with_invariant_g i (f () #ictx')
 
 let with_invariant_g = __with_invariant_g
 
