@@ -413,6 +413,9 @@ let rec st_typing_weakening g g' t c d g1
 
   | T_SubInvsGhost _ _ _ i2 _ pf d ->
     T_SubInvsGhost _ _ _ i2 _ (prop_validity_token_weakening pf _) (st_typing_weakening g g' _ _ d g1)
+
+  | T_SubInvsAtomic _ _ _ i2 _ pf d ->
+    T_SubInvsAtomic _ _ _ i2 _ (prop_validity_token_weakening pf _) (st_typing_weakening g g' _ _ d g1)
 #pop-options
 
 #push-options "--admit_smt_queries true"

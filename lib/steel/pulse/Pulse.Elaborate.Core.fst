@@ -295,6 +295,13 @@ let rec elab_st_typing (#g:env)
       let rpost = mk_abs rret_t R.Q_Explicit (elab_term c.post) in
       mk_sub_inv_ghost c.u rret_t (elab_term i1) (elab_term i2) rpre rpost cc
 
+    | T_SubInvsAtomic _ _ i1 i2 c pf d ->
+      let cc = elab_st_typing d in
+      let rpre = elab_term c.pre in
+      let rret_t = elab_term c.res in
+      let rpost = mk_abs rret_t R.Q_Explicit (elab_term c.post) in
+      mk_sub_inv_atomic c.u rret_t (elab_term i1) (elab_term i2) rpre rpost cc
+
 and elab_br (#g:env)
             (#c:comp_st)
             (#sc_u:universe) (#sc_ty:typ) (#sc:term)

@@ -395,6 +395,7 @@ let rec soundness (g:stt_env)
     | T_WithInv _ _ _ _ _ _ _ _ -> magic() // IOU
 
     | T_SubInvsGhost _ _ _ _ _ _ _ -> magic()
+    | T_SubInvsAtomic _ _ _ _ _ _ _ -> magic()
 #pop-options
 
 let soundness_lemma

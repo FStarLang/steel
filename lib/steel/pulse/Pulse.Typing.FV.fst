@@ -623,4 +623,10 @@ let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
      assume (freevars inames2 `Set.subset` vars_of_env g);
      // FIXME: get this from inversion, or add it to the rule
      ()
+
+   | T_SubInvsAtomic _ _ _ inames2 _ _ d ->
+     st_typing_freevars d;
+     assume (freevars inames2 `Set.subset` vars_of_env g);
+     // FIXME: get this from inversion, or add it to the rule
+     ()
 #pop-options //takes about 12s

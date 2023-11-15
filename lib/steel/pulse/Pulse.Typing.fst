@@ -979,7 +979,7 @@ type st_typing : env -> st_term -> comp -> Type =
       body_typing : st_typing g body (add_frame c inv_vprop) ->
       st_typing g (wtag (Some STT_Atomic) (Tm_WithInv {name=inv_tm; body; returns_inv=None})) c
 
-    | T_SubInvsGhost:
+  | T_SubInvsGhost:
       g:env ->
       body : st_term ->
       inames1:term ->
@@ -988,6 +988,16 @@ type st_typing : env -> st_term -> comp -> Type =
       prop_validity g (tm_inames_subset inames1 inames2) ->
       st_typing g body (C_STGhost inames1 c) ->
       st_typing g body (C_STGhost inames2 c)
+
+  | T_SubInvsAtomic:
+      g:env ->
+      body : st_term ->
+      inames1:term ->
+      inames2:term ->
+      c : st_comp ->
+      prop_validity g (tm_inames_subset inames1 inames2) ->
+      st_typing g body (C_STAtomic inames1 c) ->
+      st_typing g body (C_STAtomic inames2 c)
 
 and pats_complete : env -> term -> typ -> list R.pattern -> Type0 =
   // just check the elaborated term with the core tc

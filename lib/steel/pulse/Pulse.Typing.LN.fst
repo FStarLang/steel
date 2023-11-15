@@ -1212,4 +1212,9 @@ let rec st_typing_ln (#g:_) (#t:_) (#c:_)
       assume (ln inames2);
      // FIXME: get this from inversion, or add it to the rule
      ()
+    | T_SubInvsAtomic _ _ _ inames2 _ _ d ->
+      st_typing_ln d;
+      assume (ln inames2);
+     // FIXME: get this from inversion, or add it to the rule
+     ()
 #pop-options
