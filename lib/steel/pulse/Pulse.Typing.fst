@@ -612,6 +612,10 @@ type st_comp_typing : env -> st_comp -> Type =
 
 // TODO: move
 let tm_join_inames (inames1 inames2 : term) : term =
+  if eq_tm inames1 tm_emp_inames then inames2 else
+  if eq_tm inames2 tm_emp_inames then inames1 else
+  if eq_tm inames1 inames2 then inames1 else
+
   let inames1 = elab_term inames1 in
   let inames2 = elab_term inames2 in
   let join_lid = Pulse.Reflection.Util.mk_pulse_lib_core_lid "join_inames" in
