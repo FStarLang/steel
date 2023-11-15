@@ -104,7 +104,8 @@ let check_effect_annotation g r (c_annot c_computed:comp) =
     let b = mk_binder "res" Range.range_0 c2.res in
     let phi =
       // mk_forall c1.u c1.res
-       mk_sq_eq2 u_zero tm_inames i j
+      //  mk_sq_eq2 u_zero tm_inames i j
+      tm_inames_subset j i
                       //  (tm_pureabs (Sealed.seal "res") c1.res None i)
                       //  (tm_pureabs (Sealed.seal "res") c2.res None j)
     in
@@ -114,11 +115,10 @@ let check_effect_annotation g r (c_annot c_computed:comp) =
     if Some? ok then () else
       let open Pulse.PP in
       fail_doc g (Some i.range) [
-        text "Annotated effect expects only invariants in" ^/^
-          pp i ^/^
-        text "to be opened; but computed effect claims that invariants" ^/^
-          pp j ^/^
-        text "are opened"]
+        prefix 4 1 (text "Annotated effect expects only invariants in") (pp i) ^/^
+        prefix 4 1 (text "to be opened; but computed effect claims that invariants") (pp j) ^/^
+        text "are opened"
+      ]
   | _, _ ->
     fail g (Some r)
            (Printf.sprintf "Expected effect %s but this function body has effect %s"
@@ -212,12 +212,12 @@ let rec check_abs_core
       let tt = T_Abs g x qual b u body_closed c_body t_typing body_typing in
       let tres = tm_arrow {binder_ty=t;binder_ppname=ppname} qual (close_comp c_body x) in
 
-      let open Pulse.PP in
-      warn_doc g (Some body.range) [
-        text "Returning type" ^/^ pp tres;
-        text "c_body = " ^/^ pp (c_body <: comp);
-        text "original asc = " ^/^ pp c;
-      ];
+      // let open Pulse.PP in
+      // warn_doc g (Some body.range) [
+      //   text "Returning type" ^/^ pp tres;
+      //   text "c_body = " ^/^ pp (c_body <: comp);
+      //   text "original asc = " ^/^ pp c;
+      // ];
 
       (| _, C_Tot tres, tt |)
 
