@@ -29,7 +29,7 @@ fn elim_implies (_:unit) (#p #q:vprop)
 {
   open Pulse.Lib.Stick;
   rewrite `@(p @==> q) as (stick #emp_inames p q);
-  elim_stick #emp_inames #emp_inames p q;
+  elim_stick #emp_inames p q;
 }
 ```
 
