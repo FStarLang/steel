@@ -391,3 +391,16 @@ fn incr (x:nat)
   ( y <: r:nat { r > x } )
 }
 ```
+
+```pulse
+fn test_tot_bind (p : (int & int))
+  requires emp
+  returns _ : unit
+  ensures emp
+{
+  let a = fst p;
+  let b = snd p;
+  assert (pure (p == (a,b)));
+  ()
+}
+```
