@@ -317,30 +317,30 @@ let rec (elab_st_typing :
                    ty1 FStar_Reflection_V2_Data.Q_Explicit
                    (FStar_Reflection_Typing.close_term e21 x))
           | Pulse_Typing.T_TotBind
-              (uu___, e1, e2, t1, uu___1, uu___2, x, uu___3, e2_typing) ->
-              let re1 = Pulse_Elaborate_Pure.elab_term e1 in
-              let rt1 = Pulse_Elaborate_Pure.elab_term t1 in
-              let re2 =
-                elab_st_typing
-                  (Pulse_Typing_Env.push_binding uu___ x
-                     Pulse_Syntax_Base.ppname_default t1)
-                  (Pulse_Syntax_Naming.open_st_term_nv e2
-                     (Pulse_Syntax_Base.v_as_nv x)) uu___1 e2_typing in
-              FStar_Reflection_Typing.mk_let
-                FStar_Reflection_Typing.pp_name_default re1 rt1
-                (FStar_Reflection_Typing.close_term re2 x)
-          | Pulse_Typing.T_GhostBind
-              (uu___, e1, e2, t1, uu___1, uu___2, x, uu___3, e2_typing,
-               uu___4)
+              (uu___, e1, e2, t1, uu___1, uu___2, uu___3, x, uu___4, uu___5,
+               uu___6, e2_typing, uu___7)
               ->
               let re1 = Pulse_Elaborate_Pure.elab_term e1 in
               let rt1 = Pulse_Elaborate_Pure.elab_term t1 in
               let re2 =
                 elab_st_typing
-                  (Pulse_Typing_Env.push_binding uu___ x
-                     Pulse_Syntax_Base.ppname_default t1)
+                  (Pulse_Typing.let_body_env uu___ uu___1 t1 e1 x uu___4)
                   (Pulse_Syntax_Naming.open_st_term_nv e2
-                     (Pulse_Syntax_Base.v_as_nv x)) uu___1 e2_typing in
+                     (Pulse_Syntax_Base.v_as_nv x)) uu___2 e2_typing in
+              FStar_Reflection_Typing.mk_let
+                FStar_Reflection_Typing.pp_name_default re1 rt1
+                (FStar_Reflection_Typing.close_term re2 x)
+          | Pulse_Typing.T_GhostBind
+              (uu___, e1, e2, t1, uu___1, uu___2, uu___3, x, uu___4, uu___5,
+               uu___6, e2_typing, uu___7, uu___8)
+              ->
+              let re1 = Pulse_Elaborate_Pure.elab_term e1 in
+              let rt1 = Pulse_Elaborate_Pure.elab_term t1 in
+              let re2 =
+                elab_st_typing
+                  (Pulse_Typing.let_body_env uu___ uu___1 t1 e1 x uu___4)
+                  (Pulse_Syntax_Naming.open_st_term_nv e2
+                     (Pulse_Syntax_Base.v_as_nv x)) uu___2 e2_typing in
               FStar_Reflection_Typing.mk_let
                 FStar_Reflection_Typing.pp_name_default re1 rt1
                 (FStar_Reflection_Typing.close_term re2 x)

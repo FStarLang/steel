@@ -962,6 +962,28 @@ let (readback_binding :
           } in
         ((b.FStar_Reflection_V2_Data.uniq1), sort)
 type ('g, 'c) non_informative = unit
+let (let_body_env :
+  Pulse_Typing_Env.env ->
+    Pulse_Syntax_Base.universe ->
+      Pulse_Syntax_Base.term ->
+        Pulse_Syntax_Base.term ->
+          Pulse_Syntax_Base.var ->
+            Pulse_Syntax_Base.var -> Pulse_Typing_Env.env)
+  =
+  fun g ->
+    fun u_t1 ->
+      fun t1 ->
+        fun e1 ->
+          fun x ->
+            fun hyp ->
+              let gx =
+                Pulse_Typing_Env.push_binding g x
+                  Pulse_Syntax_Base.ppname_default t1 in
+              let g' =
+                Pulse_Typing_Env.push_binding gx hyp
+                  Pulse_Syntax_Base.ppname_default
+                  (mk_eq2 u_t1 t1 (Pulse_Syntax_Pure.null_var x) e1) in
+              g'
 type ('dummyV0, 'dummyV1, 'dummyV2) st_typing =
   | T_Abs of Pulse_Typing_Env.env * Pulse_Syntax_Base.var *
   Pulse_Syntax_Base.qualifier FStar_Pervasives_Native.option *
@@ -991,12 +1013,14 @@ type ('dummyV0, 'dummyV1, 'dummyV2) st_typing =
   unit, unit) bind_comp 
   | T_TotBind of Pulse_Typing_Env.env * Pulse_Syntax_Base.term *
   Pulse_Syntax_Base.st_term * Pulse_Syntax_Base.term *
-  Pulse_Syntax_Base.comp_st * Pulse_Syntax_Base.binder *
-  Pulse_Syntax_Base.var * unit * (unit, unit, unit) st_typing 
+  Pulse_Syntax_Base.universe * Pulse_Syntax_Base.comp_st *
+  Pulse_Syntax_Base.binder * Pulse_Syntax_Base.var * Pulse_Syntax_Base.var *
+  unit * unit * (unit, unit, unit) st_typing * unit 
   | T_GhostBind of Pulse_Typing_Env.env * Pulse_Syntax_Base.term *
   Pulse_Syntax_Base.st_term * Pulse_Syntax_Base.term *
-  Pulse_Syntax_Base.comp_st * Pulse_Syntax_Base.binder *
-  Pulse_Syntax_Base.var * unit * (unit, unit, unit) st_typing * unit 
+  Pulse_Syntax_Base.universe * Pulse_Syntax_Base.comp_st *
+  Pulse_Syntax_Base.binder * Pulse_Syntax_Base.var * Pulse_Syntax_Base.var *
+  unit * unit * (unit, unit, unit) st_typing * unit * unit 
   | T_If of Pulse_Typing_Env.env * Pulse_Syntax_Base.term *
   Pulse_Syntax_Base.st_term * Pulse_Syntax_Base.st_term *
   Pulse_Syntax_Base.comp_st * Pulse_Syntax_Base.universe *
