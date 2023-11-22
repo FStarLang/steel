@@ -671,6 +671,15 @@ let readback_binding b =
 let non_informative (g:env) (c:comp) =
   my_erased (RT.non_informative (elab_env g) (elab_comp c))
 
+let let_body_env (g:env) (u_t1:universe) (t1 e1:term) 
+  (x:var { None? (lookup g x) })
+  (hyp:var { None? (lookup (push_binding g x ppname_default t1) hyp) })
+  : g':env { g' `env_extends` g } =
+  let gx = push_binding g x ppname_default t1 in
+  let g' = push_binding gx hyp ppname_default (mk_eq2 u_t1 t1 (null_var x) e1) in
+  env_extends_trans g' gx g;
+  g'
+
 [@@ no_auto_projectors]
 noeq
 type st_typing : env -> st_term -> comp -> Type =
@@ -765,11 +774,16 @@ type st_typing : env -> st_term -> comp -> Type =
       e1:term ->
       e2:st_term ->
       t1:term ->
+      u_t1:universe ->
       c2:comp_st ->
       b:binder { b.binder_ty == t1 } ->
       x:var { None? (lookup g x) /\ ~ (x `Set.mem` freevars_st e2) } ->
+      hyp:var { None? (lookup (push_binding g x ppname_default t1) hyp) /\ ~ (hyp `Set.mem` freevars_st e2) } ->
+      universe_of g t1 u_t1 ->
       tot_typing g e1 t1 ->
-      st_typing (push_binding g x ppname_default t1) (open_st_term_nv e2 (v_as_nv x)) c2 ->
+      st_typing (let_body_env g u_t1 t1 e1 x hyp)
+                (open_st_term_nv e2 (v_as_nv x)) c2 ->
+      squash (~ (hyp `Set.mem` freevars_comp c2)) ->
       st_typing g (wr c2 (Tm_TotBind { binder = b; head = e1; body = e2 }))
                   (open_comp_with (close_comp c2 x) e1)
 
@@ -778,12 +792,17 @@ type st_typing : env -> st_term -> comp -> Type =
       e1:term ->
       e2:st_term ->
       t1:term ->
+      u_t1:universe ->
       c2:comp_st ->
       b:binder { b.binder_ty == t1 } ->
       x:var { None? (lookup g x) /\ ~ (x `Set.mem` freevars_st e2) } ->
+      hyp:var { None? (lookup (push_binding g x ppname_default t1) hyp) /\ ~ (hyp `Set.mem` freevars_st e2) } ->
+      universe_of g t1 u_t1 ->
       ghost_typing g e1 t1 ->
-      st_typing (push_binding g x ppname_default t1) (open_st_term_nv e2 (v_as_nv x)) c2 ->
-      non_informative (push_binding g x ppname_default t1) c2 ->
+      st_typing (let_body_env g u_t1 t1 e1 x hyp)
+                (open_st_term_nv e2 (v_as_nv x)) c2 ->
+      squash (~ (hyp `Set.mem` freevars_comp c2)) ->
+      non_informative (let_body_env g u_t1 t1 e1 x hyp) c2 ->
       st_typing g (wr c2 (Tm_TotBind { binder = b; head = e1; body = e2 }))
                   (open_comp_with (close_comp c2 x) e1)
 

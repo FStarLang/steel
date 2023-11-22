@@ -294,6 +294,7 @@ let continuation_elaborator_with_bind (#g:env) (ctxt:term)
   k
 #pop-options
 
+
 module LN = Pulse.Typing.LN
 #push-options "--z3rlimit_factor 4 --fuel 1 --ifuel 1"
 let continuation_elaborator_with_let (#g:env) (#ctxt:term)
@@ -301,14 +302,18 @@ let continuation_elaborator_with_let (#g:env) (#ctxt:term)
   (#e1:term)
   (#eff1:T.tot_or_ghost)
   (#t1:term)
+  (#u_t1:universe)
   (b:binder{b.binder_ty == t1})
+  (t1_typing:universe_of g t1 u_t1)
   (e1_typing:typing g e1 eff1 t1)
   (x:nvar { None? (lookup g (snd x)) })
+  (hyp:nvar { None? (lookup (push_binding g (snd x) (fst x) t1) (snd hyp)) })
   : T.Tac (continuation_elaborator
            g ctxt
-           (push_binding g (snd x) (fst x) t1) ctxt) =
+           (let_body_env g u_t1 t1 e1 (snd x) (snd hyp))
+           ctxt) =
 
-  assert ((push_binding g (snd x) (fst x) t1) `env_extends` g);
+  // assert ((push_binding g (snd x) (fst x) t1) `env_extends` g);
   fun post_hint (| e2, c2, d2 |) ->
   if eff1 = T.E_Ghost &&
      not (C_STGhost? c2)
@@ -316,6 +321,14 @@ let continuation_elaborator_with_let (#g:env) (#ctxt:term)
          (Printf.sprintf "Cannot bind ghost expression %s with %s computation"
             (P.term_to_string e1)
             (P.comp_to_string c2));
+  
+  if snd hyp `Set.mem` freevars_st e2 ||
+     snd hyp `Set.mem` freevars_comp c2
+  then fail g (Some e2.range)
+         (Printf.sprintf "Unexpected fresh name clash (%s and %d)"
+            (P.st_term_to_string e2)
+            (snd hyp));
+  
   let ppname, x = x in
   let e2_closed = close_st_term e2 x in
   assume (open_st_term (close_st_term e2 x) x == e2);
@@ -326,8 +339,8 @@ let continuation_elaborator_with_let (#g:env) (#ctxt:term)
   assume (~ (x `Set.mem` freevars_st e2_closed));
   let d : st_typing g e c =
     if eff1 = T.E_Total
-    then T_TotBind g e1 e2_closed t1 c2 b x e1_typing d2
-    else let token = CP.is_non_informative (push_binding g x ppname t1) c2 in
+    then T_TotBind g e1 e2_closed t1 u_t1 c2 b x (snd hyp) t1_typing e1_typing d2 ()
+    else let token = CP.is_non_informative (let_body_env g u_t1 t1 e1 x (snd hyp)) c2 in
          match token with
          | None ->
            fail g None
@@ -335,9 +348,9 @@ let continuation_elaborator_with_let (#g:env) (#ctxt:term)
                 (P.comp_to_string c2))
          | Some token ->
            let token = FStar.Squash.return_squash token in
-           T_GhostBind g e1 e2_closed t1 c2 b x e1_typing d2
+           T_GhostBind g e1 e2_closed t1 u_t1 c2 b x (snd hyp) t1_typing e1_typing d2 ()
              (E (RT.Non_informative_token _ _ token)) in
-  
+
   let _ =
     match post_hint with
     | None -> ()

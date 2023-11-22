@@ -1014,8 +1014,8 @@ let st_typing_ln_tot_or_ghost_bind #g #t #c (d:st_typing g t c { T_TotBind? d \/
   : Lemma (ensures ln_st t /\ ln_c c) =
 
   match d with
-  | T_TotBind _ e1 e2 _ c2 b x e1_typing e2_typing
-  | T_GhostBind _ e1 e2 _ c2 b x e1_typing e2_typing _ ->
+  | T_TotBind _ e1 e2 _ _ c2 b x _ _ e1_typing e2_typing _
+  | T_GhostBind _ e1 e2 _ _ c2 b x _ _ e1_typing e2_typing _ _ ->
     tot_or_ghost_typing_ln e1_typing;
     typing_ln e2_typing;
     open_st_term_ln e2 x;
@@ -1107,8 +1107,8 @@ let rec st_typing_ln (#g:_) (#t:_) (#c:_)
       bind_comp_ln bc
 
 
-    | T_TotBind _ _ _ _ _ _ _ _ _
-    | T_GhostBind _ _ _ _ _ _ _ _ _ _ ->
+    | T_TotBind _ _ _ _ _ _ _ _ _ _ _ _ _
+    | T_GhostBind _ _ _ _ _ _ _ _ _ _ _ _ _ _ ->
       st_typing_ln_tot_or_ghost_bind d st_typing_ln
 
     | T_If _ _ _ _ _ _ _ tb d1 d2 _ ->

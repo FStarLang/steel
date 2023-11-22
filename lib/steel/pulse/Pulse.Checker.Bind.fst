@@ -95,7 +95,7 @@ let check_tot_bind
   )
 
   | None -> (
-    let (| e1, eff1, t1, (| u1, _t1_typing |) , e1_typing |) =
+    let (| e1, eff1, t1, (| u1, t1_typing |) , e1_typing |) =
       (* If there's an annotated type for e1 in the binder, we check it at
       that type. Otherwise we just call check_term_and_type and infer. *)
       let ty = b.binder_ty in
@@ -112,24 +112,35 @@ let check_tot_bind
           <: (t:term & eff:T.tot_or_ghost & ty:term & (u:universe & universe_of g ty u) & typing g t eff ty)
           (* ^ Need this annotation *)
     in
-    let t1 =
-      let b = {binder_ty=t1;binder_ppname=ppname_default} in
-      let eq_tm = mk_eq2 u1 t1 (null_bvar 0) e1 in
-      tm_refine b eq_tm in
+    // let t1 =
+    //   let b = {binder_ty=t1;binder_ppname=ppname_default} in
+    //   let eq_tm = mk_eq2 u1 t1 (null_bvar 0) e1 in
+    //   tm_refine b eq_tm in
 
-    // THIS IS WASTEFUL, CHECKING e1 MULTIPLE TIMES
-    let (| e1, e1_typing |) =
-      check_term g e1 eff1 t1 in
+    // // THIS IS WASTEFUL, CHECKING e1 MULTIPLE TIMES
+    // let (| e1, e1_typing |) =
+    //   check_term g e1 eff1 t1 in
 
     let x = fresh g in
+    let px = b.binder_ppname, x in
+    let gx = push_binding g x (fst px) t1 in
+    let hyp = fresh gx in
+    let g' = push_binding gx hyp ppname_default (mk_eq2 u1 t1 (null_var x) e1) in
 
     let b = { b with binder_ty = t1 } in
-    let k = continuation_elaborator_with_let pre_typing b e1_typing (ppname_default, x) in
+    let k = continuation_elaborator_with_let
+      pre_typing
+      b
+      t1_typing
+      e1_typing
+      (ppname_default, x)
+      (ppname_default, hyp) in
 
-    let px = b.binder_ppname, x in
-    let g' = push_binding g x (fst px) t1 in
-    let pre_typing' : tot_typing g' pre tm_vprop =
+   let pre_typing' : tot_typing gx pre tm_vprop =
       Metatheory.tot_typing_weakening_single pre_typing x t1 in
+   let pre_typing' : tot_typing g' pre tm_vprop =
+      Metatheory.tot_typing_weakening_single pre_typing' hyp (mk_eq2 u1 t1 (null_var x) e1) in
+    
     let d =
       let ppname = mk_ppname_no_range "_tbind_c" in
       let r = check g' pre pre_typing' post_hint ppname (open_st_term_nv e2 px) in

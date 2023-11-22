@@ -436,7 +436,7 @@ let freevars_array (t:term)
   = admit()
 
 // FIXME: tame this proof
-#push-options "--fuel 2 --ifuel 1 --z3rlimit_factor 10 --query_stats --retry 5"
+#push-options "--fuel 2 --ifuel 1 --z3rlimit_factor 15 --query_stats --retry 5"
 let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
                            (d:st_typing g t c)
   : Lemma 
@@ -488,8 +488,8 @@ let rec st_typing_freevars (#g:_) (#t:_) (#c:_)
      bind_comp_freevars bc;
      freevars_open_st_term_inv e2 x
 
-   | T_TotBind _ e1 e2 _ c2 b x e1_typing e2_typing
-   | T_GhostBind _ e1 e2 _ c2 b x e1_typing e2_typing _ ->
+   | T_TotBind _ e1 e2 _ _ c2 b x _ _ e1_typing e2_typing _
+   | T_GhostBind _ e1 e2 _ _ c2 b x _ _ e1_typing e2_typing _ _ ->
      tot_or_ghost_typing_freevars e1_typing;
      st_typing_freevars e2_typing;
      freevars_open_st_term_inv e2 x;

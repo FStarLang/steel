@@ -64,12 +64,16 @@ val continuation_elaborator_with_let (#g:env) (#ctxt:term)
   (#e1:term)
   (#eff1:T.tot_or_ghost)
   (#t1:term)
+  (#u_t1:universe)
   (b:binder{b.binder_ty == t1})
+  (t1_typing:universe_of g t1 u_t1)
   (e1_typing:typing g e1 eff1 t1)
   (x:nvar { None? (lookup g (snd x)) })
+  (hyp:nvar { None? (lookup (push_binding g (snd x) (fst x) t1) (snd hyp)) })
   : T.Tac (continuation_elaborator
            g ctxt
-           (push_binding g (snd x) ppname_default t1) ctxt)
+           (let_body_env g u_t1 t1 e1 (snd x) (snd hyp))
+           ctxt)
 
 val check_equiv_emp (g:env) (vp:term)
   : option (vprop_equiv g vp tm_emp)

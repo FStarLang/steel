@@ -181,13 +181,16 @@ let elab_bind_ghost_r_typing g c1 c2 c x r1 r1_typing r2 r2_typing bc t2_typing 
   admit ()
 
 let tot_bind_typing #g #t #c d soundness =
-  let T_TotBind _ e1 e2 t1 c2 b x e1_typing e2_typing = d in
+  let T_TotBind _ e1 e2 t1 u_t1 c2 _ x hyp t1_typing e1_typing e2_typing _ = d in
 
-  let g_x = push_binding g x ppname_default t1 in
+  let g_x = let_body_env g u_t1 t1 e1 x hyp in  
 
   let re1 = elab_term e1 in
   let rt1 = elab_term t1 in
   let re2 = elab_st_typing e2_typing in
+
+  let rt1_typing : RT.tot_typing (elab_env g) rt1 (RT.tm_type u_t1) =
+    tot_typing_soundness t1_typing in
 
   let re1_typing : RT.tot_typing (elab_env g) re1 rt1 =
     tot_typing_soundness e1_typing in
@@ -206,7 +209,20 @@ let tot_bind_typing #g #t #c d soundness =
     re2;
   };
 
-  RT.T_Let _ x re1 rt1 (RT.close_term re2 x) (elab_comp c2) T.E_Total RT.pp_name_default re1_typing re2_typing
+  RT.T_LetEq
+    _
+    x
+    re1
+    rt1
+    u_t1
+    (RT.close_term re2 x)
+    (elab_comp c2)
+    T.E_Total
+    RT.pp_name_default
+    hyp
+    rt1_typing
+    re1_typing
+    re2_typing
 
 //
 // We have G |- e1 : Ghost t    -- (1)
@@ -221,14 +237,18 @@ let tot_bind_typing #g #t #c d soundness =
 //
 // Requires an application of substitution lemma for the non-informative judgment (in the RT world)
 //
+#push-options "--z3rlimit_factor 4 --fuel 2 --ifuel 1"
 let ghost_bind_typing #g #t #c d soundness =
-  let T_GhostBind _ e1 e2 t1 c2 _ x e1_typing e2_typing d_non_info = d in
+  let T_GhostBind _ e1 e2 t1 u_t1 c2 _ x hyp t1_typing e1_typing e2_typing _ d_non_info = d in
 
-  let g_x = push_binding g x ppname_default t1 in
+  let g_x = let_body_env g u_t1 t1 e1 x hyp in
 
   let re1 = elab_term e1 in
   let rt1 = elab_term t1 in
   let re2 = elab_st_typing e2_typing in
+
+  let rt1_typing : RT.ghost_typing (elab_env g) rt1 (RT.tm_type u_t1) =
+    magic () in
 
   let re1_typing : RT.ghost_typing (elab_env g) re1 rt1 =
     ghost_typing_soundness e1_typing in
@@ -253,7 +273,20 @@ let ghost_bind_typing #g #t #c d soundness =
   let d : RT.ghost_typing (elab_env g)
                           (elab_st_typing d)
                           (elab_comp c) = 
-    RT.T_Let _ x re1 rt1 (RT.close_term re2 x) (elab_comp c2) T.E_Ghost RT.pp_name_default re1_typing re2_typing
+    RT.T_LetEq 
+      _
+      x
+      re1
+      rt1
+      u_t1
+      (RT.close_term re2 x)
+      (elab_comp c2)
+      T.E_Ghost
+      RT.pp_name_default
+      hyp
+      rt1_typing
+      re1_typing
+      re2_typing
   in
 
   let E d_non_info = d_non_info in
@@ -277,3 +310,4 @@ let ghost_bind_typing #g #t #c d soundness =
     : RT.non_informative (elab_env g) (elab_comp c) = magic () in
 
   RT.T_Sub _ _ _ _ d (RT.Relc_ghost_total _ _ d_non_info)
+#pop-options
