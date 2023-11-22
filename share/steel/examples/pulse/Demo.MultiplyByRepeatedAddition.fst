@@ -37,7 +37,8 @@ fn mult (x y:nat)
 
 open Pulse.Lib.BoundedIntegers
 
-#push-options "--z3rlimit 50"  // batch mode fails without these options, IDE works
+#push-options "--z3rlimit 100 --fuel 2 --ifuel 2"  // batch mode fails without these options, IDE works
+
 ```pulse
 fn mult32 (x y:U32.t)
     requires pure (fits #U32.t (v x * v y))
