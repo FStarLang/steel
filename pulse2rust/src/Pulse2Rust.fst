@@ -144,6 +144,17 @@ let rec extract_mlty (g:env) (t:S.mlty) : typ =
   | S.MLTY_Named ([arg], p)
     when S.string_of_mlpath p = "FStar.Pervasives.Native.option" ->
     arg |> extract_mlty g |> mk_option_typ
+  | S.MLTY_Named ([arg; _], p)
+    when S.string_of_mlpath p = "Pulse.Lib.Mutex.mutex" ->
+    Typ_path [
+      { typ_path_segment_name = "Mutex"; typ_path_segment_generic_args = [extract_mlty g arg] };
+    ]
+  | S.MLTY_Named ([arg], p)
+    when S.string_of_mlpath p = "Pulse.Lib.GlobalState.global_state" ->
+    Typ_path [
+      { typ_path_segment_name = "OnceLock"; typ_path_segment_generic_args = [extract_mlty g arg] };
+    ]
+
   | S.MLTY_Erased -> Typ_unit
 
   | S.MLTY_Named (args, p) ->
@@ -359,8 +370,11 @@ and extract_mlexpr (g:env) (e:S.mlexpr) : expr =
     then mk_assign e1 e2
     else mk_ref_assign e1 e2
   | S.MLE_App ({expr=S.MLE_TApp ({expr=S.MLE_Name p}, [_])}, [e; _; _])
-    when S.string_of_mlpath p = "Pulse.Lib.Reference.op_Bang" ||
-         S.string_of_mlpath p = "Pulse.Lib.Box.op_Bang" ->
+    when S.string_of_mlpath p = "Pulse.Lib.Reference.op_Bang" ->
+    extract_mlexpr g e
+
+  | S.MLE_App ({expr=S.MLE_TApp ({expr=S.MLE_Name p}, [_])}, [e; _; _])  
+    when S.string_of_mlpath p = "Pulse.Lib.Box.op_Bang" ->
     let e = extract_mlexpr g e in
     let b = type_of g e in
     if b then e
@@ -439,6 +453,11 @@ and extract_mlexpr (g:env) (e:S.mlexpr) : expr =
     let expr_while_body = extract_mlexpr_to_stmts g body in
     Expr_while {expr_while_cond; expr_while_body}
 
+  | S.MLE_App ({expr=S.MLE_TApp ({expr=S.MLE_Name p}, _)}, [e])
+    when S.string_of_mlpath p = "Pulse.Lib.GlobalState.get" ->
+    let is_mut = false in
+    mk_call (Expr_path ["get"]) [mk_reference_expr is_mut (extract_mlexpr g e)]
+
   | S.MLE_App ({ expr=S.MLE_TApp ({ expr=S.MLE_Name p }, _) }, _)
     when S.string_of_mlpath p = "failwith" ->
     mk_call (mk_expr_path_singl panic_fn) []
@@ -497,6 +516,10 @@ and extract_mlexpr_to_stmts (g:env) (e:S.mlexpr) : list stmt =
   | S.MLE_Let ((_, [{mllb_def = {expr = S.MLE_Const S.MLC_Unit }}]), e) ->
     extract_mlexpr_to_stmts g e
 
+  | S.MLE_Let ((_, [{mllb_def = { expr = S.MLE_App ({ expr=S.MLE_TApp ({ expr=S.MLE_Name p }, _) }, _) }}]), e)
+    when S.string_of_mlpath p = "Pulse.Lib.GlobalState.put" ->
+    extract_mlexpr_to_stmts g e
+
   | S.MLE_Let ((S.NonRec, [lb]), e) ->
     let is_mut, ty, init = lb_init_and_def g lb in
     let s = mk_local_stmt
@@ -510,6 +533,7 @@ and extract_mlexpr_to_stmts (g:env) (e:S.mlexpr) : list stmt =
   | S.MLE_App ({ expr=S.MLE_TApp ({ expr=S.MLE_Name p }, _) }, _)
     when S.string_of_mlpath p = "failwith" ->
     [Stmt_expr (mk_call (mk_expr_path_singl panic_fn) [])]
+
 
   | _ -> [Stmt_expr (extract_mlexpr g e)]
 
@@ -545,13 +569,23 @@ let extract_top_level_lb (g:env) (lbs:S.mlletbinding) : item & env =
 
       Item_fn (mk_fn fn_sig fn_body),
       push_fn g lb.mllb_name fn_sig
-    
+
     | _ ->
       match lb.mllb_tysc with
       | Some ([], ty) ->
         let name = lb.mllb_name in
         let ty = extract_mlty g ty in
-        (mk_item_static name ty (extract_mlexpr g lb.mllb_def)),
+        let e =
+          match lb.mllb_def.expr with
+          | S.MLE_App ({ expr=S.MLE_TApp ({ expr=S.MLE_Name p1 }, _) }, [_; { expr=S.MLE_App ({expr=S.MLE_TApp ({expr=S.MLE_Name p2}, _)}, _)} ])
+            when S.string_of_mlpath p1 = "GlobalStateTest.run_stt" &&
+                 S.string_of_mlpath p2 = "Pulse.Lib.GlobalState.mk" ->
+            Expr_call ({
+              expr_call_fn = Expr_path (["OnceLock"; "new"]);
+              expr_call_args = [];
+            })
+          | _ -> extract_mlexpr g lb.mllb_def in
+        (mk_item_static name ty e),
         push_static g name ty
       | _ ->
         fail_nyi (format1 "top level lb def with either no tysc or generics %s" (S.mlexpr_to_string lb.mllb_def))

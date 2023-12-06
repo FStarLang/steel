@@ -772,6 +772,11 @@ let (mk_binop : expr -> binop -> expr -> expr) =
         Expr_binop
           { expr_bin_left = l; expr_bin_op = op; expr_bin_right = r }
 let (mk_block_expr : stmt Prims.list -> expr) = fun l -> Expr_block l
+let (mk_ref_read : expr -> expr) =
+  fun l -> Expr_unary { expr_unary_op = Deref; expr_unary_expr = l }
+let (mk_expr_index : expr -> expr -> expr) =
+  fun expr_index_base ->
+    fun expr_index_index -> Expr_index { expr_index_base; expr_index_index }
 let (mk_assign : expr -> expr -> expr) =
   fun l ->
     fun r -> Expr_assign { expr_assignment_l = l; expr_assignment_r = r }
@@ -784,11 +789,6 @@ let (mk_ref_assign : expr -> expr -> expr) =
             (Expr_unary { expr_unary_op = Deref; expr_unary_expr = l });
           expr_assignment_r = r
         }
-let (mk_ref_read : expr -> expr) =
-  fun l -> Expr_unary { expr_unary_op = Deref; expr_unary_expr = l }
-let (mk_expr_index : expr -> expr -> expr) =
-  fun expr_index_base ->
-    fun expr_index_index -> Expr_index { expr_index_base; expr_index_index }
 let (mk_call : expr -> expr Prims.list -> expr) =
   fun head ->
     fun args -> Expr_call { expr_call_fn = head; expr_call_args = args }
@@ -849,6 +849,22 @@ let (mk_expr_struct :
                | (f, e) -> { field_val_name = f; field_val_expr = e }) fields in
         { expr_struct_path = path; expr_struct_fields = uu___1 } in
       Expr_struct uu___
+let (mk_local_stmt :
+  Prims.string FStar_Pervasives_Native.option -> Prims.bool -> expr -> stmt)
+  =
+  fun name ->
+    fun is_mut ->
+      fun init ->
+        Stmt_local
+          {
+            local_stmt_pat =
+              (match name with
+               | FStar_Pervasives_Native.None -> FStar_Pervasives_Native.None
+               | FStar_Pervasives_Native.Some name1 ->
+                   FStar_Pervasives_Native.Some
+                     (Pat_ident { pat_name = name1; by_ref = false; is_mut }));
+            local_stmt_init = (FStar_Pervasives_Native.Some init)
+          }
 let (mk_scalar_fn_arg : Prims.string -> typ -> fn_arg) =
   fun name ->
     fun t ->
@@ -880,22 +896,6 @@ let (mk_fn_signature :
             FStar_Compiler_List.map (fun uu___ -> Generic_type_param uu___)
               fn_generics in
           { fn_name; fn_generics = fn_generics1; fn_args; fn_ret_t }
-let (mk_local_stmt :
-  Prims.string FStar_Pervasives_Native.option -> Prims.bool -> expr -> stmt)
-  =
-  fun name ->
-    fun is_mut ->
-      fun init ->
-        Stmt_local
-          {
-            local_stmt_pat =
-              (match name with
-               | FStar_Pervasives_Native.None -> FStar_Pervasives_Native.None
-               | FStar_Pervasives_Native.Some name1 ->
-                   FStar_Pervasives_Native.Some
-                     (Pat_ident { pat_name = name1; by_ref = false; is_mut }));
-            local_stmt_init = (FStar_Pervasives_Native.Some init)
-          }
 let (mk_fn : fn_signature -> stmt Prims.list -> fn) =
   fun fn_sig -> fun fn_body -> { fn_sig; fn_body }
 let (mk_item_struct :

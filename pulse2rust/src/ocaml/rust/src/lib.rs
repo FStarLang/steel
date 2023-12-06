@@ -1481,9 +1481,7 @@ fn to_syn_item(i: &Item) -> syn::Item {
             static_token: syn::token::Static {
                 span: Span::call_site(),
             },
-            mutability: syn::StaticMutability::Mut(syn::token::Mut {
-                span: Span::call_site(),
-            }),
+            mutability: syn::StaticMutability::None,
             ident: Ident::new(&item_static_name, Span::call_site()),
             colon_token: Colon {
                 spans: [Span::call_site()],
@@ -1953,3 +1951,70 @@ ocaml_export! {
   //   z.to_string().to_owned().to_ocaml(cr)
   // }
 }
+
+use std::sync::*;
+pub fn get<'a, A>(x: &'a OnceLock<A>) -> &'a A {
+    x.get().unwrap()
+}
+pub fn with_lock<A, B>(_: (), x: &Mutex<A>, _: (), _: (), f: impl FnOnce(&mut A) -> B) -> B {
+    let mut x = x.lock().unwrap();
+    f(&mut x)
+}
+
+pub fn run_stt<A>(q: (), f: A) -> A {
+    panic!()
+}
+pub struct st {
+    x: std::boxed::Box<u32>,
+    y: std::boxed::Box<u32>,
+}
+pub fn __proj__Mkst__item__x(projectee: st) -> std::boxed::Box<u32> {
+    match projectee {
+        st { x: x, y: y } => x,
+    }
+}
+pub fn __proj__Mkst__item__y(projectee: st) -> std::boxed::Box<u32> {
+    match projectee {
+        st { x: x, y: y } => y,
+    }
+}
+pub fn mk_glob(uu___: ()) -> Mutex<st> {
+    panic!()
+}
+pub static glob: OnceLock<Mutex<st>> = OnceLock::new();
+pub fn sum_st(r: &mut st) -> u32 {
+    panic!()
+}
+pub fn use_glob(uu___: ()) -> u32 {
+    let globr = get(&glob);
+    let globv = globr;
+    let r = with_lock((), globv, (), (), sum_st);
+    r
+}
+
+pub fn bar(x: &mut st) {
+    ()
+}
+
+pub fn foo(x: &mut st) {
+    let p = &mut x.x;
+    bar(x);
+    let z = *p;
+    let q = &mut x.y;
+}
+
+// let p = r.x;
+// let p = r.y
+
+// r:ref st
+
+// r->x
+
+// r.x
+
+// let x = !r;
+// x.x
+
+// r:&st
+
+// r.x

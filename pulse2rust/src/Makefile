@@ -19,7 +19,6 @@ FSTAR_C=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_BOOT_OPTIONS) --include $(FSTAR_HO
 		Pulse2Rust.fst                   \
 		--odir $(OUTPUT_DIRECTORY)	     \
 		--extract_namespace 'Pulse2Rust' \
-		--already_cached 'Prims FStar'   \
 		--output_deps_to .depend
 
 depend: .depend
@@ -28,7 +27,9 @@ include .depend
 
 %.checked.lax:
 	$(call msg, "LAXCHECK", $(basename $(basename $(notdir $@))))
-	$(Q)$(BENCHMARK_PRE) $(FSTAR_C) $< --already_cached '*,'-$(basename $(notdir $<))
+	$(Q)$(BENCHMARK_PRE) $(FSTAR_C) --already_cached '*,'-$(basename $(notdir $<)) \
+	  $(if $(findstring /ulib/,$<),,--MLish) \
+		$<
 	$(Q)@touch -c $@
 
 %.ml:

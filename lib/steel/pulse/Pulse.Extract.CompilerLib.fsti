@@ -31,7 +31,7 @@ val mle_var (x:mlident) : mlexpr
 val mle_name (x:mlpath) : mlexpr
 val mle_let (x:mlletbinding) (b:mlexpr) : mlexpr
 val mle_app (x:mlexpr) (args:list mlexpr) : mlexpr
-val mke_tapp (x:mlexpr) (args:list mlty) : mlexpr
+val mle_tapp (x:mlexpr) (args:list mlty) : mlexpr
 val mle_fun (formals:list (mlident * mlty)) (body:mlexpr) : mlexpr
 val mle_if (guard:mlexpr) (t:mlexpr) (f:option mlexpr) : mlexpr
 

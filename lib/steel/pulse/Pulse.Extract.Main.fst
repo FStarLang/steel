@@ -452,6 +452,8 @@ let rec erase_ghost_subterms (g:env) (p:st_term) : T.Tac st_term =
     | Tm_IntroExists _ 
     | Tm_Rewrite _ -> unit_tm
 
+    | Tm_Admit _ -> p
+
     | Tm_Abs { b; q; body; ascription } ->
       let body = open_erase_close g b body in
       ret (Tm_Abs { b; q; body; ascription })
@@ -647,7 +649,9 @@ let rec extract (g:env) (p:st_term)
         extract g body
     
       | Tm_ProofHintWithBinders { t } -> T.fail "Unexpected constructor: ProofHintWithBinders should have been desugared away"
-      | Tm_Admit _ -> T.raise (Extraction_failure (Printf.sprintf "Cannot extract code with admit: %s\n" (Pulse.Syntax.Printer.st_term_to_string p)))
+      | Tm_Admit _ ->
+        mle_app (mle_tapp (mle_name ([], "failwith")) [mlty_unit]) [mle_unit],
+        e_tag_impure
     end
 
 let rec generalize (g:env) (t:R.typ) (e:option st_term)
