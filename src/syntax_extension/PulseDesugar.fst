@@ -433,7 +433,7 @@ and desugar_branch (env:env_t) (br:A.pattern & Sugar.stmt)
     let? (p, vs) = desugar_pat env p in
     let env, bvs = push_bvs env vs in
     let? e = desugar_stmt env e in
-    let e = SW.close_st_term_n e (L.map (fun (v:S.bv) -> v.index) bvs) in
+    let e = SW.close_st_term_n e (L.map (fun (v:S.bv) -> v.index <: SW.var) bvs) in
     return (p,e)
 
 and desugar_pat (env:env_t) (p:A.pattern)
@@ -525,7 +525,7 @@ and desugar_proof_hint_with_binders (env:env_t) (s1:Sugar.stmt) (k:option Sugar.
   = match s1.s with
     | Sugar.ProofHintWithBinders { hint_type; binders=bs } -> //; vprop=v } ->
       let? env, binders, bvs = desugar_binders env bs in
-      let vars = L.map (fun bv -> bv.S.index) bvs in
+      let vars = L.map (fun bv -> bv.S.index <: SW.var) bvs in
       let? ht = desugar_hint_type env hint_type in
       let? s2 = 
         match k with
