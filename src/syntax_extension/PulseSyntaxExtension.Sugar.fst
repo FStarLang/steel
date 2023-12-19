@@ -154,7 +154,7 @@ and lambda = {
   range:rng
 }
 
-and fn_decl = {
+and fn_defn = {
   id:ident;
   is_rec:bool;
   binders:binders;
@@ -167,10 +167,18 @@ and fn_decl = {
 and let_init =
   | Array_initializer of array_init
   | Default_initializer of A.term
-  | Lambda_initializer of fn_decl
+  | Lambda_initializer of fn_defn
+
+type fn_decl = {
+  id:ident;
+  binders:binders;
+  ascription:either computation_type (option A.term);
+  range:rng
+}
 
 type decl =
-  | FnDefn of fn_decl
+  | FnDefn of fn_defn
+  | FnDecl of fn_decl
   
 (* Convenience builders for use from OCaml/Menhir, since field names get mangled in OCaml *)
 let mk_comp tag precondition return_name return_type postcondition opens range = 
@@ -196,7 +204,8 @@ let mk_while guard id invariant body = While { guard; id; invariant; body }
 let mk_intro vprop witnesses = Introduce { vprop; witnesses }
 let mk_sequence s1 s2 = Sequence { s1; s2 }
 let mk_stmt s range = { s; range }
-let mk_fn_decl id is_rec binders ascription measure body range = { id; is_rec; binders; ascription; measure; body; range }
+let mk_fn_defn id is_rec binders ascription measure body range : fn_defn = { id; is_rec; binders; ascription; measure; body; range }
+let mk_fn_decl id binders ascription range : fn_decl = { id; binders; ascription; range }
 let mk_open lid = Open lid
 let mk_par p1 p2 q1 q2 b1 b2 = Parallel { p1; p2; q1; q2; b1; b2 }
 let mk_rewrite p1 p2 = Rewrite { p1; p2 }

@@ -39,7 +39,7 @@ let string_as_term (s:string) : R.term =
 
 let add_knot (g : env) (rng : R.range)
              (d : decl{FnDefn? d.d})
-: Tac decl
+: Tac (d:decl{FnDefn? d.d})
 =
   let FnDefn { id; isrec; bs; comp; meas; body } = d.d in
   if Nil? bs then
