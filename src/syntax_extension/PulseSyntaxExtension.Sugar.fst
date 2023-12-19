@@ -170,7 +170,7 @@ and let_init =
   | Lambda_initializer of fn_decl
 
 type decl =
-  | FnDecl of fn_decl
+  | FnDefn of fn_decl
   
 (* Convenience builders for use from OCaml/Menhir, since field names get mangled in OCaml *)
 let mk_comp tag precondition return_name return_type postcondition opens range = 

@@ -38,12 +38,12 @@ let string_as_term (s:string) : R.term =
   R.pack_ln (R.Tv_Const (C_String s))
 
 let add_knot (g : env) (rng : R.range)
-             (d : decl{FnDecl? d.d})
+             (d : decl{FnDefn? d.d})
 : Tac decl
 =
-  let FnDecl { id; isrec; bs; comp; meas; body } = d.d in
+  let FnDefn { id; isrec; bs; comp; meas; body } = d.d in
   if Nil? bs then
-    fail g (Some d.range) "main: FnDecl does not have binders";
+    fail g (Some d.range) "main: FnDefn does not have binders";
   (* NB: bs and comp are open *)
   let r_res = elab_comp comp in
   let elab_b (qbv : option qualifier & binder & bv) : Tot Tactics.NamedView.binder =
@@ -173,7 +173,7 @@ let add_knot (g : env) (rng : R.range)
   (* NB: body and comp unchanged, they are already shifted properly
      (we dropped one binder and added one) *)
   { d with d =
-    FnDecl { id=id'; isrec=false; bs=bs'; comp; meas=None; body }
+    FnDefn { id=id'; isrec=false; bs=bs'; comp; meas=None; body }
   }
 
 let tie_knot (g : env)  (rng : R.range)

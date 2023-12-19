@@ -295,7 +295,7 @@ and branch = pattern & st_term
 
 noeq
 type decl' =
-  | FnDecl {
+  | FnDefn {
       (* A function declaration, currently the only Pulse
       top-level decl. This will be mostly checked as a nested
       Tm_Abs with bs and body, especially if non-recursive. *)

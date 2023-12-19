@@ -674,7 +674,7 @@ and desugar_decl (env:env_t)
     return (A.mk_term (A.Product (bs'', res_t)) r A.Expr)
   in
   match d with
-  | Sugar.FnDecl { id; is_rec; binders; ascription=Inl ascription; measure; body=Inl body; range } ->
+  | Sugar.FnDefn { id; is_rec; binders; ascription=Inl ascription; measure; body=Inl body; range } ->
     let! env, bs, bvs = desugar_binders env binders in
     let fvs = free_vars_comp env ascription in
     let! env, bs', bvs' = idents_as_binders env fvs in
@@ -703,7 +703,7 @@ and desugar_decl (env:env_t)
     let! qbs = map2 faux bs bvs in
     return (SW.fn_decl range id is_rec qbs comp meas body)
 
-  | Sugar.FnDecl { id; is_rec=false; binders; ascription=Inr ascription; measure=None; body=Inr body; range } ->
+  | Sugar.FnDefn { id; is_rec=false; binders; ascription=Inr ascription; measure=None; body=Inr body; range } ->
     let! env, bs, bvs = desugar_binders env binders in
     let! comp = 
       match ascription with

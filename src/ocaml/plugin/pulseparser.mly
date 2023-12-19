@@ -96,7 +96,7 @@ pulseDecl:
     FN isRec=maybeRec lid=lident bs=pulseBinderList
     body=fnBody EOF
     {
-      PulseSyntaxExtension_Sugar.FnDecl (mk_fn_decl q lid isRec bs body (rr $loc))
+      PulseSyntaxExtension_Sugar.FnDefn (mk_fn_decl q lid isRec bs body (rr $loc))
     }
 
 pulseBinderList:
@@ -104,7 +104,7 @@ pulseBinderList:
   | bs=nonempty_list(multiBinder)
     {  bs }
 
-localFnDecl:
+localFnDefn:
   | q=option(qual) FN lid=lident
     bs=pulseBinderList
     body=fnBody
@@ -190,7 +190,7 @@ pulseStmtNoSeq:
     { PulseSyntaxExtension_Sugar.mk_proof_hint_with_binders (SHOW_PROOF_STATE (rr $loc)) [] }
   | WITH_INVS names=nonempty_list(atomicTerm) r=option(ensuresVprop) LBRACE body=pulseStmt RBRACE
     { PulseSyntaxExtension_Sugar.mk_with_invs names body r }
-  | f=localFnDecl
+  | f=localFnDefn
     {
       let id, fndecl = f in
       PulseSyntaxExtension_Sugar.mk_let_binding None id None (Some (Lambda_initializer fndecl))

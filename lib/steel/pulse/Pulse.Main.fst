@@ -39,14 +39,14 @@ let rec mk_abs (g:env) (qbs:list (option qualifier & binder & bv)) (body:st_term
     with_range (Pulse.Syntax.Builder.tm_abs b q empty_ascription body) body.range
 
 let check_fndecl
-    (d : decl{FnDecl? d.d})
+    (d : decl{FnDefn? d.d})
     (g : Soundness.Common.stt_env{bindings g == []})
     (pre : term) (pre_typing : tot_typing g pre tm_vprop)
   : T.Tac (RT.dsl_tac_result_t (fstar_env g))
 = 
 
   (* Maybe add a recursive knot before starting *)
-  let FnDecl fn_d = d.d in
+  let FnDefn fn_d = d.d in
   let nm_orig = fst (inspect_ident fn_d.id) in // keep the original name
   let d =
     if fn_d.isrec
@@ -54,11 +54,11 @@ let check_fndecl
     else d
   in
 
-  let FnDecl { id; isrec; bs; comp; meas; body } = d.d in
+  let FnDefn { id; isrec; bs; comp; meas; body } = d.d in
   let nm_aux = fst (inspect_ident id) in
 
   if Nil? bs then
-    fail g (Some d.range) "main: FnDecl does not have binders";
+    fail g (Some d.range) "main: FnDefn does not have binders";
   let body = mk_abs g bs body comp in
   let rng = body.range in
   debug_main g (fun _ -> Printf.sprintf "\nbody after mk_abs:\n%s\n" (P.st_term_to_string body));
@@ -120,7 +120,7 @@ let main' (nm:string) (d:decl) (pre:term) (g:RT.fstar_top_env)
         fail g (Some pre.range) "pulse main: cannot typecheck pre at type vprop"; //fix range
       let pre_typing : tot_typing g pre tm_vprop = pre_typing in
       match d.d with
-      | FnDecl _ ->
+      | FnDefn _ ->
         check_fndecl d g pre pre_typing
 
 let join_smt_goals () : Tac unit =
