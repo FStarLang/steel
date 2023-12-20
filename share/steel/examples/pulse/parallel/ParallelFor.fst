@@ -37,12 +37,6 @@ let div_perm (p:perm) (n:pos) : perm =
 
 (* First, a sequential one. *)
 
-val range : (nat -> vprop) -> i:nat -> j:nat -> vprop
-let rec range p i j : Tot vprop (decreases j-i) =
-  if i < j
-  then p i ** range p (i+1) j
-  else emp
-
 (* The precondition on i/j/k is needed otherwise the LHS can be stronger. *)
 val p_join_equiv (p : nat -> vprop) (i j k : nat) (_ : squash (i <= j /\ j <= k))
   : Tot (vprop_equiv (range p i j ** range p j k) (range p i k)) (decreases j-i)

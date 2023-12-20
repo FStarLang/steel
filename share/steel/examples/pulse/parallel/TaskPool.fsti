@@ -45,45 +45,76 @@ val spawn_
              (fun prom -> pool_alive #e p ** pledge emp_inames (pool_done p) post)
 
 (* If the pool is done, all pending joinable threads must be done *)
-val must_be_done
+```pulse
+ghost val 
+fn must_be_done
   (#p : pool)
   (#a: Type0)
-  (#post : a -> vprop)
+  (#post : (a -> vprop))
   (th : task_handle p a post)
-  : stt_ghost unit emp_inames (pool_done p ** joinable th) (fun () -> pool_done p ** handle_solved th)
+requires pool_done p ** joinable th
+ensures  pool_done p ** handle_solved th
+```
 
-val join0
+```pulse
+val 
+fn join0
   (#p:pool)
   (#a:Type0)
-  (#post : a -> vprop)
+  (#post : (a -> vprop))
   (th : task_handle p a post)
-  : stt unit (joinable th) (fun () -> handle_solved th)
+requires joinable th
+ensures  handle_solved th
+```
 
-val extract
+```pulse
+val 
+fn extract
   (#p:pool)
   (#a:Type0)
-  (#post : a -> vprop)
+  (#post : (a -> vprop))
   (th : task_handle p a post)
-  : stt a (handle_solved th) (fun x -> post x)
-  
-val split_alive
+requires handle_solved th
+returns  x:a
+ensures  post x
+```
+
+```pulse
+ghost val 
+fn split_alive
   (p:pool)
   (e:perm)
-  : stt_ghost unit emp_inames
-              (pool_alive #e p)
-              (fun () -> pool_alive #(half_perm e) p ** pool_alive #(half_perm e) p)
+requires pool_alive #e p
+ensures  pool_alive #(half_perm e) p ** pool_alive #(half_perm e) p
+```
 
-val join
+```pulse
+val 
+fn join
   (#p:pool)
   (#a:Type0)
-  (#post : a -> vprop)
+  (#post : (a -> vprop))
   (th : task_handle p a post)
-  : stt a (joinable th) (fun x -> post x)
-// let join =
-//   bind_stt (join0 th) (fun () ->
-//   extract th)
+requires joinable th
+returns  x:a
+ensures  post x
+```
 
 (* We must exclusively own the pool in order to terminate it. *)
-val teardown_pool
+```pulse
+val
+fn teardown_pool
   (p:pool)
-  : stt unit (pool_alive #full_perm p) (fun _ -> pool_done p)
+requires pool_alive #full_perm p
+ensures  pool_done p
+```
+
+(* In other cases, however, some of the ownership may be in tasks within
+the pool, so we require *some* permission plus a *promise* of the rest. *)
+```pulse
+val 
+fn teardown_pool_partial
+  (p:pool) (e:(e:perm{lesser_perm e full_perm}))
+requires pool_alive #e p ** pledge_any (pool_done p) (pool_alive #(comp_perm e) p)
+ensures  pool_done p
+```

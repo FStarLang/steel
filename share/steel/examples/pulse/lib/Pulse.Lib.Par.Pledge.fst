@@ -87,9 +87,9 @@ fn bind_pledge_aux
   ensures f ** v2
   opens os
 {
-  redeem_pledge os f v1;
+  __redeem_pledge os f v1;
   k ();
-  redeem_pledge os f v2
+  __redeem_pledge os f v2
 }
 ```
 
@@ -106,7 +106,7 @@ fn __bind_pledge
   requires pledge os f v1 ** extra
   ensures pledge os f v2
 {
-  make_pledge os f v2 (extra ** pledge os f v1) (bind_pledge_aux os f v1 v2 extra k);
+  __make_pledge os f v2 (extra ** pledge os f v1) (bind_pledge_aux os f v1 v2 extra k);
 }
 ```
 let bind_pledge #os #f #v1 #v2 extra k = __bind_pledge #os #f #v1 #v2 extra k
@@ -124,7 +124,7 @@ fn __bind_pledge'_aux
   ensures f ** pledge os f v2
   opens os
 {
-  k();
+  k ();
 }
 ```
 
@@ -138,7 +138,7 @@ fn __bind_pledge'
   requires pledge os f v1 ** extra
   ensures pledge os f v2
 {
-  bind_pledge #os #f #v1 #v2 extra (__bind_pledge'_aux os f v1 v2 extra k)
+  __bind_pledge #os #f #v1 #v2 extra (__bind_pledge'_aux os f v1 v2 extra k)
 }
 ```
 let bind_pledge' = __bind_pledge'
@@ -150,8 +150,8 @@ fn __join_pledge_aux (os:inames) (f v1 v2 : vprop) ()
   ensures f ** (v1 ** v2)
   opens os
 {
-  redeem_pledge os f v1;
-  redeem_pledge os f v2
+  __redeem_pledge os f v1;
+  __redeem_pledge os f v2
 }
 ```
 
@@ -162,7 +162,7 @@ fn __join_pledge (#os:inames) (#f v1 v2 : vprop)
   ensures pledge os f (v1 ** v2)
 {
   (* Copilot wrote this!!! *)
-  make_pledge os f (v1 ** v2) (pledge os f v1 ** pledge os f v2) (__join_pledge_aux os f v1 v2)
+  __make_pledge os f (v1 ** v2) (pledge os f v1 ** pledge os f v2) (__join_pledge_aux os f v1 v2)
 }
 ```
 let join_pledge = __join_pledge
@@ -250,7 +250,7 @@ fn __elim_l (#os0:inames) (#f:vprop) (v1:vprop) (v2:vprop) (r1 r2 : GR.ref bool)
                  | true, true -> emp)
            as pledge os0 f (v1 ** v2);
 
-      redeem_pledge os0 f (v1 ** v2);
+      __redeem_pledge os0 f (v1 ** v2);
 
       assert (f ** v1 ** v2);
 
@@ -324,14 +324,14 @@ fn __split_pledge (#os:inames) (#f:vprop) (v1:vprop) (v2:vprop)
 
   let i = new_invariant_ghost (inv_p os f v1 v2 r1 r2);
 
-  make_pledge
+  __make_pledge
     (add_inv os i)
     f
     v1
     (GR.pts_to r1 #one_half false)
     (__elim_l #os #f v1 v2 r1 r2 i);
 
-  make_pledge
+  __make_pledge
     (add_inv os i)
     f
     v2
@@ -362,7 +362,7 @@ fn __rewrite_pledge_aux (os:inames) (f v1 v2 : vprop)
   opens os
 { 
   k ();
-  return_pledge os f v2;
+  __return_pledge os f v2;
 }
 ```
 
@@ -373,7 +373,7 @@ fn __rewrite_pledge (#os:inames) (#f v1 v2 : vprop)
   requires pledge os f v1
   ensures  pledge os f v2
 {
-  bind_pledge emp (__rewrite_pledge_aux os f v1 v2 k)
+  __bind_pledge emp (__rewrite_pledge_aux os f v1 v2 k)
 }
 ```
 let rewrite_pledge = __rewrite_pledge

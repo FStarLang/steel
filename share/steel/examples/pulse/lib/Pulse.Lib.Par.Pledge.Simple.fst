@@ -132,7 +132,7 @@ fn __bind_pledge (#os : inames) (#f #v1 #v2 : vprop)
   fold (pledge f v2);
 }
 ```
-let bind_pledge #os #f #v1 #v2 extra k = __bind_pledge #os #f #v1 #v2 extra k
+let bind_pledge = __bind_pledge
 
 ```pulse
 ghost
@@ -142,7 +142,8 @@ fn __bind_pledge' (#os : inames) (#f #v1 #v2 : vprop)
    requires pledge f v1 ** extra
     ensures pledge f v2
 {
-  bind_pledge #os #f #v1 #v2 extra (fun () -> assoc_l_pre (frame_stt_ghost_left f (k ())))
+  // FIXME: calling bind_pledge directly fails in batch mode.
+  __bind_pledge #os #f #v1 #v2 extra (fun () -> assoc_l_pre (frame_stt_ghost_left f (k ())))
 }
 ```
 let bind_pledge' = __bind_pledge'
