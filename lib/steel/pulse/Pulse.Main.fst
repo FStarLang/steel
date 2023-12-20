@@ -38,15 +38,16 @@ let rec mk_abs (g:env) (qbs:list (option qualifier & binder & bv)) (body:st_term
     let body = close_st_term body bv.bv_index in
     with_range (Pulse.Syntax.Builder.tm_abs b q empty_ascription body) body.range
 
-let check_fndecl
-    (d : decl{FnDecl? d.d})
+// FIXME: pre and its typing are unused. Remove?
+let check_fndefn
+    (d : decl{FnDefn? d.d})
     (g : Soundness.Common.stt_env{bindings g == []})
     (pre : term) (pre_typing : tot_typing g pre tm_vprop)
   : T.Tac (RT.dsl_tac_result_t (fstar_env g))
 = 
 
   (* Maybe add a recursive knot before starting *)
-  let FnDecl fn_d = d.d in
+  let FnDefn fn_d = d.d in
   let nm_orig = fst (inspect_ident fn_d.id) in // keep the original name
   let d =
     if fn_d.isrec
@@ -54,11 +55,11 @@ let check_fndecl
     else d
   in
 
-  let FnDecl { id; isrec; bs; comp; meas; body } = d.d in
+  let FnDefn { id; isrec; bs; comp; meas; body } = d.d in
   let nm_aux = fst (inspect_ident id) in
 
   if Nil? bs then
-    fail g (Some d.range) "main: FnDecl does not have binders";
+    fail g (Some d.range) "main: FnDefn does not have binders";
   let body = mk_abs g bs body comp in
   let rng = body.range in
   debug_main g (fun _ -> Printf.sprintf "\nbody after mk_abs:\n%s\n" (P.st_term_to_string body));
@@ -108,6 +109,43 @@ let check_fndecl
   in
   main_decl :: recursive_decls
 
+let check_fndecl
+    (g : Soundness.Common.stt_env{bindings g == []})
+    (d : decl{FnDecl? d.d})
+  : T.Tac (RT.dsl_tac_result_t (fstar_env g))
+=
+  let FnDecl { id; bs; comp } = d.d in
+  let nm = fst (inspect_ident id) in
+  let stc = st_comp_of_comp comp in
+  let body : st_term = {
+    term = Tm_Admit {
+      ctag = ctag_of_comp_st comp;
+      u = stc.u;
+      typ = stc.res;
+      post = None; // Some stc.post?
+    };
+    range = d.range;
+    effect_tag = seal None;
+  }
+  in
+  let nm_aux = fst (inspect_ident id) in
+
+  if Nil? bs then
+    fail g (Some d.range) "main: FnDefn does not have binders";
+  let body = mk_abs g bs body comp in
+  let rng = body.range in
+  let (| _, c, t_typing |) = Pulse.Checker.Abs.check_abs g body Pulse.Checker.check in
+  let typ = elab_comp c in
+  let se : sigelt =
+    pack_sigelt <|
+    Sg_Val {
+      nm = cur_module () @ [nm];
+      univs = [];
+      typ = typ
+    }
+  in
+  [(false, se, None)]
+
 let main' (nm:string) (d:decl) (pre:term) (g:RT.fstar_top_env)
   : T.Tac (RT.dsl_tac_result_t g)
   = match Pulse.Soundness.Common.check_top_level_environment g with
@@ -120,8 +158,10 @@ let main' (nm:string) (d:decl) (pre:term) (g:RT.fstar_top_env)
         fail g (Some pre.range) "pulse main: cannot typecheck pre at type vprop"; //fix range
       let pre_typing : tot_typing g pre tm_vprop = pre_typing in
       match d.d with
+      | FnDefn _ ->
+        check_fndefn d g pre pre_typing
       | FnDecl _ ->
-        check_fndecl d g pre pre_typing
+        check_fndecl g d
 
 let join_smt_goals () : Tac unit =
   let open FStar.Tactics.V2 in

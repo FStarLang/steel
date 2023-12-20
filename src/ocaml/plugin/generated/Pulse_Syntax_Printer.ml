@@ -5412,7 +5412,7 @@ let (decl_to_string :
   =
   fun d ->
     match d.Pulse_Syntax_Base.d with
-    | Pulse_Syntax_Base.FnDecl
+    | Pulse_Syntax_Base.FnDefn
         { Pulse_Syntax_Base.id = id; Pulse_Syntax_Base.isrec = isrec;
           Pulse_Syntax_Base.bs = bs; Pulse_Syntax_Base.comp = uu___;
           Pulse_Syntax_Base.meas = uu___1; Pulse_Syntax_Base.body7 = body;_}
@@ -5603,3 +5603,79 @@ let (decl_to_string :
           (fun uu___2 ->
              FStar_Tactics_Effect.lift_div_tac
                (fun uu___3 -> Prims.strcat "fn " uu___2))
+    | Pulse_Syntax_Base.FnDecl
+        { Pulse_Syntax_Base.id1 = id; Pulse_Syntax_Base.bs1 = bs;
+          Pulse_Syntax_Base.comp1 = uu___;_}
+        ->
+        FStar_Tactics_Effect.tac_bind
+          (FStar_Sealed.seal
+             (Obj.magic
+                (FStar_Range.mk_range "Pulse.Syntax.Printer.fst"
+                   (Prims.of_int (508)) (Prims.of_int (5))
+                   (Prims.of_int (509)) (Prims.of_int (71)))))
+          (FStar_Sealed.seal
+             (Obj.magic
+                (FStar_Range.mk_range "prims.fst" (Prims.of_int (590))
+                   (Prims.of_int (19)) (Prims.of_int (590))
+                   (Prims.of_int (31)))))
+          (Obj.magic
+             (FStar_Tactics_Effect.tac_bind
+                (FStar_Sealed.seal
+                   (Obj.magic
+                      (FStar_Range.mk_range "Pulse.Syntax.Printer.fst"
+                         (Prims.of_int (508)) (Prims.of_int (32))
+                         (Prims.of_int (509)) (Prims.of_int (71)))))
+                (FStar_Sealed.seal
+                   (Obj.magic
+                      (FStar_Range.mk_range "prims.fst" (Prims.of_int (590))
+                         (Prims.of_int (19)) (Prims.of_int (590))
+                         (Prims.of_int (31)))))
+                (Obj.magic
+                   (FStar_Tactics_Effect.tac_bind
+                      (FStar_Sealed.seal
+                         (Obj.magic
+                            (FStar_Range.mk_range "Pulse.Syntax.Printer.fst"
+                               (Prims.of_int (509)) (Prims.of_int (5))
+                               (Prims.of_int (509)) (Prims.of_int (71)))))
+                      (FStar_Sealed.seal
+                         (Obj.magic
+                            (FStar_Range.mk_range "prims.fst"
+                               (Prims.of_int (590)) (Prims.of_int (19))
+                               (Prims.of_int (590)) (Prims.of_int (31)))))
+                      (Obj.magic
+                         (FStar_Tactics_Effect.tac_bind
+                            (FStar_Sealed.seal
+                               (Obj.magic
+                                  (FStar_Range.mk_range
+                                     "Pulse.Syntax.Printer.fst"
+                                     (Prims.of_int (509)) (Prims.of_int (23))
+                                     (Prims.of_int (509)) (Prims.of_int (71)))))
+                            (FStar_Sealed.seal
+                               (Obj.magic
+                                  (FStar_Range.mk_range
+                                     "Pulse.Syntax.Printer.fst"
+                                     (Prims.of_int (509)) (Prims.of_int (5))
+                                     (Prims.of_int (509)) (Prims.of_int (71)))))
+                            (Obj.magic
+                               (FStar_Tactics_Util.map
+                                  (fun uu___1 ->
+                                     match uu___1 with
+                                     | (uu___2, b, uu___3) ->
+                                         binder_to_string b) bs))
+                            (fun uu___1 ->
+                               FStar_Tactics_Effect.lift_div_tac
+                                 (fun uu___2 ->
+                                    FStar_String.concat " " uu___1))))
+                      (fun uu___1 ->
+                         FStar_Tactics_Effect.lift_div_tac
+                           (fun uu___2 -> Prims.strcat " " uu___1))))
+                (fun uu___1 ->
+                   FStar_Tactics_Effect.lift_div_tac
+                     (fun uu___2 ->
+                        Prims.strcat
+                          (FStar_Pervasives_Native.fst
+                             (FStar_Reflection_V2_Builtins.inspect_ident id))
+                          uu___1))))
+          (fun uu___1 ->
+             FStar_Tactics_Effect.lift_div_tac
+               (fun uu___2 -> Prims.strcat "val fn " uu___1))

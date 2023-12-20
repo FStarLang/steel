@@ -114,7 +114,7 @@ new
 val decl : Type0
 val decl_to_string (env:FStar.TypeChecker.Env.env) (_:decl) : string
 
-val fn_decl :
+val fn_defn :
   range ->
   name:ident ->
   isrec:bool ->
@@ -122,4 +122,11 @@ val fn_decl :
   comp:comp ->
   meas:option term ->
   body:st_term ->
+  decl
+
+val fn_decl :
+  range ->
+  name:ident ->
+  bs:list (option qualifier & binder & bv) ->
+  comp:comp ->
   decl

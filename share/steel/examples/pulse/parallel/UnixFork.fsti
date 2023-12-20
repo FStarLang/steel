@@ -11,11 +11,20 @@ val thread : Type0
 val joinable : thread -> vprop
 val done     : thread -> vprop (* i.e. reapable/zombie *)
 
-val fork 
+```pulse
+val
+fn fork 
   (#pre #post : vprop)
-  (f : unit -> stt unit pre (fun () -> post))
-  : stt thread pre (fun th -> joinable th ** pledge emp_inames (done th) post)
+  (f : (unit -> stt unit pre (fun () -> post)))
+requires pre
+returns th : thread
+ensures joinable th ** pledge emp_inames (done th) post
+```
 
-val join
+```pulse
+val 
+fn join
   (th : thread)
-  : stt unit (joinable th) (fun () -> done th)
+requires joinable th
+ensures  done th
+```

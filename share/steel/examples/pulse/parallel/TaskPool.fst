@@ -26,7 +26,19 @@ let spawn_ #pre #post #e = magic ()
 
 let must_be_done = magic ()
 
-let join0 = magic ()
+```pulse
+fn __join0
+  (#p:pool)
+  (#a:Type0)
+  (#post : (a -> vprop))
+  (th : task_handle p a post)
+requires joinable th
+ensures  handle_solved th
+{
+  admit()
+}
+```
+let join0 = __join0
 
 #set-options "--print_universes"
 
@@ -60,8 +72,8 @@ fn __join
   returns x:a
   ensures post x
 {
-  join0 th;
-  extract th
+  __join0 th;
+  __extract th
 }
 ``` 
 let join = __join
