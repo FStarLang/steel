@@ -481,7 +481,7 @@ let uu___is_Tm_ProofHintWithBinders uu___ =
 let uu___is_Tm_WithInv uu___ =
   match uu___ with | Tm_WithInv _ -> true | _ -> false
 type branch = (pattern * st_term)
-type decl'__FnDecl__payload =
+type decl'__FnDefn__payload =
   {
   id: FStar_Reflection_Types.ident ;
   isrec: Prims.bool ;
@@ -489,44 +489,69 @@ type decl'__FnDecl__payload =
   comp: comp ;
   meas: term FStar_Pervasives_Native.option ;
   body7: st_term }
+and decl'__FnDecl__payload =
+  {
+  id1: FStar_Reflection_Types.ident ;
+  bs1: (qualifier FStar_Pervasives_Native.option * binder * bv) Prims.list ;
+  comp1: comp_st }
 and decl' =
+  | FnDefn of decl'__FnDefn__payload 
   | FnDecl of decl'__FnDecl__payload 
 and decl = {
   d: decl' ;
   range3: range }
-let (__proj__Mkdecl'__FnDecl__payload__item__id :
-  decl'__FnDecl__payload -> FStar_Reflection_Types.ident) =
+let (__proj__Mkdecl'__FnDefn__payload__item__id :
+  decl'__FnDefn__payload -> FStar_Reflection_Types.ident) =
   fun projectee ->
     match projectee with
     | { id; isrec; bs; comp = comp1; meas; body7 = body;_} -> id
-let (__proj__Mkdecl'__FnDecl__payload__item__isrec :
-  decl'__FnDecl__payload -> Prims.bool) =
+let (__proj__Mkdecl'__FnDefn__payload__item__isrec :
+  decl'__FnDefn__payload -> Prims.bool) =
   fun projectee ->
     match projectee with
     | { id; isrec; bs; comp = comp1; meas; body7 = body;_} -> isrec
-let (__proj__Mkdecl'__FnDecl__payload__item__bs :
-  decl'__FnDecl__payload ->
+let (__proj__Mkdecl'__FnDefn__payload__item__bs :
+  decl'__FnDefn__payload ->
     (qualifier FStar_Pervasives_Native.option * binder * bv) Prims.list)
   =
   fun projectee ->
     match projectee with
     | { id; isrec; bs; comp = comp1; meas; body7 = body;_} -> bs
-let (__proj__Mkdecl'__FnDecl__payload__item__comp :
-  decl'__FnDecl__payload -> comp) =
+let (__proj__Mkdecl'__FnDefn__payload__item__comp :
+  decl'__FnDefn__payload -> comp) =
   fun projectee ->
     match projectee with
     | { id; isrec; bs; comp = comp1; meas; body7 = body;_} -> comp1
-let (__proj__Mkdecl'__FnDecl__payload__item__meas :
-  decl'__FnDecl__payload -> term FStar_Pervasives_Native.option) =
+let (__proj__Mkdecl'__FnDefn__payload__item__meas :
+  decl'__FnDefn__payload -> term FStar_Pervasives_Native.option) =
   fun projectee ->
     match projectee with
     | { id; isrec; bs; comp = comp1; meas; body7 = body;_} -> meas
-let (__proj__Mkdecl'__FnDecl__payload__item__body :
-  decl'__FnDecl__payload -> st_term) =
+let (__proj__Mkdecl'__FnDefn__payload__item__body :
+  decl'__FnDefn__payload -> st_term) =
   fun projectee ->
     match projectee with
     | { id; isrec; bs; comp = comp1; meas; body7 = body;_} -> body
-let (uu___is_FnDecl : decl' -> Prims.bool) = fun projectee -> true
+let (__proj__Mkdecl'__FnDecl__payload__item__id :
+  decl'__FnDecl__payload -> FStar_Reflection_Types.ident) =
+  fun projectee ->
+    match projectee with | { id1 = id; bs1 = bs; comp1;_} -> id
+let (__proj__Mkdecl'__FnDecl__payload__item__bs :
+  decl'__FnDecl__payload ->
+    (qualifier FStar_Pervasives_Native.option * binder * bv) Prims.list)
+  =
+  fun projectee ->
+    match projectee with | { id1 = id; bs1 = bs; comp1;_} -> bs
+let (__proj__Mkdecl'__FnDecl__payload__item__comp :
+  decl'__FnDecl__payload -> comp_st) =
+  fun projectee ->
+    match projectee with | { id1 = id; bs1 = bs; comp1;_} -> comp1
+let (uu___is_FnDefn : decl' -> Prims.bool) =
+  fun projectee -> match projectee with | FnDefn _0 -> true | uu___ -> false
+let (__proj__FnDefn__item___0 : decl' -> decl'__FnDefn__payload) =
+  fun projectee -> match projectee with | FnDefn _0 -> _0
+let (uu___is_FnDecl : decl' -> Prims.bool) =
+  fun projectee -> match projectee with | FnDecl _0 -> true | uu___ -> false
 let (__proj__FnDecl__item___0 : decl' -> decl'__FnDecl__payload) =
   fun projectee -> match projectee with | FnDecl _0 -> _0
 let (__proj__Mkdecl__item__d : decl -> decl') =
