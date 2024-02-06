@@ -22,7 +22,6 @@ module Domains
 
 module Lock = Pulse.Lib.SpinLock
 open Pulse.Lib.Pervasives
-open Pulse.Lib.Pervasives
 module HR = Pulse.Lib.HigherReference
 
 
