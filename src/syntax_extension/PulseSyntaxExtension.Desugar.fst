@@ -434,23 +434,19 @@ let rec desugar_stmt (env:env_t) (s:Sugar.stmt)
       desugar_stmt env stmt
 
     | If { head; join_vprop; then_; else_opt } -> 
-      let! head = desugar_term env head in
-      let! join_vprop =
-        match join_vprop with
-        | None -> return None
-        | Some (None, t) -> 
-          let! vp = desugar_vprop env t in
-          return (Some vp)
+      let pat_const c r = 
+          {A.pat=A.PatConst c;
+           A.prange=r}
       in
-      let! then_ = desugar_stmt env then_ in
-      let! else_ = 
+      let then_branch = (pat_const (FStar.Const.Const_bool true) head.range, then_) in
+      let else_ : Sugar.stmt =
         match else_opt with
-        | None -> 
-          return (tm_return (tm_expr S.unit_const R.dummyRange) R.dummyRange)
-        | Some e -> 
-          desugar_stmt env e
+        | None -> {s=Expr { e=A.unit_const s.range }; range=s.range}
+        | Some e -> e
       in
-      return (SW.tm_if head join_vprop then_ else_ s.range)
+      let else_branch = pat_const (FStar.Const.Const_bool false) else_.range, else_ in
+      let s = { s with s=Match { head; returns_annot=join_vprop; branches=[ then_branch; else_branch] } } in 
+      desugar_stmt env s 
 
     | Match { head; returns_annot; branches } ->
       let! head = desugar_term env head in

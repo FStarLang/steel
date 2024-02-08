@@ -1266,91 +1266,48 @@ let rec (desugar_stmt :
                ->
                Obj.magic
                  (Obj.repr
-                    (let uu___ = desugar_term env head in
-                     FStar_Class_Monad.op_let_Bang
-                       PulseSyntaxExtension_Err.err_monad () ()
-                       (Obj.magic uu___)
-                       (fun uu___1 ->
-                          (fun head1 ->
-                             let head1 = Obj.magic head1 in
+                    (let pat_const c r =
+                       {
+                         FStar_Parser_AST.pat = (FStar_Parser_AST.PatConst c);
+                         FStar_Parser_AST.prange = r
+                       } in
+                     let then_branch =
+                       ((pat_const (FStar_Const.Const_bool true)
+                           head.FStar_Parser_AST.range), then_) in
+                     let else_ =
+                       match else_opt with
+                       | FStar_Pervasives_Native.None ->
+                           let uu___ =
                              let uu___1 =
-                               match join_vprop with
-                               | FStar_Pervasives_Native.None ->
-                                   Obj.magic
-                                     (Obj.repr
-                                        (PulseSyntaxExtension_Err.return
-                                           FStar_Pervasives_Native.None))
-                               | FStar_Pervasives_Native.Some
-                                   (FStar_Pervasives_Native.None, t) ->
-                                   Obj.magic
-                                     (Obj.repr
-                                        (let uu___2 = desugar_vprop env t in
-                                         FStar_Class_Monad.op_let_Bang
-                                           PulseSyntaxExtension_Err.err_monad
-                                           () () (Obj.magic uu___2)
-                                           (fun uu___3 ->
-                                              (fun vp ->
-                                                 let vp = Obj.magic vp in
-                                                 Obj.magic
-                                                   (PulseSyntaxExtension_Err.return
-                                                      (FStar_Pervasives_Native.Some
-                                                         vp))) uu___3))) in
-                             Obj.magic
-                               (FStar_Class_Monad.op_let_Bang
-                                  PulseSyntaxExtension_Err.err_monad () ()
-                                  (Obj.magic uu___1)
-                                  (fun uu___2 ->
-                                     (fun join_vprop1 ->
-                                        let join_vprop1 =
-                                          Obj.magic join_vprop1 in
-                                        let uu___2 = desugar_stmt env then_ in
-                                        Obj.magic
-                                          (FStar_Class_Monad.op_let_Bang
-                                             PulseSyntaxExtension_Err.err_monad
-                                             () () (Obj.magic uu___2)
-                                             (fun uu___3 ->
-                                                (fun then_1 ->
-                                                   let then_1 =
-                                                     Obj.magic then_1 in
-                                                   let uu___3 =
-                                                     match else_opt with
-                                                     | FStar_Pervasives_Native.None
-                                                         ->
-                                                         let uu___4 =
-                                                           let uu___5 =
-                                                             PulseSyntaxExtension_SyntaxWrapper.tm_expr
-                                                               FStar_Syntax_Syntax.unit_const
-                                                               FStar_Compiler_Range_Type.dummyRange in
-                                                           PulseSyntaxExtension_SyntaxWrapper.tm_return
-                                                             uu___5
-                                                             FStar_Compiler_Range_Type.dummyRange in
-                                                         PulseSyntaxExtension_Err.return
-                                                           uu___4
-                                                     | FStar_Pervasives_Native.Some
-                                                         e ->
-                                                         desugar_stmt env e in
-                                                   Obj.magic
-                                                     (FStar_Class_Monad.op_let_Bang
-                                                        PulseSyntaxExtension_Err.err_monad
-                                                        () ()
-                                                        (Obj.magic uu___3)
-                                                        (fun uu___4 ->
-                                                           (fun else_ ->
-                                                              let else_ =
-                                                                Obj.magic
-                                                                  else_ in
-                                                              let uu___4 =
-                                                                PulseSyntaxExtension_SyntaxWrapper.tm_if
-                                                                  head1
-                                                                  join_vprop1
-                                                                  then_1
-                                                                  else_
-                                                                  s.PulseSyntaxExtension_Sugar.range1 in
-                                                              Obj.magic
-                                                                (PulseSyntaxExtension_Err.return
-                                                                   uu___4))
-                                                             uu___4))) uu___3)))
-                                       uu___2))) uu___1)))
+                               let uu___2 =
+                                 FStar_Parser_AST.unit_const
+                                   s.PulseSyntaxExtension_Sugar.range1 in
+                               { PulseSyntaxExtension_Sugar.e = uu___2 } in
+                             PulseSyntaxExtension_Sugar.Expr uu___1 in
+                           {
+                             PulseSyntaxExtension_Sugar.s = uu___;
+                             PulseSyntaxExtension_Sugar.range1 =
+                               (s.PulseSyntaxExtension_Sugar.range1)
+                           }
+                       | FStar_Pervasives_Native.Some e -> e in
+                     let else_branch =
+                       ((pat_const (FStar_Const.Const_bool false)
+                           else_.PulseSyntaxExtension_Sugar.range1), else_) in
+                     let s1 =
+                       {
+                         PulseSyntaxExtension_Sugar.s =
+                           (PulseSyntaxExtension_Sugar.Match
+                              {
+                                PulseSyntaxExtension_Sugar.head2 = head;
+                                PulseSyntaxExtension_Sugar.returns_annot =
+                                  join_vprop;
+                                PulseSyntaxExtension_Sugar.branches =
+                                  [then_branch; else_branch]
+                              });
+                         PulseSyntaxExtension_Sugar.range1 =
+                           (s.PulseSyntaxExtension_Sugar.range1)
+                       } in
+                     desugar_stmt env s1))
            | PulseSyntaxExtension_Sugar.Match
                { PulseSyntaxExtension_Sugar.head2 = head;
                  PulseSyntaxExtension_Sugar.returns_annot = returns_annot;
