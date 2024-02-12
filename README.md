@@ -8,7 +8,7 @@ This repository is the result of splitting Steel away from the F* code
 base. It now works with F* and Karamel master branches.
 
 This repository contains:
-* Steel and Pulse, and their corresponding examples and tests, from F*
+* Steel, and its corresponding examples and tests, from F*
   master
 * The Karamel extraction tests for Steel, and the Steel part of
   krmllib (currently binding the pthreads spinlock) (which we now call
@@ -30,8 +30,8 @@ laid out as follows:
 
 * in `lib/steel`:
   * the Steel F* modules of the `Steel` and `Steel.ST` namespaces
-  * the Steel F* plugin, `steel.cmxs`, containing the Steel and Pulse
-    tactics, and the Steel and SteelC extraction to krml, is installed
+  * the Steel F* plugin, `steel.cmxs`, containing the Steel
+    tactic, and the Steel and SteelC extraction to krml, is installed
     here
   * the LibSteel C library, `libsteel.a`, containing an implementation of
     what used to be the Steel part of krmllib (currently binding the
@@ -40,8 +40,6 @@ laid out as follows:
 * in `lib/steel/runtime`: the Steel OCaml runtime,
   `steel_runtime.cmxa`, necessary to compile and run Steel code
   extracted to OCaml, is installed here
-  
-* in `lib/steel/pulse`: the Pulse F* modules of the `Pulse` namespace
 
 * in `lib/steel/c`: the SteelC F* modules of the `Steel.C` and
   `Steel.ST.C` namespaces
@@ -126,8 +124,7 @@ plugin loaded.
    * `EXCLUDE_FILES`: some F* to skip for verification
    * `FSTAR_OPTIONS`: additional options to pass to F*. While
      `Makefile.include` is already configured to use Steel, you need
-     to add more options if you need Pulse and/or SteelC:
-     * if you want to use Pulse, add `--include $STEEL_HOME/lib/steel/pulse`
+     to add more options if you need SteelC:
      * if you want to use SteelC, add `--include $STEEL_HOME/lib/steel/c`
    * `FSTAR_DEP_OPTIONS`: additional options to pass to F* to compute
      dependencies (in addition to `FSTAR_OPTIONS`), such as `--extract`
@@ -151,7 +148,6 @@ To call F* with Steel:
 1. Make sure F* and Steel are properly located, following steps 1 and 2 above.
 2. Pass the following options to F*:
    * in all cases, `--include $STEEL_HOME/lib/steel --load_cmxs steel`
-   * if you want to use Pulse, add `--include $STEEL_HOME/lib/steel/pulse`
    * if you want to use SteelC, add `--include $STEEL_HOME/lib/steel/c`
 
 TODO: we should distribute a binary package with the Steel plugin
@@ -177,5 +173,5 @@ TODO: add instructions to extract code. Meanwhile, see:
 
 ## Developer's guide
 
-If you want to contribute to Steel, Pulse or SteelC code, please read
+If you want to contribute to Steel or SteelC code, please read
 `CONTRIBUTING.md`
