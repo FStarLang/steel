@@ -1,4 +1,4 @@
-all: steel pulse steelc
+all: steel steelc
 
 ifneq (,$(FSTAR_HOME))
   FSTAR=$(FSTAR_HOME)/bin/fstar.exe
@@ -34,10 +34,6 @@ include .depend
 
 steel: $(ALL_CHECKED_FILES)
 
-.PHONY: pulse
-pulse: steel
-	+$(MAKE) -C $@
-
 .PHONY: steelc
 steelc: steel
 	+$(MAKE) -C c
@@ -50,11 +46,8 @@ clean:
 %.fst-in %.fsti-in:
 	@echo $(FSTAR_OPTIONS)
 
-.PHONY: install-steel install-pulse install-steelc install
-install: install-steel install-pulse install-steelc
-
-install-pulse:
-	+$(MAKE) -C pulse install
+.PHONY: install-steel install-steelc install
+install: install-steel install-steelc
 
 install-steelc:
 	+$(MAKE) -C c install

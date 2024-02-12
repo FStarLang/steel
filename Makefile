@@ -53,20 +53,12 @@ lib:
 verify-steel: ocaml
 	+$(MAKE) -C lib/steel steel
 
-.PHONY: verify-pulse
-verify-pulse: verify-steel
-	+$(MAKE) -C lib/steel/pulse pulse
-
-.PHONY: verify-pulse-core
-verify-pulse-core: 
-	+$(MAKE) -C lib/pulse_core pulse_core
-
 .PHONY: verify-steelc
 verify-steelc: verify-steel
 	+$(MAKE) -C lib/steel/c steelc
 
 .PHONY: verify
-verify: verify-steel verify-pulse verify-steelc verify-pulse-core
+verify: verify-steel verify-steelc
 
 clean: clean_ocaml
 	+$(MAKE) -C lib/steel clean ; true
@@ -113,14 +105,9 @@ install-share:
 
 install: install-ocaml install-lib install-include install-share install-src-c
 
-.PHONY: pulse2rust
-pulse2rust:
-	+$(MAKE) -C pulse2rust
-
 boot:
-	+$(MAKE) verify-pulse
-	+$(MAKE) -C src extract-pulse-plugin
-	+$(MAKE) ocaml
+	+$(MAKE) -C lib/steel steel
+	+$(MAKE) -C src boot
 
 ci:
 	+$(MAKE) -C src ci

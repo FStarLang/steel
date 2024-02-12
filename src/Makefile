@@ -13,24 +13,15 @@ build:
 # Extraction rules assume that a snapshot has already been compiled.
 
 .PHONY: extract-ocaml
-extract-ocaml: extract-steel-plugin extract-extraction extract-syntax-extension extract-pulse-plugin
+extract-ocaml: extract-steel-plugin extract-extraction
 
 .PHONY: extract-steel-plugin
 extract-steel-plugin:
 	+$(MAKE) -C ocaml/plugin -f extract-steel.Makefile
 
-.PHONY: extract-pulse-plugin
-extract-pulse-plugin:
-	+$(MAKE) -C ocaml/plugin -f extract-pulse.Makefile
-
 .PHONY: extract-extraction
 extract-extraction:
 	+$(MAKE) -C extraction
-
-
-.PHONY: extract-syntax-extension
-extract-syntax-extension:
-	+$(MAKE) -C syntax_extension
 
 .PHONY: extract-c
 extract-c:
@@ -74,12 +65,8 @@ check-for-changes:
 	# Test if nothing has changed
 	if ! git diff-index --exit-code HEAD .. ; then git diff .. ; false ; fi
 
-pulse2rust:
-	+$(MAKE) -C .. pulse2rust
-
 .PHONY: ci
 ci:
 	+$(MAKE) full-boot
 	+$(MAKE) check-for-changes
 	+$(MAKE) test
-	+$(MAKE) pulse2rust

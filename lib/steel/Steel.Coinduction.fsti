@@ -87,11 +87,6 @@ type cell (a: Type0) = {
 
 // version 1
 // stream(x: ref (cell a)) = exists v. pts_to x v ** stream(v.next)
-(*
-```pulse
-coinductive stream(x: ref (cell a)) = exists v. pts_to x v ** stream(v.next)
-```
-*)
 let rec_stream a
 : rec_def (R.ref (cell a))
 = Exists _ (fun v -> Star (SLProp (fun x -> R.pts_to_sl x full_perm v))
