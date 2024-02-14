@@ -5,13 +5,8 @@
  (libraries
     batteries
     fstar.lib
-    menhirLib
  )
  (modes native)
  (wrapped false)
  (flags (:standard -w -A))
 )
-
-(menhir
- (modules pulseparser FStar_Parser_Parse)
- (merge_into Pulse_FStar_Parser))
