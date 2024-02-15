@@ -140,6 +140,8 @@ ensures pool_alive f p ** (exists* gq q c.
 }
 ```
 
+//#push-options "--print_implicits"
+
 ```pulse
 ghost fn close_lock_pool_alive
 (p: pool) (f: perm)
@@ -166,8 +168,17 @@ intro_if_then true (lock_thn gq p._4 p._2 p._3) (lock_els gq p._1 p._4);
 assert (exists* gq. pts_to p._1 #one_half true ** pts_to_mono_queue p._4 one_half gq
   ** (if_then_else true (lock_thn gq p._4 p._2 p._3) (lock_els gq p._1 p._4)));
 
+assert (pts_to p._1 #one_half true);
+//with sp. assert pts_to p._1 #one_half sp;
+//rewrite (pts_to p._1 #one_half true) as (exists* sp. pts_to p._1 #one_half sp);
+//assert (exists* sp. pts_to p._1 #one_half sp);
+assert (exists* sp gq. pts_to p._1 #one_half sp ** pts_to_mono_queue p._4 one_half gq);
 
-  fold lock_pool p._1 p._2 p._3 p._4;
+ fold lock_pool p._1 p._2 p._3 p._4;
+  (*
+pts_to status_pool #one_half sp
+
+  *)
   
   //fold lock_pool p._1 p._2 p._3 p._4;
 
