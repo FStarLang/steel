@@ -45,7 +45,24 @@ val share2_mono_queue (r:mono_queue_ref) (#v:erased mono_queue)
 
 
 
-val inv (gq: mono_queue) (q: task_queue) (c: int): vprop
+val link (gq: mono_queue) (q: task_queue) (c: int): prop
+(*
+  count_ongoing l = c /\ get_actual_queue l == q
+*)
+(*
+let small_inv (r: erased (ghost_mono_ref task_elem)) (q: list task_elem) (c: int): vprop 
+= exists_ (fun l -> pts_to_ghost_queue_half r l **
+  tasks_res_own l one_half **
+  pure (count_ongoing l = c /\ get_actual_queue l == q)
+  ** (if c = 0 && L.length q = 0 then deadline r
+  else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
+*)
+
+(*
+could be:
+
+
+*)
 
 let if_then_else (b: bool) (thn: vprop) (els: vprop): vprop
 = if b then thn else els
@@ -71,10 +88,10 @@ ensures if_then_else b thn els
 ```
 
 let lock_thn gq ghost_queue queue counter: vprop
-= (pts_to_mono_queue ghost_queue one_half gq ** (exists* q c. HR.pts_to queue q ** pts_to counter c ** inv gq q c))
+= (pts_to_mono_queue ghost_queue one_half gq ** (exists* q c. HR.pts_to queue q ** pts_to counter c ** pure (link gq q c)))
 
 let lock_els gq status_pool ghost_queue: vprop
-= (inv gq [] 0 ** (exists* f1 f2. pts_to status_pool #f1 false ** pts_to_mono_queue ghost_queue f2 gq))
+= (pure (link gq [] 0) ** (exists* f1 f2. pts_to status_pool #f1 false ** pts_to_mono_queue ghost_queue f2 gq))
 
 
 let lock_pool
@@ -105,7 +122,7 @@ ghost fn open_lock_pool_alive
 (p: pool) (f: perm)
 requires pool_alive f p ** locked_pool p
 ensures pool_alive f p ** (exists* gq q c.
-  pts_to p._1 #one_half true ** pts_to_mono_queue p._4 full_perm gq ** HR.pts_to p._2 q ** pts_to p._3 c ** inv gq q c)
+  pts_to p._1 #one_half true ** pts_to_mono_queue p._4 full_perm gq ** HR.pts_to p._2 q ** pts_to p._3 c ** pure (link gq q c))
 {
   unfold locked_pool p;
   unfold lock_pool;
@@ -132,7 +149,7 @@ ensures pool_alive f p ** (exists* gq q c.
   unfold lock_thn;
 
 
-  with q c. assert (HR.pts_to p._2 q ** pts_to p._3 c ** inv gq q c);
+  with q c. assert (HR.pts_to p._2 q ** pts_to p._3 c ** pure (link gq q c));
   gather2_mono_queue p._4;
 
   fold pool_alive f p;
@@ -140,20 +157,22 @@ ensures pool_alive f p ** (exists* gq q c.
 }
 ```
 
-//#push-options "--print_implicits"
+#push-options "--print_implicits"
 
 ```pulse
 ghost fn close_lock_pool_alive
 (p: pool) (f: perm)
 requires (exists* gq q c.
-  pts_to p._1 #one_half true ** pts_to_mono_queue p._4 full_perm gq ** HR.pts_to p._2 q ** pts_to p._3 c ** inv gq q c)
+  pts_to p._1 #one_half true ** pts_to_mono_queue p._4 full_perm gq ** HR.pts_to p._2 q ** pts_to p._3 c ** pure (link gq q c))
 ensures locked_pool p
 {
+  let status_pool = p._1;
   with gq. assert (pts_to p._1 #one_half true ** pts_to_mono_queue p._4 full_perm gq);
+  rewrite each p._1 as status_pool;
   // ** HR.pts_to p._2 q ** pts_to p._3 c ** inv gq q c);
   share2_mono_queue p._4;
 
-  assert (pts_to p._1 #one_half true ** pts_to_mono_queue p._4 one_half gq);
+  assert (pts_to status_pool #one_half true ** pts_to_mono_queue p._4 one_half gq);
   //assert (pts_to_mono_queue p._4 one_half gq ** HR.pts_to p._2 q ** pts_to p._3 c ** inv gq q c);
 
   //rewrite (pts_to_mono_queue p._4 one_half gq ** HR.pts_to p._2 q ** pts_to p._3 c ** inv gq q c)
@@ -163,18 +182,18 @@ ensures locked_pool p
    //   (inv gq [] 0ghost_queue ** (exists* f1 f2. pts_to p._1 #f1 true ** pts_to_mono_queue p._4 f2 gq)));
    fold lock_thn;
 
-intro_if_then true (lock_thn gq p._4 p._2 p._3) (lock_els gq p._1 p._4);
+intro_if_then true (lock_thn gq p._4 p._2 p._3) (lock_els gq status_pool p._4);
 
-assert (exists* gq. pts_to p._1 #one_half true ** pts_to_mono_queue p._4 one_half gq
-  ** (if_then_else true (lock_thn gq p._4 p._2 p._3) (lock_els gq p._1 p._4)));
+assert (exists* gq. pts_to status_pool #one_half true ** pts_to_mono_queue p._4 one_half gq
+  ** (if_then_else true (lock_thn gq p._4 p._2 p._3) (lock_els gq status_pool p._4)));
 
-assert (pts_to p._1 #one_half true);
+assert (pts_to status_pool #one_half true);
 //with sp. assert pts_to p._1 #one_half sp;
 //rewrite (pts_to p._1 #one_half true) as (exists* sp. pts_to p._1 #one_half sp);
 //assert (exists* sp. pts_to p._1 #one_half sp);
-assert (exists* sp gq. pts_to p._1 #one_half sp ** pts_to_mono_queue p._4 one_half gq);
+assert (exists* sp gq. pts_to status_pool #one_half sp ** pts_to_mono_queue p._4 one_half gq);
 
- fold lock_pool p._1 p._2 p._3 p._4;
+ fold lock_pool status_pool p._2 p._3 p._4;
   (*
 pts_to status_pool #one_half sp
 
@@ -220,10 +239,11 @@ pts_to status_pool #one_half sp
 }
 ```
 
+
+
+
+
 let x = ()
-
-
-
 
 let deadline (p: pool): vprop
 = exists* f gq. pts_to_mono_queue p._4 f gq ** inv gq [] 0
