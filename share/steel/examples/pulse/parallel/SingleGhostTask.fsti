@@ -1,7 +1,8 @@
-module SingleGhostTasks
+module SingleGhostTask
 
 open Pulse.Lib.Pervasives
 module GR = Pulse.Lib.GhostReference
+module S = FStar.Set
 
 
 (* Guarded invariants *)
@@ -29,28 +30,57 @@ stt_atomic unit #Unobservable (singleton i)
 
 type task_status = | Todo | Ongoing | Done
 
-type extended_task (a: Type0): Type0 =
-    a & task_status & GR.ref bool & GR.ref bool & GR.ref bool
+let thunk bpre bpost
+  = unit -> stt unit
+  (GR.pts_to bpre #one_half true ** GR.pts_to bpost #one_half false)
+  (fun () -> GR.pts_to bpre #one_half false ** GR.pts_to bpost #one_half true)
+
+type task =
+    (bpre: GR.ref bool & bpost: GR.ref bool & thunk bpre bpost & bdone: ref bool & bclaimed: GR.ref bool)
+
+val create_task (#pre #post: vprop) (f: (unit -> stt unit pre (fun () -> post))):
+    stt (t: task & inv (guarded_inv t._2 post))
+    pre
+    (fun r -> GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4 false ** GR.pts_to r._1._5 false)
+ 
+type extended_task: Type =
+    task & task_status
     (* task, status, b_pre, b_post b_claimed *)
 
-val task_res #a (t: extended_task a): vprop
+let same_extended_tasks (t1 t2: extended_task) =
+    t1._1 == t2._1
 
-val from_todo_to_ongoing #a #pre (t: extended_task a{t._2 == Todo}) (i: inv (guarded_inv t._3 pre)):
-stt_atomic unit #Unobservable (singleton i)
+let is_Todo (t: extended_task): bool =
+    t._2 = Todo
+
+val ongoing_condition (t: extended_task): vprop
+val task_res (t: extended_task): vprop
+
+
+(* Easy to prove *TODO*: We take it from q *)
+val from_todo_to_ongoing (t: extended_task{t._2 == Todo}): //(i: inv (guarded_inv t._1._2 pre)):
+stt_ghost unit
 (task_res t)
-(fun () -> task_res (t._1, Ongoing, t._3, t._4, t._5) ** pre)
+(fun () -> task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t)
 
-val from_ongoing_to_done #a #post (t: extended_task a{t._2 == Ongoing}) (i: inv (guarded_inv t._4 post)):
-stt_atomic unit #Unobservable (singleton i)
-(task_res t ** post)
-(fun () -> task_res (t._1, Done, t._3, t._4, t._5))
+val from_ongoing_to_done (t: extended_task):
+stt unit
+(task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._1._4 #one_half v))
+(fun () -> task_res (t._1, Done) ** pts_to (t._1, Done)._1._4 #one_half true)
 
-val claim_post (#a: Type0) (#post: vprop) (t: extended_task a{t._2 == Done}) (i: inv (guarded_inv t._4 post)):
+(* Easy to prove done: Either q = [] and c = 0, or we
+just wait on it and change its status... *)
+val claim_post (#post: vprop) (t: extended_task{t._2 == Done}) (i: inv (guarded_inv t._1._2 post)):
 stt_atomic unit #Unobservable (singleton i)
-(task_res t ** GR.pts_to t._5 #one_half false)
-(fun () -> task_res t ** post ** GR.pts_to t._5 #one_half true)
+(task_res t ** GR.pts_to t._1._5 #one_half false)
+(fun () -> task_res t ** post ** GR.pts_to t._1._5 #one_half true)
 
 
 (* Monotonic lists of extended tasks *)
 
-type mono_list (a: Type) = list (extended_task a)
+type mono_list = list extended_task
+
+let rec tasks_res (l: mono_list): vprop =
+    match l with
+    | [] -> emp
+    | t::q -> task_res t ** tasks_res q
