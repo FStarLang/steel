@@ -179,6 +179,31 @@ let task_res (t: extended_task): vprop =
 
 
 ```pulse
+ghost fn get_task_res_todo_ (t: task)
+requires GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false
+ensures task_res (t, Todo)
+{
+    let r = (t, Todo);
+    rewrite each t as r._1;
+    rewrite (GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4 #one_half false ** GR.pts_to r._1._5 #one_half false)
+        as task_res r;
+    ()
+}
+```
+
+let get_task_res_todo = get_task_res_todo_
+
+(*
+val get_task_res_todo (t: task):
+stt_ghost unit
+(GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 false ** GR.pts_to t._5 false)
+(fun () -> task_res (t, Todo))
+*)
+
+
+
+
+```pulse
 ghost fn from_todo_to_ongoing_ (t: extended_task{t._2 == Todo})
 requires task_res t
 ensures task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t

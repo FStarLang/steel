@@ -42,7 +42,7 @@ val create_task (#pre #post: vprop) (f: (unit -> stt unit pre (fun () -> post)))
     stt (t: task & inv (guarded_inv t._2 post))
     pre
     (fun r -> GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4 false ** GR.pts_to r._1._5 false)
- 
+
 type extended_task: Type =
     task & task_status
     (* task, status, b_pre, b_post b_claimed *)
@@ -55,6 +55,11 @@ let is_Todo (t: extended_task): bool =
 
 val ongoing_condition (t: extended_task): vprop
 val task_res (t: extended_task): vprop
+
+val get_task_res_todo (t: task):
+stt_ghost unit
+(GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false)
+(fun () -> task_res (t, Todo))
 
 
 (* Easy to prove *TODO*: We take it from q *)
@@ -78,7 +83,7 @@ stt_atomic unit #Unobservable (singleton i)
 
 (* Monotonic lists of extended tasks *)
 
-type mono_list = list extended_task
+type mono_list: Type0 = list extended_task
 
 let rec tasks_res (l: mono_list): vprop =
     match l with

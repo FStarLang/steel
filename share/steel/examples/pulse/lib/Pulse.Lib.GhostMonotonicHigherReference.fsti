@@ -34,13 +34,14 @@ module Preorder = FStar.Preorder
 
 /// An abstract datatype for monotonic references
 [@@erasable]
-val ref (a:Type u#1) (p:Preorder.preorder a)
+val ref (a:Type u#0) (p:Preorder.preorder a)
   : Type u#0
 
 val pts_to (#a:Type) (#p:Preorder.preorder a) (r:ref a p) (f:perm) (v:a) : vprop
 
 /// Allocates a reference with value [x]. We have full permission on the newly
 /// allocated reference.
+[@@erasable]
 val alloc (#a:Type) (#p:Preorder.preorder a) (v:a)
   : stt_ghost (ref a p) emp (fun r -> pts_to r full_perm v)
 
@@ -56,7 +57,7 @@ let property (a:Type)
 
 /// A wrapper around a property [fact] that has been witnessed to be true and stable
 /// with respect to preorder [p]
-val witnessed (#a:Type u#1) (#p:Preorder.preorder a) (r:ref a p) (fact:property a)
+val witnessed (#a:Type u#0) (#p:Preorder.preorder a) (r:ref a p) (fact:property a)
   : Type0
 
 /// The type of properties depending on values of type [a], and that
@@ -77,7 +78,7 @@ val witness (#a:Type) (#q:perm) (#p:Preorder.preorder a) (r:ref a p)
 
 
 /// If we previously witnessed the validity of [fact], we can recall its validity
-val recall (#a:Type u#1) (#q:perm) (#p:Preorder.preorder a)
+val recall (#a:Type u#0) (#q:perm) (#p:Preorder.preorder a)
            (fact:property a)
            (r:ref a p)
            (v:erased a)
