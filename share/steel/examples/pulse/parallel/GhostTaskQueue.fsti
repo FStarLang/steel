@@ -314,8 +314,16 @@ fn add_todo_task (t: task) (l:mono_list)
 
 (*
 Needed:
-1. Create ghost queue empty, invariant (with half permission)
+0. Create ghost queue empty, invariant (with half permission)
 We give back the other half
+
+1. We add a task, get a certificate
+
+2. We get a task, and switch it from todo to ongoing
+
+3. We turn an ongoing task to todo
+
+4. We claim? We create the pledges?
 *)
 
 (* TD: Current progress here... *)

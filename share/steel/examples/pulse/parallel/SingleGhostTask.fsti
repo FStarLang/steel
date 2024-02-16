@@ -68,10 +68,12 @@ stt_ghost unit
 (task_res t)
 (fun () -> task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t)
 
+val task_done (t: task): vprop
+
 val from_ongoing_to_done (t: extended_task):
 stt unit
 (task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._1._4 #one_half v))
-(fun () -> task_res (t._1, Done) ** pts_to (t._1, Done)._1._4 #one_half true)
+(fun () -> task_res (t._1, Done) ** pts_to t._1._4 #one_half true ** task_done t._1)
 
 (* Easy to prove done: Either q = [] and c = 0, or we
 just wait on it and change its status... *)
@@ -79,6 +81,16 @@ val claim_post (#post: vprop) (t: extended_task{t._2 == Done}) (i: inv (guarded_
 stt_atomic unit #Unobservable (singleton i)
 (task_res t ** GR.pts_to t._1._5 #one_half false)
 (fun () -> task_res t ** post ** GR.pts_to t._1._5 #one_half true)
+
+val duplicate_task_done (t: task):
+stt_ghost unit (task_done t) (fun () -> task_done t ** task_done t)
+
+val claim_post_from_done (#post: vprop) (t: extended_task) (i: inv (guarded_inv t._1._2 post)):
+stt_atomic unit #Unobservable (singleton i)
+(task_res t ** GR.pts_to t._1._5 #one_half false ** task_done t._1)
+(fun () -> task_res t ** post ** GR.pts_to t._1._5 #one_half true ** task_done t._1)
+
+
 
 
 (* Monotonic lists of extended tasks *)

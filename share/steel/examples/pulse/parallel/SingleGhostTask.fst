@@ -167,8 +167,8 @@ let ongoing_condition_after (t: extended_task) =
 *)
 
 let done_condition (t: extended_task) =
-    GR.pts_to t._1._1 #one_half false ** pts_to t._1._4 #one_half true **
-    (exists* claimed. GR.pts_to t._1._2 #one_half claimed ** GR.pts_to t._1._5 #one_half (not claimed))
+    GR.pts_to t._1._1 #one_half false ** (exists* f. pts_to t._1._4 #f true **
+    (exists* claimed. GR.pts_to t._1._2 #one_half claimed ** GR.pts_to t._1._5 #one_half (not claimed)))
 
 let task_res (t: extended_task): vprop =
     match t._2 with
@@ -265,11 +265,15 @@ ensures task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #on
 }
 ```
 
+let task_done (t: task): vprop =
+    exists* f. pts_to t._4 #f true
+
+
 (* needs to update done... *)
 ```pulse
 fn from_ongoing_to_done_ (t: extended_task)
 requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._1._4 #one_half v)
-ensures task_res (t._1, Done) ** pts_to (t._1, Done)._1._4 #one_half true
+ensures task_res (t._1, Done) ** pts_to t._1._4 #one_half true ** task_done t._1
 {
     prove_ongoing t;
     rewrite task_res t as emp;
@@ -281,12 +285,20 @@ ensures task_res (t._1, Done) ** pts_to (t._1, Done)._1._4 #one_half true
     gather2 t._1._4;
     t._1._4 := true;
     share2 t._1._4;
+    share t._1._4;
     assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true **
-        pts_to t._1._4 #one_half true ** GR.pts_to t._1._5 #one_half false);
+        (exists* f. pts_to t._1._4 #f true) ** GR.pts_to t._1._5 #one_half false);
 
     rewrite each t as (t._1, Done);
     fold done_condition (t._1, Done);
     fold_done (t._1, Done);
+
+    rewrite (pts_to (t._1, Done)._1._4 #one_half true)
+        as pts_to t._1._4 #one_half true;
+
+    fold task_done (t._1, Done)._1;
+    rewrite task_done (t._1, Done)._1 as task_done t._1;
+
     
     ()
 }
@@ -319,3 +331,31 @@ opens (singleton i)
 
 let claim_post = claim_post_
 
+```pulse
+ghost fn duplicate_task_done_ (t: task)
+requires task_done t
+ensures task_done t ** task_done t
+{
+    unfold task_done t;
+    share t._4;
+    fold task_done t;
+    fold task_done t;
+    ()
+}
+```
+
+let duplicate_task_done = duplicate_task_done_
+
+```pulse
+unobservable fn claim_post_from_done_
+(#post: vprop) (t: extended_task) (i: inv (guarded_inv t._1._2 post))
+requires task_res t ** GR.pts_to t._1._5 #one_half false ** task_done t._1
+ensures task_res t ** post ** GR.pts_to t._1._5 #one_half true ** task_done t._1
+opens (singleton i)
+{
+    admit()
+}
+```
+
+
+let claim_post_from_done = claim_post_from_done_
