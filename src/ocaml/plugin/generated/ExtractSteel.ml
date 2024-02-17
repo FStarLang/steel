@@ -633,10 +633,12 @@ let (steel_translate_let : FStar_Extraction_Krml.translate_let_t) =
             else
               (let meta1 = FStar_Extraction_Krml.translate_flags meta in
                let env1 =
+                 let uu___11 =
+                   FStar_Extraction_ML_Syntax.ty_param_names tvars in
                  FStar_Compiler_List.fold_left
                    (fun env2 ->
                       fun name1 -> FStar_Extraction_Krml.extend_t env2 name1)
-                   env tvars in
+                   env uu___11 in
                let t1 = FStar_Extraction_Krml.translate_type env1 t in
                let name1 = ((env1.FStar_Extraction_Krml.module_name), name) in
                try

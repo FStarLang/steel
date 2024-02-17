@@ -190,7 +190,7 @@ let steel_translate_let : translate_let_t = fun env flavor lb ->
     else
       // This is a global const array, defined using Steel.TLArray
       let meta = translate_flags meta in
-      let env = List.fold_left (fun env name -> extend_t env name) env tvars in
+      let env = List.fold_left (fun env name -> extend_t env name) env (ty_param_names tvars) in
       let t = translate_type env t in
       let name = env.module_name, name in
       begin try
