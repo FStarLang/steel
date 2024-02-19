@@ -304,7 +304,7 @@ ghost fn close_lock_task (bdone: ref bool) (f: perm) (v: bool)
 requires pts_to bdone #f v ** pure (if not v then f == one_half else true)
 ensures lock_task bdone
 {
-  admit()
+  fold lock_task bdone;
 }
 ```
 
