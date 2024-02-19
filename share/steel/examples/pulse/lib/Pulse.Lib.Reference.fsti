@@ -81,6 +81,13 @@ val write_atomic (r:ref U32.t) (x:U32.t) (#n:erased U32.t)
         (pts_to r n) 
         (fun _ -> pts_to r (hide x))
 
+val write_atomic_bool (r:ref bool) (x:bool) (#n:erased bool)
+  : stt_atomic unit #Observable emp_inames
+        (pts_to r n) 
+        (fun _ -> pts_to r (hide x))
+
+
+
 let cond b (p q:vprop) = if b then p else q
 
 val cas (r:ref U32.t) (u v:U32.t) (#i:erased U32.t)

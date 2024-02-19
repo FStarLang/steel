@@ -156,8 +156,8 @@ ensures GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false **
 
 let create_task = create_task_
 
-let ongoing_condition (t: extended_task) =
-    pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false
+let ongoing_condition (t: task) =
+    pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false
     (* bpre, bpost, bdone, bclaimed *)
 
 (*
@@ -206,13 +206,13 @@ stt_ghost unit
 ```pulse
 ghost fn from_todo_to_ongoing_ (t: extended_task{t._2 == Todo})
 requires task_res t
-ensures task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t
+ensures task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t._1
 {
     rewrite task_res t as (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false);
     //take_from_guarded_inv i;
 //    rewrite (GR.pts_to t._1._2 #one_half false ** GR.pts_to t._1._3 #one_half false ** GR.pts_to t._1._4 #one_half false) as
     rewrite emp as (task_res (t._1, Ongoing));
-    fold ongoing_condition t;
+    fold ongoing_condition t._1;
     ()
 }
 ```
@@ -241,8 +241,8 @@ ensures task_res t
 
 ```pulse
 ghost fn prove_ongoing (t: extended_task)
-requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t
-ensures task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t ** pure (t._2 == Ongoing)
+requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1
+ensures task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** pure (t._2 == Ongoing)
 {
     if (t._2 = Todo) {
         rewrite task_res t as (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false);
@@ -255,9 +255,9 @@ ensures task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #on
     else if (t._2 = Done) {
         unfold_done t;
         unfold done_condition t;
-        unfold ongoing_condition t;
+        unfold ongoing_condition t._1;
         pts_to_injective_eq t._1._4;
-        fold ongoing_condition t;
+        fold ongoing_condition t._1;
         fold done_condition t;
         fold_done t;
         ()
@@ -271,19 +271,20 @@ let task_done (t: task): vprop =
 
 (* needs to update done... *)
 ```pulse
-fn from_ongoing_to_done_ (t: extended_task)
-requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._1._4 #one_half v)
+atomic fn from_ongoing_to_done_ (t: extended_task)
+requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** (exists* v. pts_to t._1._4 #one_half v)
 ensures task_res (t._1, Done) ** pts_to t._1._4 #one_half true ** task_done t._1
 {
     prove_ongoing t;
     rewrite task_res t as emp;
 
-    assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t);
-    unfold ongoing_condition t;
+    assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1);
+    unfold ongoing_condition t._1;
     assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true **
         pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false);
     gather2 t._1._4;
-    t._1._4 := true;
+    //t._1._4 := true;
+    write_atomic_bool t._1._4 true;
     share2 t._1._4;
     share t._1._4;
     assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true **

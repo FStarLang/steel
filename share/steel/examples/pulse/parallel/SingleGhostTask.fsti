@@ -53,7 +53,7 @@ let same_extended_tasks (t1 t2: extended_task) =
 let is_Todo (t: extended_task): bool =
     t._2 = Todo
 
-val ongoing_condition (t: extended_task): vprop
+val ongoing_condition (t: task): vprop
 val task_res (t: extended_task): vprop
 
 val get_task_res_todo (t: task):
@@ -66,13 +66,19 @@ stt_ghost unit
 val from_todo_to_ongoing (t: extended_task{t._2 == Todo}): //(i: inv (guarded_inv t._1._2 pre)):
 stt_ghost unit
 (task_res t)
-(fun () -> task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t)
+(fun () -> task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t._1)
 
 val task_done (t: task): vprop
 
+(*
+val prove_ongoing (t: extended_task):
+stt_ghost unit (task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1)
+(fun () -> task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** pure (t._2 == Ongoing))
+*)
+
 val from_ongoing_to_done (t: extended_task):
-stt unit
-(task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._1._4 #one_half v))
+stt_atomic unit emp_inames
+(task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** (exists* v. pts_to t._1._4 #one_half v))
 (fun () -> task_res (t._1, Done) ** pts_to t._1._4 #one_half true ** task_done t._1)
 
 (* Easy to prove done: Either q = [] and c = 0, or we
