@@ -4,6 +4,7 @@ open Pulse.Lib.Pervasives
 module Lock = Pulse.Lib.SpinLock
 module HR = Pulse.Lib.HigherReference
 module M = Pulse.Lib.GhostMonotonicHigherReference
+module L = FStar.List.Tot.Base
 
 module GR = Pulse.Lib.GhostReference
 
@@ -362,7 +363,208 @@ fn await (#pl: pool) (#post: vprop) (h: handler pl post)
 }
 ```
 
+```pulse
+ghost fn intro_if_then
+(b: bool) (thn: vprop) (els: vprop)
+requires thn ** pure b
+ensures if_then_else b thn els
+{
+  fold if_then_else b thn els;
+}
+```
 
+```pulse
+ghost fn
+close_lock_thn (q: ref task_queue) (c: ref int) (l: mono_list{~(get_actual_queue l == [])}) (vq: task_queue) (vc: int)
+requires pts_to q vq ** pts_to c (vc + 1) ** pure (link l vq vc)
+ensures lock_thn (pop_todo_task l)._2 q c
+{
+  admit()
+}
+```
+
+(*
+val pts_to_injective_eq (#a:_)
+                        (#p #q:_)
+                        (#v0 #v1:a)
+                        (r:ref a)
+  : stt_ghost unit
+      (pts_to r #p v0 ** pts_to r #q v1)
+      (fun _ -> pts_to r #p v0 ** pts_to r #q v1 ** pure (v0 == v1))
+*)
+
+#push-options "--print_implicits"
+
+```pulse
+fn write_done (t: task)
+  requires pts_to t._4._1 #one_half false
+  ensures pts_to t._4._1 #one_half true
+{
+  let bdone: ref bool = t._4._1;
+  let lock: Lock.lock (lock_task bdone) = t._4._2;
+  rewrite each t._4._1 as bdone;
+  assert pts_to bdone #one_half false;
+  Lock.acquire lock;
+  unfold lock_task bdone;
+  with f v. assert (pts_to bdone #f v ** pure (if not v then f == one_half else true));
+  pts_to_injective_eq bdone;
+  rewrite each f as one_half;
+  gather2 bdone;
+  bdone := true;
+  share2 bdone;
+  fold lock_task bdone;
+  Lock.release lock;
+  rewrite each bdone as t._4._1;
+  ()
+}
+```
+
+
+```pulse
+fn worker (pl: pool)
+requires emp
+(*
+needs pool_alive?
+*)
+ensures emp
+{
+  let mut r_working = true;
+  let status_pool: ref bool = pl._1;
+  let q: ref task_queue = pl._2;
+  let c: ref int = pl._3;
+  let r: ghost_mono_ref = pl._4._1;
+  let i: inv (inv_ghost_queue r) = pl._4._2;
+  let lock: Lock.lock (lock_pool status_pool q c r) = pl._5;
+ 
+  while (let working = !r_working; working)
+    invariant b. (exists* w. pts_to r_working w ** pure (b == w))
+  {
+    Lock.acquire lock;
+    unfold lock_pool status_pool q c r;
+    with sp_ l_. assert (pts_to status_pool #one_half sp_ ** M.pts_to r one_half l_ ** (if_then_else sp_ (lock_thn l_ q c) (lock_els l_ status_pool)));
+    let alive: bool = !status_pool;
+    if (alive) {
+      elim_if_then sp_ _ _;
+      unfold lock_thn l_ q c;
+      with vq_ vc_. assert pts_to q vq_ ** pts_to c vc_ ** pure (link l_ vq_ vc_);
+      let vq: task_queue = !q;
+
+      if (L.length vq > 0) {
+        let vc: int = !c;
+        let l: mono_list = read_ghost_mono_ref r;
+        let ll: mono_list = (pop_todo_task l)._2;
+
+        // 1. pop the task and increase counter
+        c := vc + 1;
+        pop_task_ghost r i l;
+        rewrite each (pop_todo_task l)._2 as ll;
+        close_lock_thn q c l vq_ vc_;
+        intro_if_then sp_ (lock_thn (pop_todo_task l)._2 q c) (lock_els (pop_todo_task l)._2 status_pool);
+        rewrite each (pop_todo_task l)._2 as ll;
+        fold lock_pool status_pool q c r;
+        Lock.release lock;
+
+        // 2. perform the task
+        let t: task = (pop_todo_task l)._1;
+        rewrite each (pop_todo_task l)._1 as t;
+        t._3 ();
+
+        // 3. conclude, and decrease counter
+        //fold pool_alive full_perm pl;
+        //write_done t;
+        Lock.acquire lock;
+        (* 
+        How do I prove that the pool is alive?
+        --> Needs to get that pool_is_alive from the *postcondition*!
+        *)
+
+(*
+        //unfold_lock_pool_alive (#f: perm) (pl: pool)
+        unfold lock_pool status_pool q c r;
+        with sp_ l_. assert (pts_to status_pool #one_half sp_ ** M.pts_to r one_half l_ ** (if_then_else sp_ (lock_thn l_ q c) (lock_els l_ status_pool)));
+        elim_if_then sp_ _ _;
+        unfold lock_thn l_ q c;
+        with vq_ vc_. assert pts_to q vq_ ** pts_to c vc_ ** pure (link l_ vq_ vc_);
+        *)
+ 
+
+
+(*
+      GR.pts_to (Mkdtuple5?._2 t) false ** 
+      GR.pts_to (Mkdtuple5?._1 t) true ** 
+      ongoing_condition t ** 
+      pts_to r_working (reveal w)
+*)
+
+      // 3. put the result in the reference
+      //write_res task res;
+
+
+(*
+
+      // 4. decrease counter
+      decrease_counter p;
+      ()
+      *)
+        admit()
+      }
+      else {
+        admit()
+        (*
+        (* nothing to do *)
+        fold lock_thn l_ q c;
+        intro_if_then sp_ (lock_thn l_ q c) (lock_els l_ status_pool);
+        fold lock_pool status_pool q c r;
+        Lock.release lock
+        *)
+      }
+    }
+    else {
+      admit()
+      (*
+      r_working := false; // the pool has been deallocated, the worker can stop its job
+      fold lock_pool status_pool q c r;
+      Lock.release lock
+      *)
+    }
+  };
+  (*
+  {
+    acquire_queue_lock p;
+
+    }
+    else {
+      release_queue_lock p;
+      r_working := (vc > 0); // we continue working if and only if some task is still running...
+      ()
+    }
+  };
+  free_ref r_working;
+  ()
+  *)
+  admit()
+}
+```
+
+let x = ()
+
+```pulse
+fn join_pool (#f: perm) (pl: pool)
+requires pool_alive f pl // takes a pledge
+ensures pool_alive f pl
+{
+  admit()
+}
+```
+
+```pulse
+fn teardown_pool (#f: perm) (pl: pool)
+  requires pool_alive f pl // ** pledge (pool_done pl) (pool_alive (1-f) p)
+  ensures pool_done pl
+{
+  admit()
+}
+```
 
 (*
 + there's an invariant somewhere that proves post of Some x
@@ -386,17 +588,6 @@ could be:
 
 
 *)
-
-```pulse
-ghost fn intro_if_then
-(b: bool) (thn: vprop) (els: vprop)
-requires thn ** pure b
-ensures if_then_else b thn els
-{
-  fold if_then_else b thn els;
-}
-```
-
 
 ```pulse
 ghost fn open_lock_pool_alive
