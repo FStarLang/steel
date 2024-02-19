@@ -498,3 +498,57 @@ We give back the other half
 
 4. We claim? We create the pledges?
 *)
+
+val get_free_task_done_single (t: task):
+stt_ghost unit (task_res (t, Done)) (fun ()-> task_res (t, Done) ** task_done t)
+
+
+
+```pulse
+ghost fn rec get_free_task_done_aux
+(t: task) (pos: nat) (l: mono_list{task_in_queue t pos l})
+  requires tasks_res l ** pure (get_actual_queue l == [] /\ count_ongoing l = 0)
+  ensures tasks_res l ** task_done t
+  decreases l
+{
+  rewrite tasks_res l as (task_res (L.hd l) ** tasks_res (L.tl l));
+  if (pos + 1 = L.length l)
+  {
+    let et = L.hd l;
+    assert task_res et ** pure (et._1 == t);
+    //rewrite each t as et._1;
+    assert pure (et._2 = Done);
+    get_free_task_done_single et._1;
+    rewrite (task_res (L.hd l) ** tasks_res (L.tl l)) as tasks_res l;
+    ()
+  }
+  else {
+    assert pure (pos + 1 < L.length l);
+    get_free_task_done_aux t pos (L.tl l);
+    rewrite (task_res (L.hd l) ** tasks_res (L.tl l)) as tasks_res l;
+    ()
+  }
+}
+```
+
+```pulse
+unobservable fn get_free_task_done_
+(t: task) (pos: nat) (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (ll: mono_list{task_in_queue t pos ll})
+requires M.pts_to r one_half ll ** pure (get_actual_queue ll == [] /\ count_ongoing ll == 0)
+ensures M.pts_to r one_half ll ** task_done t
+opens (singleton i)
+{
+  with_invariants i {
+    unfold inv_ghost_queue r;
+    with l. assert (M.pts_to r one_half l ** tasks_res l);
+    M.gather r one_half one_half l ll;
+    rewrite each (reveal l) as ll;
+    M.share r (sum_perm one_half one_half) ll;
+
+    rewrite each (half_perm (sum_perm one_half one_half)) as one_half;
+    get_free_task_done_aux t pos ll;
+
+    fold inv_ghost_queue r;
+  }
+}
+```

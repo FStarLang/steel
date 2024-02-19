@@ -78,3 +78,8 @@ val conclude_task (t: task) (pos: nat) (r: ghost_mono_ref) (i: inv (inv_ghost_qu
 stt_atomic unit (singleton i)
 (M.pts_to r one_half l ** GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._4._1 #one_half v))
 (fun () -> M.pts_to r one_half (close_task_bis t pos l) ** pts_to t._4._1 #one_half true ** task_done t)
+
+val get_free_task_done (t: task) (pos: nat) (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (l: mono_list{task_in_queue t pos l}):
+stt_atomic unit (singleton i)
+(M.pts_to r one_half l)
+(fun () -> M.pts_to r one_half l ** task_done t)

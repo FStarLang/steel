@@ -31,24 +31,22 @@ stt_atomic unit #Unobservable (singleton i)
 
 type task_status = | Todo | Ongoing | Done
 
-let thunk bpre bpost (f: perm) (status_pool: ref bool)
+let thunk bpre bpost
   = unit -> stt unit
   (GR.pts_to bpre #one_half true ** GR.pts_to bpost #one_half false)
-  (fun () -> GR.pts_to bpre #one_half false ** GR.pts_to bpost #one_half true ** pts_to status_pool #f true)
+  (fun () -> GR.pts_to bpre #one_half false ** GR.pts_to bpost #one_half true)
+
 
 let lock_task (bdone: ref bool): vprop =
   exists* v f. pts_to bdone #f v ** pure (if not v then f == one_half else true)
 
-type task status_pool =
-    (bpre: GR.ref bool & bpost: GR.ref bool & (f: perm & thunk bpre bpost f status_pool) & (bdone: ref bool & Lock.lock (lock_task bdone)) & bclaimed: GR.ref bool)
+type task =
+    (bpre: GR.ref bool & bpost: GR.ref bool & thunk bpre bpost & (bdone: ref bool & Lock.lock (lock_task bdone)) & bclaimed: GR.ref bool)
 
-
-val create_task (#pre #post: vprop) (f: (unit -> stt unit pre (fun () -> post))) (p: perm) (status_pool: ref bool):
-    stt (t: task status_pool & inv (guarded_inv t._2 post))
-    (pre ** pts_to status_pool #p true)
+val create_task (#pre #post: vprop) (f: (unit -> stt unit pre (fun () -> post))):
+    stt (t: task & inv (guarded_inv t._2 post))
+    pre
     (fun r -> GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4._1 #one_half false ** GR.pts_to r._1._5 false)
-
-let x = ()
 
 type extended_task: Type =
     task & task_status
@@ -60,7 +58,9 @@ let same_extended_tasks (t1 t2: extended_task) =
 let is_Todo (t: extended_task): bool =
     t._2 = Todo
 
-val ongoing_condition (t: task): vprop
+let ongoing_condition (t: task) =
+    pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false
+
 val task_res (t: extended_task): vprop
 
 val get_task_res_todo (t: task):
@@ -104,6 +104,8 @@ stt_atomic unit #Unobservable (singleton i)
 (task_res t ** GR.pts_to t._1._5 #one_half false ** task_done t._1)
 (fun () -> task_res t ** post ** GR.pts_to t._1._5 #one_half true ** task_done t._1)
 
+val get_free_task_done_single (t: task):
+stt_ghost unit (task_res (t, Done)) (fun ()-> task_res (t, Done) ** task_done t)
 
 
 

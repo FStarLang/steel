@@ -395,6 +395,7 @@ val pts_to_injective_eq (#a:_)
 
 #push-options "--print_implicits"
 
+(* Not sure if useful... *)
 ```pulse
 fn write_done (t: task)
   requires pts_to t._4._1 #one_half false
@@ -418,6 +419,71 @@ fn write_done (t: task)
   ()
 }
 ```
+
+let perform_task (t: task):
+stt unit
+  (GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false)
+  (fun () -> GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true)
+= t._3 ()
+
+#pop-options
+
+(* TODO: How do I make this unobservable? *)
+
+```pulse
+fn
+prove_contradiction (r: ghost_mono_ref)
+(t: task) (pos: nat) (w: certificate r t pos)
+(q: ref task_queue) (c: ref int) (i: inv (inv_ghost_queue r))
+requires pts_to t._4._1 #one_half false ** lock_pool status_pool q c r
+ensures pts_to t._4._1 #one_half false ** lock_pool status_pool q c r // ** pure (...), probably need a more explicit contract
+{
+  unfold lock_pool;
+  with sp l. assert pts_to status_pool #one_half sp ** M.pts_to r one_half l ** if_then_else sp (lock_thn l q c) (lock_els l status_pool);
+  (*
+        pts_to status_pool (reveal sp) ** 
+      M.pts_to r one_half (reveal l) ** 
+      if_then_else (reveal sp) (lock_thn (reveal l) q c) (lock_els (reveal l) status_pool) ** 
+      pts_to (Mkdtuple2?._1 (Mkdtuple5?._4 t)) false
+  *)
+  let pool_alive: bool = !status_pool;
+  //let pool_alive: bool = reveal sp;
+  if (pool_alive) {
+    fold lock_pool;
+    admit()
+  }
+  else {
+    // Derive contradiction
+    rewrite (if_then_else (reveal sp) (lock_thn (reveal l) q c) (lock_els (reveal l) status_pool))
+      as lock_els (reveal l) status_pool;
+    unfold lock_els;
+    assert pure (link (reveal l) [] 0);
+    get_free_task_done t pos r i l;
+    (*
+          pure (link (reveal l) [] 0) ** 
+      (exists* (f1:perm).
+      pts_to status_pool false) ** 
+      pts_to (Mkdtuple2?._1 (Mkdtuple5?._4 t)) false ** 
+      pts_to status_pool (reveal sp) ** 
+      M.pts_to r one_half (reveal l)
+    *)
+    fold lock_pool;
+    show_proof_state;
+    admit()
+  }
+}
+```
+
+(*
+one_false
+      pts_to (Mkdtuple2?._1 (Mkdtuple5?._4 t)) false ** 
+      GR.pts_to (Mkdtuple5?._5 t) false ** 
+      pts_to r_working (reveal w) ** 
+      lock_pool status_pool q c r ** 
+      GR.pts_to (Mkdtuple5?._1 t) false ** 
+      GR.pts_to (Mkdtuple5?._2 t) true
+      *)
+
 
 
 ```pulse
@@ -456,7 +522,7 @@ ensures emp
 
         // 1. pop the task and increase counter
         c := vc + 1;
-        pop_task_ghost r i l;
+        let w = pop_task_ghost r i l;
         rewrite each (pop_todo_task l)._2 as ll;
         close_lock_thn q c l vq_ vc_;
         intro_if_then sp_ (lock_thn (pop_todo_task l)._2 q c) (lock_els (pop_todo_task l)._2 status_pool);
@@ -467,12 +533,28 @@ ensures emp
         // 2. perform the task
         let t: task = (pop_todo_task l)._1;
         rewrite each (pop_todo_task l)._1 as t;
-        t._3 ();
+        (*
+      GR.pts_to (Mkdtuple5?._2 t) false ** 
+      GR.pts_to (Mkdtuple5?._1 t) true ** 
+      ongoing_condition t ** 
+      pts_to r_working (reveal w)
+        *)
+        //show_proof_state;
+        perform_task t;
+        (*
+      GR.pts_to (Mkdtuple5?._1 t) false ** 
+      GR.pts_to (Mkdtuple5?._2 t) true ** 
+      ongoing_condition t ** 
+      pts_to r_working (reveal w)
+        *)
 
         // 3. conclude, and decrease counter
         //fold pool_alive full_perm pl;
         //write_done t;
         Lock.acquire lock;
+        unfold ongoing_condition;
+        assert pts_to t._4._1 #one_half false;
+        show_proof_state;
         (* 
         How do I prove that the pool is alive?
         --> Needs to get that pool_is_alive from the *postcondition*!

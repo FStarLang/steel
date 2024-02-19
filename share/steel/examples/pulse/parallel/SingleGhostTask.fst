@@ -161,10 +161,6 @@ ensures GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false **
 
 let create_task = create_task_
 
-let ongoing_condition (t: task) =
-    pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false
-    (* bpre, bpost, bdone, bclaimed *)
-
 (*
 let ongoing_condition_after (t: extended_task) =
     GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false
@@ -361,3 +357,23 @@ opens (singleton i)
 
 
 let claim_post_from_done = claim_post_from_done_
+
+```pulse
+ghost fn get_free_task_done_single_ (t: task)
+requires task_res (t, Done)
+ensures task_res (t, Done) ** task_done t
+{
+    rewrite task_res (t, Done) as done_condition (t, Done);
+    unfold done_condition;
+    rewrite each (t, Done)._1 as t;
+    with f. assert (pts_to t._4._1 #f true);
+    share t._4._1;
+    fold task_done t;
+    rewrite each t as (t, Done)._1;
+    fold done_condition;
+    rewrite done_condition (t, Done) as task_res (t, Done);
+    ()
+}
+```
+
+let get_free_task_done_single = get_free_task_done_single_
