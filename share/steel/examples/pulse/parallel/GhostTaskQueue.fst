@@ -257,7 +257,7 @@ let create_ghost_queue = create_ghost_queue_
 
 ```pulse
 ghost fn add_todo_task (t: task) (l:mono_list)
-  requires GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false
+  requires GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false
    ** tasks_res l
   ensures tasks_res (enqueue_todo l t)._1
 {
@@ -268,10 +268,56 @@ ghost fn add_todo_task (t: task) (l:mono_list)
 }
 ```
 
+(*
+let task_queue: Type0 = list task
+let link (l: mono_list) (q: task_queue) (c: int): prop
+= (count_ongoing l == c /\ get_actual_queue l == q)
+
+```pulse
+unobservable fn add_todo_task_to_queue_alt_ (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (t: task) (vc: int) (vq: list task)
+requires (exists* l. M.pts_to r one_half l ** pure (link l vq vc))
+  ** GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false
+returns w: pos:nat & certificate r t pos
+ensures exists* l. M.pts_to r one_half l ** pure (link l (t::vq) vc)
+//(enqueue_todo l t)._1
+opens (singleton i)
+{
+  with_invariants i {
+    unfold inv_ghost_queue r;
+    with l. assert M.pts_to r one_half l;
+    M.gather r one_half one_half l _;
+    //let p = enqueue_todo l t;
+    //let pos = p._2;
+    rewrite each (sum_perm one_half one_half) as full_perm;
+    (* val read (#a:Type) (r:ref a) (#n:erased a) (#p:perm)
+  : stt_ghost (erased a)
+        (pts_to r #p n)
+        (fun x -> pts_to r #p n ** pure (n == x)) *)
+    let ll = (t, Todo)::l;
+    //M.write r ll;
+    admit()
+    (*
+    let w: certificate r t pos = get_certificate t pos r p._1 _;
+    add_todo_task t l;
+    M.share r full_perm _;
+    rewrite each (half_perm full_perm) as one_half;
+    fold inv_ghost_queue r;
+    let res = (| pos, w |);
+    res
+    *)
+  }
+}
+```
+
+let x = ()
+*)
+
+
+
 ```pulse
 unobservable fn add_todo_task_to_queue_ (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (t: task)
 (l: mono_list)
-requires M.pts_to r one_half l ** GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false
+requires M.pts_to r one_half l ** GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false
 returns w: pos:nat & certificate r t pos
 ensures M.pts_to r one_half (enqueue_todo l t)._1
 opens (singleton i)
@@ -293,6 +339,7 @@ opens (singleton i)
   }
 }
 ```
+
 
 let add_todo_task_to_queue = add_todo_task_to_queue_
 
@@ -381,10 +428,10 @@ let close_task_bis_preserves_order
 ```pulse
 atomic fn rec close_task_from_ongoing_to_done
 (t: task) (pos: nat) (l: mono_list{task_in_queue t pos l})
-  requires GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._4 #one_half v)
+  requires GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._4._1 #one_half v)
     ** tasks_res l
   //returns et:
-  ensures tasks_res (close_task_bis t pos l) ** pts_to t._4 #one_half true ** task_done t
+  ensures tasks_res (close_task_bis t pos l) ** pts_to t._4._1 #one_half true ** task_done t
   decreases l
 {
   rewrite tasks_res l as (task_res (L.hd l) ** tasks_res (L.tl l));
@@ -415,8 +462,8 @@ atomic fn conclude_task_ (t: task) (pos: nat)
 // (w: certificate r t pos) Needed to prove the refinement type
 (l: mono_list{task_in_queue t pos l})
   requires M.pts_to r one_half l **
-    GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._4 #one_half v)
-  ensures M.pts_to r one_half (close_task_bis t pos l) ** pts_to t._4 #one_half true ** task_done t
+    GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._4._1 #one_half v)
+  ensures M.pts_to r one_half (close_task_bis t pos l) ** pts_to t._4._1 #one_half true ** task_done t
   //M.pts_to r one_half (pop_todo_task l)._2 ** ongoing_condition (pop_todo_task l)._1 ** GR.pts_to (pop_todo_task l)._1._1 #one_half true ** GR.pts_to (pop_todo_task l)._1._2 #one_half false
   opens (singleton i)
 {

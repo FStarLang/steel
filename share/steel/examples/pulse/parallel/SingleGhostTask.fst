@@ -95,9 +95,11 @@ let mk_res (#pre #post: vprop) (#bpre #bpost: GR.ref bool) (ipre: inv (guarded_i
 : (bpre: GR.ref bool & bpost: GR.ref bool & inv (guarded_inv bpre pre) & inv (guarded_inv bpost post) & thunk bpre bpost)
 = (| bpre, bpost, ipre, ipost, th |)
 *)
-let mk_res #post (bpre bpost: GR.ref bool) (th: thunk bpre bpost) (bdone: ref bool) (bclaimed: GR.ref bool) (ipost: inv (guarded_inv bpost post)):
+let mk_res #post (bpre bpost: GR.ref bool) (th: thunk bpre bpost) (bdone: ref bool) (bclaimed: GR.ref bool) (ipost: inv (guarded_inv bpost post))
+    (lock: Lock.lock (lock_task bdone))
+:
     t:task & inv (guarded_inv t._2 post)
-= (| (| bpre, bpost, th, bdone, bclaimed |), ipost|)
+= (| (| bpre, bpost, th, (| bdone, lock |), bclaimed |), ipost|)
 (*
     stt (t: task & inv (guarded_inv t._2 post))
     pre
@@ -106,7 +108,7 @@ let mk_res #post (bpre bpost: GR.ref bool) (th: thunk bpre bpost) (bdone: ref bo
 *)
 
 
-
+#push-options "--print_implicits"
 ```pulse
 fn create_task_ (#pre #post: vprop) (f: (unit -> stt unit pre (fun () -> post)))
 requires pre
@@ -118,7 +120,7 @@ returns r: (t: task & inv (guarded_inv t._2 post))
         inv (guarded_inv bpost post) &
         thunk bpre bpost
         *)
-ensures GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4 false ** GR.pts_to r._1._5 false
+ensures GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4._1 #one_half false ** GR.pts_to r._1._5 false
 
 {
     (* precondition *)
@@ -138,16 +140,19 @@ ensures GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false **
 
     let bclaimed = GR.alloc false;
     let bdone = alloc false;
+    share2 bdone;
 
     let th: thunk bpre bpost = create_thunk f bpre bpost ipre ipost;
-    let r: (t: task & inv (guarded_inv t._2 post)) = mk_res bpre bpost th bdone bclaimed ipost;
+    fold lock_task bdone;
+    let lock = Lock.new_lock (lock_task bdone);
+    let r: (t: task & inv (guarded_inv t._2 post)) = mk_res bpre bpost th bdone bclaimed ipost lock;
     (*
     let r: (bpre: GR.ref bool & bpost: GR.ref bool & inv (guarded_inv bpre pre) & inv (guarded_inv bpost post) & thunk bpre bpost)
         = mk_res ipre ipost th;
     *)
     rewrite each bpre as r._1._1;
     rewrite each bpost as r._1._2;
-    rewrite each bdone as r._1._4;
+    rewrite each bdone as r._1._4._1;
     rewrite each bclaimed as r._1._5;
     r
     //admit()
@@ -157,7 +162,7 @@ ensures GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false **
 let create_task = create_task_
 
 let ongoing_condition (t: task) =
-    pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false
+    pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false
     (* bpre, bpost, bdone, bclaimed *)
 
 (*
@@ -167,12 +172,12 @@ let ongoing_condition_after (t: extended_task) =
 *)
 
 let done_condition (t: extended_task) =
-    GR.pts_to t._1._1 #one_half false ** (exists* f. pts_to t._1._4 #f true **
+    GR.pts_to t._1._1 #one_half false ** (exists* f. pts_to t._1._4._1 #f true **
     (exists* claimed. GR.pts_to t._1._2 #one_half claimed ** GR.pts_to t._1._5 #one_half (not claimed)))
 
 let task_res (t: extended_task): vprop =
     match t._2 with
-    | Todo -> GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false
+    | Todo -> GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4._1 #one_half false ** GR.pts_to t._1._5 #one_half false
     | Ongoing -> emp//pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false
     //GR.pts_to t._1._2 #one_half false ** GR.pts_to t._1._3 #one_half false ** GR.pts_to t._1._4 #one_half false
     | Done -> done_condition t
@@ -180,12 +185,12 @@ let task_res (t: extended_task): vprop =
 
 ```pulse
 ghost fn get_task_res_todo_ (t: task)
-requires GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false
+requires GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false
 ensures task_res (t, Todo)
 {
     let r = (t, Todo);
     rewrite each t as r._1;
-    rewrite (GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4 #one_half false ** GR.pts_to r._1._5 #one_half false)
+    rewrite (GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4._1 #one_half false ** GR.pts_to r._1._5 #one_half false)
         as task_res r;
     ()
 }
@@ -208,7 +213,7 @@ ghost fn from_todo_to_ongoing_ (t: extended_task{t._2 == Todo})
 requires task_res t
 ensures task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t._1
 {
-    rewrite task_res t as (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false);
+    rewrite task_res t as (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4._1 #one_half false ** GR.pts_to t._1._5 #one_half false);
     //take_from_guarded_inv i;
 //    rewrite (GR.pts_to t._1._2 #one_half false ** GR.pts_to t._1._3 #one_half false ** GR.pts_to t._1._4 #one_half false) as
     rewrite emp as (task_res (t._1, Ongoing));
@@ -245,10 +250,10 @@ requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #o
 ensures task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** pure (t._2 == Ongoing)
 {
     if (t._2 = Todo) {
-        rewrite task_res t as (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false);
+        rewrite task_res t as (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4._1 #one_half false ** GR.pts_to t._1._5 #one_half false);
         GR.pts_to_injective_eq t._1._1;
         assert pure false;
-        rewrite (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false)
+        rewrite (GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** pts_to t._1._4._1 #one_half false ** GR.pts_to t._1._5 #one_half false)
             as task_res t;
         ()
     }
@@ -256,7 +261,7 @@ ensures task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #on
         unfold_done t;
         unfold done_condition t;
         unfold ongoing_condition t._1;
-        pts_to_injective_eq t._1._4;
+        pts_to_injective_eq t._1._4._1;
         fold ongoing_condition t._1;
         fold done_condition t;
         fold_done t;
@@ -265,15 +270,11 @@ ensures task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #on
 }
 ```
 
-let task_done (t: task): vprop =
-    exists* f. pts_to t._4 #f true
-
-
 (* needs to update done... *)
 ```pulse
 atomic fn from_ongoing_to_done_ (t: extended_task)
-requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** (exists* v. pts_to t._1._4 #one_half v)
-ensures task_res (t._1, Done) ** pts_to t._1._4 #one_half true ** task_done t._1
+requires task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** (exists* v. pts_to t._1._4._1 #one_half v)
+ensures task_res (t._1, Done) ** pts_to t._1._4._1 #one_half true ** task_done t._1
 {
     prove_ongoing t;
     rewrite task_res t as emp;
@@ -281,21 +282,21 @@ ensures task_res (t._1, Done) ** pts_to t._1._4 #one_half true ** task_done t._1
     assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1);
     unfold ongoing_condition t._1;
     assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true **
-        pts_to t._1._4 #one_half false ** GR.pts_to t._1._5 #one_half false);
-    gather2 t._1._4;
+        pts_to t._1._4._1 #one_half false ** GR.pts_to t._1._5 #one_half false);
+    gather2 t._1._4._1;
     //t._1._4 := true;
-    write_atomic_bool t._1._4 true;
-    share2 t._1._4;
-    share t._1._4;
+    write_atomic_bool t._1._4._1 true;
+    share2 t._1._4._1;
+    share t._1._4._1;
     assert (GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true **
-        (exists* f. pts_to t._1._4 #f true) ** GR.pts_to t._1._5 #one_half false);
+        (exists* f. pts_to t._1._4._1 #f true) ** GR.pts_to t._1._5 #one_half false);
 
     rewrite each t as (t._1, Done);
     fold done_condition (t._1, Done);
     fold_done (t._1, Done);
 
-    rewrite (pts_to (t._1, Done)._1._4 #one_half true)
-        as pts_to t._1._4 #one_half true;
+    rewrite (pts_to (t._1, Done)._1._4._1 #one_half true)
+        as pts_to t._1._4._1 #one_half true;
 
     fold task_done (t._1, Done)._1;
     rewrite task_done (t._1, Done)._1 as task_done t._1;
@@ -338,7 +339,7 @@ requires task_done t
 ensures task_done t ** task_done t
 {
     unfold task_done t;
-    share t._4;
+    share t._4._1;
     fold task_done t;
     fold task_done t;
     ()

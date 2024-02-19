@@ -4,22 +4,8 @@ module L = FStar.List.Tot.Base
 module P = FStar.Preorder
 module GR = Pulse.Lib.GhostReference
 
-type task_status = | Todo | Ongoing | Done
-type task_with_status (a: Type) = a & task_status
-type mono_list (a: Type) = list (task_with_status a)
-
-//val mono_list (a: Type): Type
-
-(*
-let small_inv (r: ghost_mono_ref task_elem) (q: list task_elem) (c: int): vprop 
-= exists_ (fun l -> pts_to_ghost_queue_half r l **
-  tasks_res_own l one_half **
-  pure (count_ongoing l = c /\ get_actual_queue l == q)
-  ** (if c = 0 && L.length q = 0 then deadline r
-  else pts_to_ghost_queue_half r l ** tasks_res_own l one_quart)
-)
-*)
-
+open GhostTaskQueue
+open SingleGhostTask
 open Pulse.Lib.Pervasives
 
 module Lock = Pulse.Lib.SpinLock

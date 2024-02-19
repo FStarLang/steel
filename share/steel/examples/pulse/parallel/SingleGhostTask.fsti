@@ -4,6 +4,7 @@ open Pulse.Lib.Pervasives
 module GR = Pulse.Lib.GhostReference
 module S = FStar.Set
 
+module Lock = Pulse.Lib.SpinLock
 
 (* Guarded invariants *)
 
@@ -35,13 +36,18 @@ let thunk bpre bpost
   (GR.pts_to bpre #one_half true ** GR.pts_to bpost #one_half false)
   (fun () -> GR.pts_to bpre #one_half false ** GR.pts_to bpost #one_half true)
 
+let lock_task (bdone: ref bool): vprop =
+  exists* v f. pts_to bdone #f v ** pure (if not v then f == one_half else true)
+
 type task =
-    (bpre: GR.ref bool & bpost: GR.ref bool & thunk bpre bpost & bdone: ref bool & bclaimed: GR.ref bool)
+    (bpre: GR.ref bool & bpost: GR.ref bool & thunk bpre bpost & (bdone: ref bool & Lock.lock (lock_task bdone)) & bclaimed: GR.ref bool)
+
+let x = ()
 
 val create_task (#pre #post: vprop) (f: (unit -> stt unit pre (fun () -> post))):
     stt (t: task & inv (guarded_inv t._2 post))
     pre
-    (fun r -> GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4 false ** GR.pts_to r._1._5 false)
+    (fun r -> GR.pts_to r._1._1 #one_half true ** GR.pts_to r._1._2 #one_half false ** pts_to r._1._4._1 #one_half false ** GR.pts_to r._1._5 false)
 
 type extended_task: Type =
     task & task_status
@@ -58,7 +64,7 @@ val task_res (t: extended_task): vprop
 
 val get_task_res_todo (t: task):
 stt_ghost unit
-(GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false)
+(GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false)
 (fun () -> task_res (t, Todo))
 
 
@@ -68,7 +74,8 @@ stt_ghost unit
 (task_res t)
 (fun () -> task_res (t._1, Ongoing) ** GR.pts_to t._1._1 #one_half true ** GR.pts_to t._1._2 #one_half false ** ongoing_condition t._1)
 
-val task_done (t: task): vprop
+let task_done (t: task): vprop =
+    exists* f. pts_to t._4._1 #f true
 
 (*
 val prove_ongoing (t: extended_task):
@@ -78,8 +85,8 @@ stt_ghost unit (task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._
 
 val from_ongoing_to_done (t: extended_task):
 stt_atomic unit emp_inames
-(task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** (exists* v. pts_to t._1._4 #one_half v))
-(fun () -> task_res (t._1, Done) ** pts_to t._1._4 #one_half true ** task_done t._1)
+(task_res t ** GR.pts_to t._1._1 #one_half false ** GR.pts_to t._1._2 #one_half true ** ongoing_condition t._1 ** (exists* v. pts_to t._1._4._1 #one_half v))
+(fun () -> task_res (t._1, Done) ** pts_to t._1._4._1 #one_half true ** task_done t._1)
 
 (* Easy to prove done: Either q = [] and c = 0, or we
 just wait on it and change its status... *)

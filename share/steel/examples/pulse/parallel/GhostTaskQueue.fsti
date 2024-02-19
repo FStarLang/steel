@@ -66,7 +66,7 @@ stt_atomic (r: ghost_mono_ref & inv (inv_ghost_queue r)) #Unobservable emp_iname
 val add_todo_task_to_queue
 (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (t: task) (l: mono_list):
 stt_atomic (pos:nat & certificate r t pos) #Unobservable (singleton i)
-(M.pts_to r one_half l ** GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4 #one_half false ** GR.pts_to t._5 #one_half false)
+(M.pts_to r one_half l ** GR.pts_to t._1 #one_half true ** GR.pts_to t._2 #one_half false ** pts_to t._4._1 #one_half false ** GR.pts_to t._5 #one_half false)
 (fun _ -> M.pts_to r one_half (enqueue_todo l t)._1)
 
 val pop_task_ghost (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (l: mono_list{~(get_actual_queue l == [])}):
@@ -76,5 +76,5 @@ stt_atomic (pos:nat & certificate r (pop_todo_task l)._1 pos) #Unobservable (sin
 
 val conclude_task (t: task) (pos: nat) (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (l: mono_list{task_in_queue t pos l}):
 stt_atomic unit (singleton i)
-(M.pts_to r one_half l ** GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._4 #one_half v))
-(fun () -> M.pts_to r one_half (close_task_bis t pos l) ** pts_to t._4 #one_half true ** task_done t)
+(M.pts_to r one_half l ** GR.pts_to t._1 #one_half false ** GR.pts_to t._2 #one_half true ** ongoing_condition t ** (exists* v. pts_to t._4._1 #one_half v))
+(fun () -> M.pts_to r one_half (close_task_bis t pos l) ** pts_to t._4._1 #one_half true ** task_done t)
