@@ -184,13 +184,14 @@ let witness #t #pos
 
 let recall #t #pos
            (r:ghost_mono_ref)
+           (f: perm)
            (v:erased (mono_list))
            (w:M.witnessed r (task_in_queue t pos))
-  : //TODO: SteelAtomicU
- stt_ghost unit 
-                 (M.pts_to r one_half v)
-                 (fun _ -> M.pts_to r one_half v ** pure (task_in_queue t pos v))
-  = M.recall (task_in_queue t pos) r v w
+  : stt_atomic unit #Unobservable emp_inames //TODO: SteelAtomicU
+ //stt_ghost unit 
+                 (M.pts_to r f v)
+                 (fun _ -> M.pts_to r f v ** pure (task_in_queue t pos v))
+  = admit()//M.recall (task_in_queue t pos) r v w
 
 let recall_full #t #pos
            (r:ghost_mono_ref)
@@ -499,8 +500,8 @@ We give back the other half
 4. We claim? We create the pledges?
 *)
 
-val get_free_task_done_single (t: task):
-stt_ghost unit (task_res (t, Done)) (fun ()-> task_res (t, Done) ** task_done t)
+//val get_free_task_done_single (t: task):
+//stt_ghost unit (task_res (t, Done)) (fun ()-> task_res (t, Done) ** task_done t)
 
 
 
@@ -534,7 +535,7 @@ ghost fn rec get_free_task_done_aux
 ```pulse
 unobservable fn get_free_task_done_
 (t: task) (pos: nat) (r: ghost_mono_ref) (i: inv (inv_ghost_queue r)) (ll: mono_list{task_in_queue t pos ll})
-requires M.pts_to r one_half ll ** pure (get_actual_queue ll == [] /\ count_ongoing ll == 0)
+requires M.pts_to r one_half ll ** pure (get_actual_queue ll == [] /\ count_ongoing ll = 0)
 ensures M.pts_to r one_half ll ** task_done t
 opens (singleton i)
 {
@@ -552,3 +553,28 @@ opens (singleton i)
   }
 }
 ```
+
+let get_free_task_done = get_free_task_done_
+
+```pulse
+unobservable fn get_task_in_queue_
+(r: ghost_mono_ref) (f: perm) (l: mono_list) (t: task) (pos: nat) (w: certificate r t pos)
+requires M.pts_to r f l
+ensures M.pts_to r f l ** pure (task_in_queue t pos l)
+{
+  recall r f l w
+}
+```
+
+let get_task_in_queue = get_task_in_queue_
+ 
+
+(*
+val get_task_in_queue (r: ghost_mono_ref) (f: perm) (l: mono_list) (t: task) (pos: nat) (w: certificate r t pos):
+stt_atomic unit #Unobservable emp_inames
+(M.pts_to r f l)
+(fun () -> M.pts_to r f l ** pure (task_in_queue t pos l))
+      pts_to #bool status_pool #one_half (reveal #bool sp) ** 
+      M.pts_to #mono_list #is_mono_suffix r one_half ll ** 
+      task_done t
+*)

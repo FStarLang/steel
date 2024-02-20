@@ -431,67 +431,98 @@ stt unit
 (* TODO: How do I make this unobservable? *)
 
 ```pulse
+ghost fn fold_lock_pool (sp: bool) (l: mono_list) (q: ref task_queue) (c: ref int) (status_pool: ref bool) (t: task)
+requires if_then_else sp (lock_thn l q c) (lock_els l status_pool) ** pts_to status_pool #one_half sp ** M.pts_to r one_half l
+ensures lock_pool status_pool q c r
+{
+  fold lock_pool status_pool q c r
+}
+```
+
+#push-options "--print_implicits"
+
+```pulse
 fn
 prove_contradiction (r: ghost_mono_ref)
-(t: task) (pos: nat) (w: certificate r t pos)
+(t: task) (pos: nat)
+(w: certificate r t pos)
 (q: ref task_queue) (c: ref int) (i: inv (inv_ghost_queue r))
 requires pts_to t._4._1 #one_half false ** lock_pool status_pool q c r
-ensures pts_to t._4._1 #one_half false ** lock_pool status_pool q c r // ** pure (...), probably need a more explicit contract
+ensures pts_to t._4._1 #one_half false ** (exists* l. pts_to status_pool #one_half true ** M.pts_to r one_half l ** lock_thn l q c)
 {
   unfold lock_pool;
   with sp l. assert pts_to status_pool #one_half sp ** M.pts_to r one_half l ** if_then_else sp (lock_thn l q c) (lock_els l status_pool);
-  (*
-        pts_to status_pool (reveal sp) ** 
-      M.pts_to r one_half (reveal l) ** 
-      if_then_else (reveal sp) (lock_thn (reveal l) q c) (lock_els (reveal l) status_pool) ** 
-      pts_to (Mkdtuple2?._1 (Mkdtuple5?._4 t)) false
-  *)
+
   let pool_alive: bool = !status_pool;
-  //let pool_alive: bool = reveal sp;
+  assert pure (pool_alive == sp);
+
   if (pool_alive) {
-    fold lock_pool;
-    admit()
+    elim_if_then sp _ _;
+    ()
   }
   else {
+
+    //assert pure (reveal sp == True);
+    let ll: mono_list = read_ghost_mono_ref r;
     // Derive contradiction
     rewrite (if_then_else (reveal sp) (lock_thn (reveal l) q c) (lock_els (reveal l) status_pool))
       as lock_els (reveal l) status_pool;
     unfold lock_els;
     assert pure (link (reveal l) [] 0);
-    get_free_task_done t pos r i l;
-    (*
-          pure (link (reveal l) [] 0) ** 
-      (exists* (f1:perm).
-      pts_to status_pool false) ** 
-      pts_to (Mkdtuple2?._1 (Mkdtuple5?._4 t)) false ** 
-      pts_to status_pool (reveal sp) ** 
-      M.pts_to r one_half (reveal l)
-    *)
-    fold lock_pool;
-    show_proof_state;
-    admit()
+    assert pure (link ll [] 0);
+    //M.recall #mono_list #one_half #is_mono_suffix (task_in_queue t pos) r ll w;
+    get_task_in_queue r one_half ll t pos w;
+    assert pure (task_in_queue t pos ll);
+    get_free_task_done t pos r i ll;
+
+    fold lock_els l status_pool;
+    rewrite (lock_els (reveal l) status_pool) as
+      (if_then_else sp (lock_thn (reveal l) q c) (lock_els (reveal l) status_pool));
+    assert (if_then_else (reveal sp) (lock_thn (reveal l) q c) (lock_els (reveal l) status_pool) ** pts_to t._4._1 #one_half false);
+    fold_lock_pool sp l q c status_pool t;
+    unfold task_done;
+    with f. assert (pts_to t._4._1 #f true);
+    gather t._4._1;
+    assert pure false;
+    
+    rewrite (pts_to #bool t._4._1 #(sum_perm (reveal #perm f) one_half) true ** lock_pool status_pool q c r)
+      as (pts_to t._4._1 #one_half false ** (exists* l. pts_to status_pool #one_half true ** M.pts_to r one_half l ** lock_thn l q c));
+
+    ()
   }
 }
 ```
 
+```pulse
+fn decrease_counter
+(t: task) (pos: nat)
+(l: mono_list{task_in_queue t pos l /\ L.length l >= 1})
+(q: ref task_queue) (c: ref int)
+requires lock_thn l q c
+ensures lock_thn (close_task_bis t pos l) q c
+{
+  admit()
+}
+```
 (*
-one_false
-      pts_to (Mkdtuple2?._1 (Mkdtuple5?._4 t)) false ** 
-      GR.pts_to (Mkdtuple5?._5 t) false ** 
-      pts_to r_working (reveal w) ** 
-      lock_pool status_pool q c r ** 
-      GR.pts_to (Mkdtuple5?._1 t) false ** 
-      GR.pts_to (Mkdtuple5?._2 t) true
-      *)
 
+        unfold lock_thn l q c;
+        let vc: int = !c;
+        with vq. assert pts_to q vq ** pure (link l vq vc);
+        //assert pure (link l vq)
+        c := vc - 1;
+        assert pure (link (close_task_bis l) vq (vc - 1));
+        //fold lock_thn (close_task_bis t pos l) q c;
+  *)
+ 
 
+#pop-options
+
+val drop_task_done (t: task): stt_ghost unit (task_done t) (fun () -> emp)
 
 ```pulse
 fn worker (pl: pool)
 requires emp
-(*
-needs pool_alive?
-*)
 ensures emp
 {
   let mut r_working = true;
@@ -522,7 +553,7 @@ ensures emp
 
         // 1. pop the task and increase counter
         c := vc + 1;
-        let w = pop_task_ghost r i l;
+        let w: (pos:nat & certificate r (pop_todo_task l)._1 pos) = pop_task_ghost r i l;
         rewrite each (pop_todo_task l)._2 as ll;
         close_lock_thn q c l vq_ vc_;
         intro_if_then sp_ (lock_thn (pop_todo_task l)._2 q c) (lock_els (pop_todo_task l)._2 status_pool);
@@ -532,99 +563,63 @@ ensures emp
 
         // 2. perform the task
         let t: task = (pop_todo_task l)._1;
+        let pos: nat = w._1;
+        let certif: certificate r t pos = w._2;
         rewrite each (pop_todo_task l)._1 as t;
-        (*
-      GR.pts_to (Mkdtuple5?._2 t) false ** 
-      GR.pts_to (Mkdtuple5?._1 t) true ** 
-      ongoing_condition t ** 
-      pts_to r_working (reveal w)
-        *)
-        //show_proof_state;
+
         perform_task t;
-        (*
-      GR.pts_to (Mkdtuple5?._1 t) false ** 
-      GR.pts_to (Mkdtuple5?._2 t) true ** 
-      ongoing_condition t ** 
-      pts_to r_working (reveal w)
-        *)
 
         // 3. conclude, and decrease counter
-        //fold pool_alive full_perm pl;
-        //write_done t;
         Lock.acquire lock;
         unfold ongoing_condition;
         assert pts_to t._4._1 #one_half false;
-        show_proof_state;
-        (* 
-        How do I prove that the pool is alive?
-        --> Needs to get that pool_is_alive from the *postcondition*!
-        *)
+        prove_contradiction r t pos certif q c i;
 
-(*
-        //unfold_lock_pool_alive (#f: perm) (pl: pool)
-        unfold lock_pool status_pool q c r;
-        with sp_ l_. assert (pts_to status_pool #one_half sp_ ** M.pts_to r one_half l_ ** (if_then_else sp_ (lock_thn l_ q c) (lock_els l_ status_pool)));
-        elim_if_then sp_ _ _;
-        unfold lock_thn l_ q c;
-        with vq_ vc_. assert pts_to q vq_ ** pts_to c vc_ ** pure (link l_ vq_ vc_);
-        *)
- 
+        let l: mono_list = read_ghost_mono_ref r;
+        with ll. assert pts_to status_pool #one_half true ** M.pts_to r one_half ll ** lock_thn ll q c;
+        rewrite each (reveal ll) as l;
+        get_task_in_queue r one_half l t pos certif;
 
+        assert pure (task_in_queue t pos l);
+        let bdone: ref bool = t._4._1;
+        rewrite each t._4._1 as bdone;
+        let ltask: Lock.lock (lock_task bdone) = t._4._2;
 
-(*
-      GR.pts_to (Mkdtuple5?._2 t) false ** 
-      GR.pts_to (Mkdtuple5?._1 t) true ** 
-      ongoing_condition t ** 
-      pts_to r_working (reveal w)
-*)
+        Lock.acquire ltask;
+        unfold lock_task bdone;
+        with f v. assert (pts_to bdone #f v ** pure (if not v then f == one_half else true));
+        pts_to_injective_eq bdone;
+        rewrite each bdone as t._4._1;
+        fold ongoing_condition t;
+        //rewrite (pts_to bdone #one_half false ** GR.pts_to t._5 #one_half false) as ongoing_condition t;
+        rewrite each f as one_half;
+        conclude_task t pos r i l;
+        rewrite each t._4._1 as bdone;
+        fold lock_task bdone;
+        Lock.release ltask;
 
-      // 3. put the result in the reference
-      //write_res task res;
+        decrease_counter t pos l q c;
+        intro_if_then true (lock_thn (close_task_bis t pos l) q c) (lock_els (close_task_bis t pos l) status_pool);
+        fold lock_pool status_pool q c r;
 
-
-(*
-
-      // 4. decrease counter
-      decrease_counter p;
-      ()
-      *)
-        admit()
+        drop_task_done t;
+        Lock.release lock
       }
       else {
-        admit()
-        (*
         (* nothing to do *)
         fold lock_thn l_ q c;
         intro_if_then sp_ (lock_thn l_ q c) (lock_els l_ status_pool);
         fold lock_pool status_pool q c r;
         Lock.release lock
-        *)
       }
     }
     else {
-      admit()
-      (*
       r_working := false; // the pool has been deallocated, the worker can stop its job
       fold lock_pool status_pool q c r;
       Lock.release lock
-      *)
     }
   };
-  (*
-  {
-    acquire_queue_lock p;
-
-    }
-    else {
-      release_queue_lock p;
-      r_working := (vc > 0); // we continue working if and only if some task is still running...
-      ()
-    }
-  };
-  free_ref r_working;
   ()
-  *)
-  admit()
 }
 ```
 
