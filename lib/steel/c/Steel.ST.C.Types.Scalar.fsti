@@ -44,7 +44,8 @@ let scalar_unique
     (fun _ -> pts_to r (mk_fraction (scalar t) (mk_scalar v1) p1) `star` pts_to r (mk_fraction (scalar t) (mk_scalar v2) p2))
     (True)
     (fun _ -> v1 == v2 /\ (p1 `P.sum_perm` p2) `P.lesser_equal_perm` P.full_perm)
-= fractional_permissions_theorem (mk_scalar v1) (mk_scalar v2) p1 p2 r;
+= noop ();
+  fractional_permissions_theorem (mk_scalar v1) (mk_scalar v2) p1 p2 r;
   mk_scalar_inj v1 v2 P.full_perm P.full_perm
 
 [@@noextract_to "krml"] // primitive
