@@ -23,6 +23,7 @@ include runlim.mk
 
 # These modules already verify without the flag.
 Steel.ST.GhostPCMReference.fst.checked: COMPAT_INDEXED_EFFECTS=
+Steel.Semantics.Hoare.MST.fst.checked: OTHERFLAGS+=--ext 'compat:injectivity'
 
 .depend: $(FSTAR_FILES)
 	$(call msg, "DEPEND")
