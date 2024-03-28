@@ -35,7 +35,8 @@ open FStar.NMST
 
 
 #push-options "--fuel  0 --ifuel 2 --z3rlimit 20 --print_implicits --print_universes \
-   --using_facts_from 'Prims FStar.Pervasives FStar.Preorder MST NMST CSL.Semantics'"
+   --using_facts_from 'Prims FStar.Pervasives FStar.Preorder MST NMST CSL.Semantics' \
+   --ext 'compat:injectivity'"
 
 (**** Begin state defn ****)
 
