@@ -29,8 +29,8 @@ noeq type perm : Type0 =
   | MkPerm: v:real{ v >. zero } -> perm
 
 /// A reference is only safely writeable if we have full permission
-let writeable (p: perm) : GTot bool =
-  MkPerm?.v p = one
+let writeable (p: perm) : prop =
+  MkPerm?.v p == one
 
 /// Helper around splitting a permission in half
 let half_perm (p: perm) : Tot perm =
@@ -41,10 +41,10 @@ let sum_perm (p1 p2: perm) : Tot perm =
   MkPerm (MkPerm?.v p1 +.  MkPerm?.v p2)
 
 /// Helper to compare two permissions
-let lesser_equal_perm (p1 p2:perm) : GTot bool =
+let lesser_equal_perm (p1 p2:perm) : prop =
   MkPerm?.v p1 <=.  MkPerm?.v p2
 
-let lesser_perm (p1 p2:perm) : GTot bool =
+let lesser_perm (p1 p2:perm) : prop =
   MkPerm?.v p1 <.  MkPerm?.v p2
 
 /// Wrapper around the full permission value
