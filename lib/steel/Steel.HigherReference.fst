@@ -31,7 +31,7 @@ module Mem = Steel.Memory
 let ref a = Mem.ref (fractional a) pcm_frac
 let null #a = Mem.null #(fractional a) #pcm_frac
 let is_null #a r = Mem.is_null #(fractional a) #pcm_frac r
-let perm_ok p : prop = (p.v <=. one == true) /\ True
+let perm_ok p : prop = p.v <=. one
 let pts_to_raw_sl (#a:Type) (r:ref a) (p:perm) (v:erased a) : slprop =
   Mem.pts_to r (Some (Ghost.reveal v, p))
 let pts_to_raw (#a:Type) (r:ref a) (p:perm) (v:erased a) : vprop =
