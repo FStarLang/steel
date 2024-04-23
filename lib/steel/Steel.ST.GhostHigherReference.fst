@@ -10,12 +10,10 @@ module R = Steel.HigherReference
 module STC = Steel.ST.Coercions
 
 // FIXME: WHY WHY WHY in `Ghost.reveal (ref a)` is `a` not strictly positive?
-#push-options "--ext 'compat:injectivity'"
 [@@erasable]
 noeq
 type ref' ([@@@strictly_positive] a : Type u#1) : Type0
 = | Hide: (reveal: R.ref a) -> ref' a
-#pop-options
 
 let ref a = ref' a
 

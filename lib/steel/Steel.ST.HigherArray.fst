@@ -79,7 +79,6 @@ let mk_carrier_inj
 let base_t (elt: Type u#a) : Tot Type0 = Ghost.erased (base_len: US.t & ref _ (pcm elt (US.v base_len)))
 let base_len (#elt: Type) (b: base_t elt) : GTot nat = US.v (dfst b)
 
-#push-options "--ext 'compat:injectivity'"
 [@@noextract_to "krml"]
 noeq
 type ptr (elt: Type u#a) : Type0 = {
@@ -88,7 +87,7 @@ type ptr (elt: Type u#a) : Type0 = {
   base: (r: ref _ (pcm elt (US.v base_len)) { core_ref_is_null r ==> US.v base_len == 0 });
   offset: (offset: nat { offset <= US.v base_len });
 }
-#pop-options
+
 let null_ptr a = { base_len = 0sz; base = null #_ #(pcm a 0) ; offset = 0 }
 let is_null_ptr p = is_null p.base
 let base (#elt: Type) (p: ptr elt) : Tot (base_t elt) = (| Ghost.reveal p.base_len, p.base |)
