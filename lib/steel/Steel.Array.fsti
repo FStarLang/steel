@@ -90,6 +90,9 @@ val intro_varrayp
       aselp a p h' == s
     )
 
+(* FIXME: This is a workaround for https://github.com/FStarLang/FStar/issues/3358 *)
+let __f x = x
+
 let intro_varray
   (#opened: _) (#elt: Type) (a: array elt) (s: Seq.seq elt)
 : SteelGhost unit opened

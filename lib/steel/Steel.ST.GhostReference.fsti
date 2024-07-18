@@ -144,6 +144,9 @@ val free (#a:Type0)
       (pts_to r full_perm v)
       (fun _ -> emp)
 
+(* FIXME: This is a workaround for https://github.com/FStarLang/FStar/issues/3358 *)
+let __f x = x
+
 /// Executes a code block with a ghost reference temporarily
 /// allocated. This function is declared in the `STF` effect so
 /// that the pre- and post-resources can be properly inferred by the
