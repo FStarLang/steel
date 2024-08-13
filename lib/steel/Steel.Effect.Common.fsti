@@ -1873,7 +1873,7 @@ let canon_l_r (use_smt:bool)
     try
       let res = equivalent_lists use_smt (flatten r1_raw) (flatten r2_raw) am in
       raise (Result res) with
-    | TacticFailure m -> fail_doc m
+    | TacticFailure (m, rng_opt) -> fail_doc_at m rng_opt
     | Result res -> res
     | _ -> fail "uncaught exception in equivalent_lists"
   in
@@ -2063,9 +2063,9 @@ let canon_l_r (use_smt:bool)
         unify_pr_with_true pr; // MUST be done AFTER identity_left/reflexivity, which can unify other uvars
         apply_lemma (`solve_implies_true)
       with
-      | TacticFailure msg ->
+      | TacticFailure (msg, rng_opt) ->
         let open FStar.Stubs.Pprint in
-        fail_doc ([doc_of_string "Cannot unify pr with true"] @ msg)
+        fail_doc_at ([doc_of_string "Cannot unify pr with true"] @ msg) rng_opt
       | e -> raise e
     )
   | l ->
@@ -2568,11 +2568,11 @@ let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
        with
        | Postpone msg ->
          false
-       | TacticFailure msg ->
+       | TacticFailure (msg, rng_opt) ->
          let opened = try_open_existentials_forall_dep () in
          if opened
          then solve_can_be_split_forall_dep args // we only need args for their number of uvars, which has not changed
-         else fail_doc msg
+         else fail_doc_at msg rng_opt
        | _ -> fail "Unexpected exception in framing tactic"
       ) else false
 
