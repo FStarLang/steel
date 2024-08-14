@@ -5888,10 +5888,13 @@ let (canon_l_r :
                                                                     with
                                                                     | 
                                                                     FStar_Tactics_Common.TacticFailure
-                                                                    m1 ->
+                                                                    (m1,
+                                                                    rng_opt)
+                                                                    ->
                                                                     Obj.magic
-                                                                    (FStar_Tactics_V2_Derived.fail_doc
-                                                                    m1)
+                                                                    (FStar_Tactics_V2_Derived.fail_doc_at
+                                                                    m1
+                                                                    rng_opt)
                                                                     | 
                                                                     Result
                                                                     res ->
@@ -7624,14 +7627,17 @@ let (canon_l_r :
                                                                     with
                                                                     | 
                                                                     FStar_Tactics_Common.TacticFailure
-                                                                    msg ->
+                                                                    (msg,
+                                                                    rng_opt)
+                                                                    ->
                                                                     Obj.magic
-                                                                    (FStar_Tactics_V2_Derived.fail_doc
+                                                                    (FStar_Tactics_V2_Derived.fail_doc_at
                                                                     (FStar_List_Tot_Base.append
                                                                     [
                                                                     FStar_Pprint.doc_of_string
                                                                     "Cannot unify pr with true"]
-                                                                    msg))
+                                                                    msg)
+                                                                    rng_opt)
                                                                     | 
                                                                     e ->
                                                                     Obj.magic
@@ -12146,7 +12152,9 @@ let rec (solve_can_be_split_forall_dep :
                                                                     uu___6 ->
                                                                     false)))
                                                                | FStar_Tactics_Common.TacticFailure
-                                                                   msg ->
+                                                                   (msg,
+                                                                    rng_opt)
+                                                                   ->
                                                                    Obj.magic
                                                                     (Obj.repr
                                                                     (FStar_Tactics_Effect.tac_bind
@@ -12165,7 +12173,7 @@ let rec (solve_can_be_split_forall_dep :
                                                                     (Prims.of_int (2573))
                                                                     (Prims.of_int (9))
                                                                     (Prims.of_int (2575))
-                                                                    (Prims.of_int (26)))))
+                                                                    (Prims.of_int (37)))))
                                                                     (Obj.magic
                                                                     (try_open_existentials_forall_dep
                                                                     ()))
@@ -12182,8 +12190,9 @@ let rec (solve_can_be_split_forall_dep :
                                                                     else
                                                                     Obj.magic
                                                                     (Obj.repr
-                                                                    (FStar_Tactics_V2_Derived.fail_doc
-                                                                    msg)))
+                                                                    (FStar_Tactics_V2_Derived.fail_doc_at
+                                                                    msg
+                                                                    rng_opt)))
                                                                     uu___6)))
                                                                | uu___6 ->
                                                                    Obj.magic
