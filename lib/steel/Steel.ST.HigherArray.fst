@@ -596,7 +596,7 @@ let prefix_copied #t
    : Seq.seq t
    = (Seq.append (Seq.slice e0 0 i) (Seq.slice e1 i (Seq.length e1)))
 
-#push-options "--z3rlimit 32"
+#push-options "--z3rlimit 64"
 
 val memcpy0 (#t:_) (#p0:perm)
            (a0 a1:array t)
