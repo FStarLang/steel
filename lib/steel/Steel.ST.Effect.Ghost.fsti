@@ -87,10 +87,10 @@ val lift_ghost_atomic
     (a:Type)
     (opened:inames)
     (#framed:eqtype_as_type bool)
-    (#[@@@ framing_implicit] pre:pre_t)
-    (#[@@@ framing_implicit] post:post_t a)
-    (#[@@@ framing_implicit] req:pure_pre)
-    (#[@@@ framing_implicit] ens:pure_post a)
+    (#[@@@ defer_to framing_implicit] pre:pre_t)
+    (#[@@@ defer_to framing_implicit] post:post_t a)
+    (#[@@@ defer_to framing_implicit] req:pure_pre)
+    (#[@@@ defer_to framing_implicit] ens:pure_post a)
     (f:STAG.repr a framed opened Unobservable pre post req ens)
   : STAG.repr a framed opened Unobservable pre post req ens
 
