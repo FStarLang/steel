@@ -29,10 +29,10 @@ let lift_ghost_atomic
     (a:Type)
     (opened:inames)
     (#framed:eqtype_as_type bool)
-    (#[@@@ framing_implicit] pre:pre_t)
-    (#[@@@ framing_implicit] post:post_t a)
-    (#[@@@ framing_implicit] req:Type0)
-    (#[@@@ framing_implicit] ens:a -> Type0)
+    (#[@@@ defer_to framing_implicit] pre:pre_t)
+    (#[@@@ defer_to framing_implicit] post:post_t a)
+    (#[@@@ defer_to framing_implicit] req:Type0)
+    (#[@@@ defer_to framing_implicit] ens:a -> Type0)
     (f:STAG.repr a framed opened Unobservable pre post req ens)
   : STAG.repr a framed opened Unobservable pre post req ens
   = f

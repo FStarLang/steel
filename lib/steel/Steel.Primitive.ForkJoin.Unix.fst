@@ -52,7 +52,7 @@ type steelK (t:Type u#aa) (framed:bool) (pre : vprop) (post:t->vprop) =
   SteelT unit (frame `star` pre) (fun _ -> postf)
 
 (* The classic continuation monad *)
-let return_ a (x:a) (#[@@@ framing_implicit] p: a -> vprop) : steelK a true (return_pre (p x)) p =
+let return_ a (x:a) (#[@@@ defer_to framing_implicit] p: a -> vprop) : steelK a true (return_pre (p x)) p =
   fun k -> k x
 
 private
@@ -84,13 +84,13 @@ let can_be_split_forall_frame (#a:Type) (p q:post_t a) (frame:vprop) (x:a)
 
 let bind (a:Type) (b:Type)
   (#framed_f:eqtype_as_type bool) (#framed_g:eqtype_as_type bool)
-  (#[@@@ framing_implicit] pre_f:pre_t) (#[@@@ framing_implicit] post_f:post_t a)
-  (#[@@@ framing_implicit] pre_g:a -> pre_t) (#[@@@ framing_implicit] post_g:post_t b)
-  (#[@@@ framing_implicit] frame_f:vprop) (#[@@@ framing_implicit] frame_g:vprop)
-  (#[@@@ framing_implicit] p:squash (can_be_split_forall
+  (#[@@@ defer_to framing_implicit] pre_f:pre_t) (#[@@@ defer_to framing_implicit] post_f:post_t a)
+  (#[@@@ defer_to framing_implicit] pre_g:a -> pre_t) (#[@@@ defer_to framing_implicit] post_g:post_t b)
+  (#[@@@ defer_to framing_implicit] frame_f:vprop) (#[@@@ defer_to framing_implicit] frame_g:vprop)
+  (#[@@@ defer_to framing_implicit] p:squash (can_be_split_forall
     (fun x -> post_f x `star` frame_f) (fun x -> pre_g x `star` frame_g)))
-  (#[@@@ framing_implicit] m1 : squash (maybe_emp framed_f frame_f))
-  (#[@@@ framing_implicit] m2:squash (maybe_emp framed_g frame_g))
+  (#[@@@ defer_to framing_implicit] m1 : squash (maybe_emp framed_f frame_f))
+  (#[@@@ defer_to framing_implicit] m2:squash (maybe_emp framed_g frame_g))
   (f:steelK a framed_f pre_f post_f)
   (g:(x:a -> steelK b framed_g (pre_g x) post_g))
 : steelK b
@@ -118,10 +118,10 @@ let bind (a:Type) (b:Type)
 
 let subcomp (a:Type)
   (#framed_f:eqtype_as_type bool) (#framed_g:eqtype_as_type bool)
-  (#[@@@ framing_implicit] pre_f:pre_t) (#[@@@ framing_implicit] post_f:post_t a)
-  (#[@@@ framing_implicit] pre_g:pre_t) (#[@@@ framing_implicit] post_g:post_t a)
-  (#[@@@ framing_implicit] p1:squash (can_be_split pre_g pre_f))
-  (#[@@@ framing_implicit] p2:squash (can_be_split_forall post_f post_g))
+  (#[@@@ defer_to framing_implicit] pre_f:pre_t) (#[@@@ defer_to framing_implicit] post_f:post_t a)
+  (#[@@@ defer_to framing_implicit] pre_g:pre_t) (#[@@@ defer_to framing_implicit] post_g:post_t a)
+  (#[@@@ defer_to framing_implicit] p1:squash (can_be_split pre_g pre_f))
+  (#[@@@ defer_to framing_implicit] p2:squash (can_be_split_forall post_f post_g))
   (f:steelK a framed_f pre_f post_f)
 : Tot (steelK a framed_g pre_g post_g)
 = fun #frame #postf (k:(x:a -> SteelT unit (frame `star` post_g x) (fun _ -> postf))) ->
@@ -131,8 +131,8 @@ let subcomp (a:Type)
                k x) <: (x:a -> SteelT unit (frame `star` post_f x) (fun _ -> postf)))
 
 // let if_then_else (a:Type u#aa)
-//                  (#[@@@ framing_implicit] pre1:pre_t)
-//                  (#[@@@ framing_implicit] post1:post_t a)
+//                  (#[@@@ defer_to framing_implicit] pre1:pre_t)
+//                  (#[@@@ defer_to framing_implicit] post1:post_t a)
 //                  (f : steelK a pre1 post1)
 //                  (g : steelK a pre1 post1)
 //                  (p:Type0) : Type =
@@ -164,7 +164,7 @@ effect SteelKF (a:Type) (pre:pre_t) (post:post_t a) =
 
 let bind_tot_steelK_ (a:Type) (b:Type)
   (#framed:eqtype_as_type bool)
-  (#[@@@ framing_implicit] pre:pre_t) (#[@@@ framing_implicit] post:post_t b)
+  (#[@@@ defer_to framing_implicit] pre:pre_t) (#[@@@ defer_to framing_implicit] post:post_t b)
   (f:eqtype_as_type unit -> Tot a) (g:(x:a -> steelK b framed pre post))
 : steelK b
     framed
