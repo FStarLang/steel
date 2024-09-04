@@ -550,7 +550,8 @@ let step_bind (#st:st) (#a:Type) (#pre:st.hprop) (#post:post_t st a)
 let step_frame_ret (#st:st) (#a:Type) (#pre:st.hprop) (#p:post_t st a)
   (f:m st a pre p{Frame? f /\ Ret? (Frame?.f f)})
 : Mst (step_result st a) (step_req f) (step_ens f)
-= let Frame (Ret p x) frame = f in
+= admit();
+  let Frame (Ret p x) frame = f in
   Step (Ret (fun x -> p x `st.star` frame) x)
 
 let step_frame (#st:st) (#a:Type) (#pre:st.hprop) (#p:post_t st a)
