@@ -164,14 +164,13 @@ let steel_translate_expr : translate_expr_t = fun env e ->
   | MLE_App ({expr=MLE_TApp ({expr=MLE_Name p}, _)}, [_fp; _fp'; _opened; _p; _i; e])
     when string_of_mlpath p = "Steel.ST.Util.with_invariant" ||
          string_of_mlpath p = "Steel.Effect.Atomic.with_invariant" ->
-    Errors.raise_error
-      (Errors.Fatal_ExtractionUnsupported,
-       BU.format2
+    Errors.raise_error0
+      Errors.Fatal_ExtractionUnsupported
+      (BU.format2
          "Extraction of with_invariant requires its argument to be a function literal \
          at extraction time, try marking its argument inline_for_extraction (%s, %s)"
          (string_of_int (fst e.loc))
          (snd e.loc))
-      Range.dummyRange
 
   | _ -> raise NotSupportedByKrmlExtension
 
@@ -197,7 +196,8 @@ let steel_translate_let : translate_let_t = fun env flavor lb ->
         let expr = List.map (translate_expr env) (list_elements l) in
         Some (DGlobal (meta, name, List.length tvars, t, EBufCreateL (Eternal, expr)))
       with e ->
-          Errors. log_issue Range.dummyRange (Errors.Warning_DefinitionNotTranslated, (BU.format2 "Error extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) (BU.print_exn e)));
+          Errors.log_issue0 Errors.Warning_DefinitionNotTranslated
+            (BU.format2 "Error extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) (BU.print_exn e));
           Some (DGlobal (meta, name, List.length tvars, t, EAny))
         end
     | _ -> raise NotSupportedByKrmlExtension

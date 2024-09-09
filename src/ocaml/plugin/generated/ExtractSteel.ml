@@ -579,18 +579,17 @@ let (steel_translate_expr : FStar_Extraction_Krml.translate_expr_t) =
           ->
           let uu___5 =
             let uu___6 =
-              let uu___7 =
-                FStar_Compiler_Util.string_of_int
-                  (FStar_Pervasives_Native.fst
-                     e2.FStar_Extraction_ML_Syntax.loc) in
-              FStar_Compiler_Util.format2
-                "Extraction of with_invariant requires its argument to be a function literal at extraction time, try marking its argument inline_for_extraction (%s, %s)"
-                uu___7
-                (FStar_Pervasives_Native.snd
+              FStar_Compiler_Util.string_of_int
+                (FStar_Pervasives_Native.fst
                    e2.FStar_Extraction_ML_Syntax.loc) in
-            (FStar_Errors_Codes.Fatal_ExtractionUnsupported, uu___6) in
-          FStar_Errors.raise_error uu___5
-            FStar_Compiler_Range_Type.dummyRange
+            FStar_Compiler_Util.format2
+              "Extraction of with_invariant requires its argument to be a function literal at extraction time, try marking its argument inline_for_extraction (%s, %s)"
+              uu___6
+              (FStar_Pervasives_Native.snd e2.FStar_Extraction_ML_Syntax.loc) in
+          FStar_Errors.raise_error0
+            FStar_Errors_Codes.Fatal_ExtractionUnsupported ()
+            (Obj.magic FStar_Errors_Msg.is_error_message_string)
+            (Obj.magic uu___5)
       | uu___ ->
           FStar_Compiler_Effect.raise
             FStar_Extraction_Krml.NotSupportedByKrmlExtension
@@ -661,16 +660,15 @@ let (steel_translate_let : FStar_Extraction_Krml.translate_let_t) =
                | uu___11 ->
                    ((let uu___13 =
                        let uu___14 =
-                         let uu___15 =
-                           FStar_Extraction_ML_Syntax.string_of_mlpath name1 in
-                         let uu___16 = FStar_Compiler_Util.print_exn uu___11 in
-                         FStar_Compiler_Util.format2
-                           "Error extracting %s to KaRaMeL (%s)\n" uu___15
-                           uu___16 in
-                       (FStar_Errors_Codes.Warning_DefinitionNotTranslated,
-                         uu___14) in
-                     FStar_Errors.log_issue
-                       FStar_Compiler_Range_Type.dummyRange uu___13);
+                         FStar_Extraction_ML_Syntax.string_of_mlpath name1 in
+                       let uu___15 = FStar_Compiler_Util.print_exn uu___11 in
+                       FStar_Compiler_Util.format2
+                         "Error extracting %s to KaRaMeL (%s)\n" uu___14
+                         uu___15 in
+                     FStar_Errors.log_issue0
+                       FStar_Errors_Codes.Warning_DefinitionNotTranslated ()
+                       (Obj.magic FStar_Errors_Msg.is_error_message_string)
+                       (Obj.magic uu___13));
                     FStar_Pervasives_Native.Some
                       (FStar_Extraction_Krml.DGlobal
                          (meta1, name1, (FStar_Compiler_List.length tvars),
