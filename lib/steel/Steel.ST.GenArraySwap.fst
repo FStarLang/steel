@@ -393,9 +393,8 @@ let impl_jump
   then idx `SZ.sub` nl
   else idx `SZ.add` l
 
-#push-options "--z3rlimit 96"
-
 #restart-solver
+#push-options "--z3rlimit 24 --split_queries always" // This proof is really brittle.
 inline_for_extraction
 let array_swap_outer_body
   (#t: Type)
