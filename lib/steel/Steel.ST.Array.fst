@@ -19,7 +19,7 @@ module Steel.ST.Array
 module US = FStar.SizeT
 
 /// Lifting a value of universe 0 to universe 1. We use
-/// FStar.Universe, since FStar.Extraction.Krml is set to extract
+/// FStar.Universe, since FStarC.Extraction.Krml is set to extract
 /// those functions to identity.
 
 inline_for_extraction
