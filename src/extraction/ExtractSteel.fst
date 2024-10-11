@@ -3,6 +3,7 @@ friend FStarC.Extraction.Krml
 
 (* IMPORTANT: these `open` directives come from FStarC.Extraction.Krml.
    Without them, spurious dependencies on F* ulib will be introduced *)
+open FStarC
 open FStarC.Compiler.Effect
 open FStarC.Compiler.List
 open FStar
