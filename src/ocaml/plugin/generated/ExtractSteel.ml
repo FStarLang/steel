@@ -676,7 +676,7 @@ let (steel_translate_let : FStar_Extraction_Krml.translate_let_t) =
         | uu___ ->
             FStar_Compiler_Effect.raise
               FStar_Extraction_Krml.NotSupportedByKrmlExtension
-let (uu___404 : unit) =
+let (uu___0 : unit) =
   FStar_Extraction_Krml.register_pre_translate_type_without_decay
     steel_translate_type_without_decay;
   FStar_Extraction_Krml.register_pre_translate_expr steel_translate_expr;
