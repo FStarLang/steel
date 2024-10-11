@@ -598,7 +598,7 @@ let _ =
        fun ncb ->
          fun us ->
            fun args ->
-             FStar_Tactics_InterpFuns.mk_tactic_interpretation_1
+             FStarC_Tactics_InterpFuns.mk_tactic_interpretation_1
                "Steel.Effect.Common.frame_vc_norm (plugin)"
                (FStarC_Tactics_Native.from_tactic_1 frame_vc_norm)
                FStarC_Syntax_Embeddings.e_unit FStarC_Syntax_Embeddings.e_unit
@@ -6073,7 +6073,7 @@ let (canon_l_r :
                                                                     match uu___9
                                                                     with
                                                                     | 
-                                                                    FStar_Tactics_Common.TacticFailure
+                                                                    FStarC_Tactics_Common.TacticFailure
                                                                     (m1,
                                                                     rng_opt)
                                                                     ->
@@ -8073,7 +8073,7 @@ let (canon_l_r :
                                                                     match uu___36
                                                                     with
                                                                     | 
-                                                                    FStar_Tactics_Common.TacticFailure
+                                                                    FStarC_Tactics_Common.TacticFailure
                                                                     (msg,
                                                                     rng_opt)
                                                                     ->
@@ -12956,7 +12956,7 @@ let rec (solve_can_be_split_forall_dep :
                                                                     (fun
                                                                     uu___9 ->
                                                                     false)))
-                                                               | FStar_Tactics_Common.TacticFailure
+                                                               | FStarC_Tactics_Common.TacticFailure
                                                                    (msg,
                                                                     rng_opt)
                                                                    ->
@@ -18020,7 +18020,7 @@ let _ =
        fun ncb ->
          fun us ->
            fun args ->
-             FStar_Tactics_InterpFuns.mk_tactic_interpretation_1
+             FStarC_Tactics_InterpFuns.mk_tactic_interpretation_1
                "Steel.Effect.Common.init_resolve_tac (plugin)"
                (FStarC_Tactics_Native.from_tactic_1 init_resolve_tac)
                FStarC_Syntax_Embeddings.e_unit FStarC_Syntax_Embeddings.e_unit
@@ -18151,7 +18151,7 @@ let _ =
        fun ncb ->
          fun us ->
            fun args ->
-             FStar_Tactics_InterpFuns.mk_tactic_interpretation_1
+             FStarC_Tactics_InterpFuns.mk_tactic_interpretation_1
                "Steel.Effect.Common.selector_tactic (plugin)"
                (FStarC_Tactics_Native.from_tactic_1 selector_tactic)
                FStarC_Syntax_Embeddings.e_unit FStarC_Syntax_Embeddings.e_unit
