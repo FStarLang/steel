@@ -24,5 +24,6 @@ $(OUTPUT_DIRECTORY)/%.ml: %.fst
 		   --odir "$(OUTPUT_DIRECTORY)" \
                    --codegen OCaml \
 		   --MLish \
+		   --MLish_effect "FStarC.Compiler.Effect" \
                    --extract_module $(basename $(notdir $<))
 	chmod -x $@
