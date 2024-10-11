@@ -601,8 +601,8 @@ let _ =
              FStarC_Tactics_InterpFuns.mk_tactic_interpretation_1
                "Steel.Effect.Common.frame_vc_norm (plugin)"
                (FStarC_Tactics_Native.from_tactic_1 frame_vc_norm)
-               FStarC_Syntax_Embeddings.e_unit FStarC_Syntax_Embeddings.e_unit
-               psc ncb us args)
+               FStarC_Syntax_Embeddings.e_unit
+               FStarC_Syntax_Embeddings.e_unit psc ncb us args)
 type ('frame, 'h0, 'h1) frame_equalities = Obj.t
 type ('v, 'p) vrefine_am = 'p
 type ('v, 'p) vrefine_t = Obj.t
@@ -976,7 +976,8 @@ and (visit_comp :
                                      (fun uu___4 ->
                                         Obj.magic (visit_tm ff pats)) uu___4)))
                             uu___2))
-              | FStarC_Reflection_V2_Data.C_Eff (us, eff, res, args, decrs) ->
+              | FStarC_Reflection_V2_Data.C_Eff (us, eff, res, args, decrs)
+                  ->
                   let uu___1 = visit_tm ff res in
                   Obj.magic
                     (FStar_Tactics_Effect.tac_bind
@@ -2340,8 +2341,8 @@ let rec (new_args_for_smt_attrs :
                       (fun uu___3 ->
                          (fun e ->
                             Obj.magic
-                              (FStarC_Tactics_V2_Builtins.ghost_uvar_env e ty1))
-                           uu___3))) in
+                              (FStarC_Tactics_V2_Builtins.ghost_uvar_env e
+                                 ty1)) uu___3))) in
         FStar_Tactics_Effect.tac_bind
           (FStar_Sealed.seal
              (Obj.magic
@@ -9179,7 +9180,8 @@ let (lookup_by_term_attr :
                 Obj.magic
                   (FStar_Tactics_Effect.lift_div_tac
                      (fun uu___2 ->
-                        FStarC_Reflection_V2_Builtins.lookup_attr label_attr e)) in
+                        FStarC_Reflection_V2_Builtins.lookup_attr label_attr
+                          e)) in
               Obj.magic
                 (FStar_Tactics_Effect.tac_bind
                    (FStar_Sealed.seal
@@ -18014,8 +18016,8 @@ let (init_resolve_tac' :
 let (init_resolve_tac : unit -> (unit, unit) FStar_Tactics_Effect.tac_repr) =
   fun uu___ -> init_resolve_tac' []
 let _ =
-  FStarC_Tactics_Native.register_tactic "Steel.Effect.Common.init_resolve_tac"
-    (Prims.of_int (2))
+  FStarC_Tactics_Native.register_tactic
+    "Steel.Effect.Common.init_resolve_tac" (Prims.of_int (2))
     (fun psc ->
        fun ncb ->
          fun us ->
@@ -18023,8 +18025,8 @@ let _ =
              FStarC_Tactics_InterpFuns.mk_tactic_interpretation_1
                "Steel.Effect.Common.init_resolve_tac (plugin)"
                (FStarC_Tactics_Native.from_tactic_1 init_resolve_tac)
-               FStarC_Syntax_Embeddings.e_unit FStarC_Syntax_Embeddings.e_unit
-               psc ncb us args)
+               FStarC_Syntax_Embeddings.e_unit
+               FStarC_Syntax_Embeddings.e_unit psc ncb us args)
 
 let (selector_tactic : unit -> (unit, unit) FStar_Tactics_Effect.tac_repr) =
   fun uu___ ->
@@ -18154,8 +18156,8 @@ let _ =
              FStarC_Tactics_InterpFuns.mk_tactic_interpretation_1
                "Steel.Effect.Common.selector_tactic (plugin)"
                (FStarC_Tactics_Native.from_tactic_1 selector_tactic)
-               FStarC_Syntax_Embeddings.e_unit FStarC_Syntax_Embeddings.e_unit
-               psc ncb us args)
+               FStarC_Syntax_Embeddings.e_unit
+               FStarC_Syntax_Embeddings.e_unit psc ncb us args)
 let (ite_soundness_tac : unit -> (unit, unit) FStar_Tactics_Effect.tac_repr)
   =
   fun uu___ ->

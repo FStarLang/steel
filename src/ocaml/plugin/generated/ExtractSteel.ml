@@ -645,7 +645,8 @@ let (steel_translate_let : FStarC_Extraction_Krml.translate_let_t) =
                     match () with
                     | () ->
                         let expr =
-                          let uu___12 = FStarC_Extraction_Krml.list_elements l in
+                          let uu___12 =
+                            FStarC_Extraction_Krml.list_elements l in
                           FStarC_Compiler_List.map
                             (FStarC_Extraction_Krml.translate_expr env1)
                             uu___12 in
