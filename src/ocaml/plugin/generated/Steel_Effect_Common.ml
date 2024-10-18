@@ -8082,7 +8082,7 @@ let (canon_l_r :
                                                                     (FStar_Tactics_V2_Derived.fail_doc_at
                                                                     (FStar_List_Tot_Base.append
                                                                     [
-                                                                    FStarC_Pprint.doc_of_string
+                                                                    FStar_Pprint.doc_of_string
                                                                     "Cannot unify pr with true"]
                                                                     msg)
                                                                     rng_opt)
