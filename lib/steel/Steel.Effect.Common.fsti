@@ -2064,7 +2064,7 @@ let canon_l_r (use_smt:bool)
         apply_lemma (`solve_implies_true)
       with
       | TacticFailure (msg, rng_opt) ->
-        let open FStar.Stubs.Pprint in
+        let open FStar.Pprint in
         fail_doc_at ([doc_of_string "Cannot unify pr with true"] @ msg) rng_opt
       | e -> raise e
     )
