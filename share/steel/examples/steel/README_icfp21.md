@@ -16,7 +16,7 @@ If you are using the provided VM, F\* is already installed and this section can 
 
 Setting up a local environment requires a working OCaml setup with OPAM.
 Installation instructions for OPAM are available [here](http://opam.ocaml.org/doc/Install.html).
-OCaml version from 4.04.0 to 4.12.X should work.
+OCaml version 4.14.0 and onwards should work.
 
 F\* depends on a bunch of external packages which you should install using OPAM:
 
