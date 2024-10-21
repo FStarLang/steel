@@ -28,6 +28,7 @@
             ocamlPackages.stdint
             ocamlPackages.batteries
             ocamlPackages.zarith
+            ocamlPackages.mtime
           ];
           installPhase = ''
             mkdir -p $out
