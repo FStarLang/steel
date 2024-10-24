@@ -8,49 +8,42 @@ endif
 
 all: lib verify
 
-# Find fstar.exe and the fstar.lib OCaml package
-ifeq (,$(FSTAR_HOME))
-  _check_fstar := $(shell which fstar.exe)
-  ifeq ($(.SHELLSTATUS),0)
-    _fstar_home := $(realpath $(dir $(_check_fstar))/..)
-    ifeq ($(OS),Windows_NT)
-      OCAMLPATH := $(shell cygpath -m $(_fstar_home)/lib);$(OCAMLPATH)
-    else
-      OCAMLPATH := $(_fstar_home)/lib:$(OCAMLPATH)
-    endif
-  endif
-else
-  _fstar_home := $(FSTAR_HOME)
-  ifeq ($(OS),Windows_NT)
-    OCAMLPATH := $(shell cygpath -m $(FSTAR_HOME)/lib);$(OCAMLPATH)
-  else
-    OCAMLPATH := $(FSTAR_HOME)/lib:$(OCAMLPATH)
-  endif
+# Find fstar.exe
+ifdef FSTAR_HOME
+FSTAR_EXE := $(FSTAR_HOME)/bin/fstar.exe
 endif
-export OCAMLPATH
-_check_fstar_lib_package := $(shell env OCAMLPATH="$(OCAMLPATH)" ocamlfind query fstar.lib)
-ifneq ($(.SHELLSTATUS),0)
-  $(error "Cannot find fstar.lib in $(OCAMLPATH). Please make sure fstar.exe is properly installed and in your PATH or FSTAR_HOME points to its prefix directory or the F* source repository.")
+FSTAR_EXE ?= $(shell which fstar.exe)
+ifeq (,$(FSTAR_EXE))
+  $(error "Did not find fstar.exe in PATH and FSTAR_EXE/FSTAR_HOME unset, aborting.")
 endif
+export FSTAR_EXE
 
 # Define the Steel root directory. We need to fix it to use the Windows path convention on Windows+Cygwin.
-ifeq ($(OS),Windows_NT)
-  STEEL_HOME := $(shell cygpath -m $(CURDIR))
-else
-  STEEL_HOME := $(CURDIR)
-endif
+export STEEL_HOME := $(CURDIR)
 
-.PHONY: ocaml
-ocaml:
-	cd src/ocaml && dune build
+.PHONY: .force
+.force:
+
+plugin: plugin.src
+	cd src/ocaml && $(FSTAR_EXE) --ocamlenv dune build
 	cd src/ocaml && dune install --prefix=$(STEEL_HOME)
+
+plugin.src: .force
+	$(MAKE) -f mk/plugin.mk \
+	  CACHE_DIR=build/plugin.checked \
+	  OUTPUT_DIR=build/plugin.ml \
+	  CODEGEN=Plugin \
+	  SRC=lib/steel \
+	  TAG=plugin \
+	  EXTRACT="--extract '+Steel.Effect.Common +Steel.ST.GenElim.Base +Steel.ST.GenElim1.Base'" \
+	  ROOTS="Steel.Effect.Common.fst Steel.ST.GenElim.Base.fst Steel.ST.GenElim1.Base.fst"
 
 .PHONY: lib
 lib:
 	+$(MAKE) -C src/c
 
 .PHONY: verify-steel
-verify-steel: ocaml
+verify-steel: plugin
 	+$(MAKE) -C lib/steel steel
 
 .PHONY: verify-steelc
@@ -105,9 +98,6 @@ install-share:
 
 install: install-ocaml install-lib install-include install-share install-src-c
 
-boot:
-	+$(MAKE) -C lib/steel steel
-	+$(MAKE) -C src boot
 
 ci:
 	+$(MAKE) -C src ci
