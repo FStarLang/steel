@@ -56,6 +56,8 @@ verify: verify-steel verify-steelc
 
 clean: clean_ocaml
 	+$(MAKE) -C lib/steel clean ; true
+	rm -rf build/plugin.checked
+	rm -rf build/plugin.ml
 
 clean_ocaml:
 	cd src/ocaml && { dune uninstall --prefix=$(STEEL_HOME) ; dune clean ; true ; }
