@@ -98,3 +98,8 @@ install-share:
 	+$(MAKE) -C share/steel install
 
 install: install-ocaml install-lib install-include install-share install-src-c
+
+.PHONY: ci
+ci:
+	+$(MAKE) all
+	+$(MAKE) test
