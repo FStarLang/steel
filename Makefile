@@ -10,9 +10,10 @@ all: lib verify
 
 # Find fstar.exe
 ifdef FSTAR_HOME
-FSTAR_EXE := $(FSTAR_HOME)/bin/fstar.exe
+FSTAR_EXE ?= $(FSTAR_HOME)/bin/fstar.exe
 endif
 FSTAR_EXE ?= $(shell which fstar.exe)
+
 ifeq (,$(FSTAR_EXE))
   $(error "Did not find fstar.exe in PATH and FSTAR_EXE/FSTAR_HOME unset, aborting.")
 endif

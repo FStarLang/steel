@@ -15,7 +15,7 @@ include $(STEEL_HOME)/share/steel/Makefile.include
 OUTPUT_EXE=_build/default/OWGCounterTest.exe
 
 $(OUTPUT_EXE): $(OUTPUT_DIRECTORY)/OWGCounter.ml OWGCounterTest.ml
-	dune build
+	$(FSTAR_EXE) --ocamlenv dune build
 
 counter: $(OUTPUT_EXE)
 	$<
