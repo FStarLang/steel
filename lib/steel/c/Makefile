@@ -7,7 +7,6 @@ all: steelc
 FSTAR_FILES:=$(wildcard *.fst *.fsti)
 
 FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel.C,-Steel.ST.C' --include .. --load_cmxs steel
-FSTAR_OPTIONS += --include $(abspath ../../../build/plugin.checked) # We can reuse this
 
 MY_FSTAR=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)
 

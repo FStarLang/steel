@@ -22,7 +22,6 @@ endif
 FSTAR_FILES += $(filter-out $(EXCLUDE_FILES),$(wildcard *.fst *.fsti))
 ADDITIONAL_INCLUDES ?= 
 FSTAR_OPTIONS += $(OTHERFLAGS) --cmi --cache_checked_modules --warn_error @241 --already_cached 'Prims,FStar,LowStar,Steel,C' --include $(STEEL_HOME)/lib/steel $(ADDITIONAL_INCLUDES) --load_cmxs steel
-FSTAR_OPTIONS += --include $(STEEL_HOME)/build/plugin.checked
 
 COMPAT_INDEXED_EFFECTS?=--compat_pre_typed_indexed_effects
 

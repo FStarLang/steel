@@ -7,7 +7,6 @@ all: steel steelc
 FSTAR_FILES:=$(wildcard *.fst *.fsti)
 
 FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel' --load_cmxs steel
-FSTAR_OPTIONS += --include $(abspath ../../build/plugin.checked) # We can reuse this
 
 COMPAT_INDEXED_EFFECTS=--compat_pre_typed_indexed_effects
 MY_FSTAR=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)
