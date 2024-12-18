@@ -1,17 +1,15 @@
-all: steel steelc
+STEEL_ROOT ?= ../..
+include $(STEEL_ROOT)/mk/common.mk
+$(call need_exe,FSTAR_EXE)
 
-ifneq (,$(FSTAR_HOME))
-  FSTAR=$(FSTAR_HOME)/bin/fstar.exe
-else
-  FSTAR=fstar.exe
-endif
+all: steel steelc
 
 FSTAR_FILES:=$(wildcard *.fst *.fsti)
 
 FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel' --load_cmxs steel
 
 COMPAT_INDEXED_EFFECTS=--compat_pre_typed_indexed_effects
-MY_FSTAR=$(RUNLIM) $(FSTAR) $(SIL) $(FSTAR_OPTIONS)
+MY_FSTAR=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)
 
 include runlim.mk
 

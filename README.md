@@ -74,7 +74,8 @@ those are not installed as of now.
    opam, you may need to run `eval $(opam env)`. If F* is not in your
    `PATH`, set the `FSTAR_HOME` environment variable to the directory
    where F* was installed (or to the F* source tree), so that the F*
-   executable should be in `$FSTAR_HOME/bin/fstar.exe`.
+   executable should be in `$FSTAR_HOME/bin/fstar.exe`; or set the
+   environment variable `FSTAR_EXE` to the path of the executable.
 2. Run `make -j`
 
 ### Building the source and installing to a custom location

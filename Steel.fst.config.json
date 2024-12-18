@@ -1,5 +1,5 @@
 {
-  "fstar_exe": "fstar.exe",
+  "fstar_exe": "/home/guido/r/fstar/dev/bin/fstar.exe",
   "options": [
     "--load_cmxs",
     "steel"

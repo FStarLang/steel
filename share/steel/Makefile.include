@@ -1,12 +1,16 @@
 ifeq (,$(STEEL_HOME))
 	$(error STEEL_HOME should be defined in the enclosing Makefile as the prefix directory where Steel was installed, or the root directory of its source repository)
 endif
+include $(STEEL_HOME)/mk/common.mk
+.DEFAULT_GOAL := verify
 
 ifneq (,$(FSTAR_HOME))
-  FSTAR=$(FSTAR_HOME)/bin/fstar.exe
-else
-  FSTAR=fstar.exe
+FSTAR_EXE ?= $(FSTAR_HOME)/bin/fstar.exe
 endif
+
+FSTAR_EXE ?= $(shell which fstar.exe)
+
+$(call need_exe,FSTAR_EXE)
 
 # Add Steel to the OCaml (ocamlfind) search path
 ifeq ($(OS),Windows_NT)
@@ -14,26 +18,6 @@ ifeq ($(OS),Windows_NT)
 else
   OCAMLPATH := $(STEEL_HOME)/lib:$(OCAMLPATH)
 endif
-
-# Find fstar.exe and the fstar.lib OCaml package
-ifeq (,$(FSTAR_HOME))
-  _check_fstar := $(shell which fstar.exe)
-  ifeq ($(.SHELLSTATUS),0)
-    _fstar_home := $(realpath $(dir $(_check_fstar))/..)
-    ifeq ($(OS),Windows_NT)
-      OCAMLPATH := $(shell cygpath -m $(_fstar_home)/lib);$(OCAMLPATH)
-    else
-      OCAMLPATH := $(_fstar_home)/lib:$(OCAMLPATH)
-    endif
-  endif
-else
-  ifeq ($(OS),Windows_NT)
-    OCAMLPATH := $(shell cygpath -m $(FSTAR_HOME)/lib);$(OCAMLPATH)
-  else
-    OCAMLPATH := $(FSTAR_HOME)/lib:$(OCAMLPATH)
-  endif
-endif
-export OCAMLPATH
 
 FSTAR_FILES += $(filter-out $(EXCLUDE_FILES),$(wildcard *.fst *.fsti))
 ADDITIONAL_INCLUDES ?= 
@@ -44,7 +28,7 @@ COMPAT_INDEXED_EFFECTS?=--compat_pre_typed_indexed_effects
 # Used only for OCaml extraction, not krml extraction
 FSTAR_ML_CODEGEN ?= OCaml
 
-MY_FSTAR=$(RUNLIM) $(FSTAR) $(SIL) $(FSTAR_OPTIONS)
+MY_FSTAR=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)
 
 %.checked:
 	$(call msg, "CHECK", $(basename $(notdir $@)))
