@@ -1,7 +1,9 @@
 all: extract
 
-FSTAR_HOME ?= $(realpath $(dir $(shell which fstar.exe))/..)
-FSTAR_EXE = $(FSTAR_HOME)/bin/fstar.exe
+STEEL_HOME ?= ../..
+include $(STEEL_HOME)/mk/locate_fstar.mk
+
+FSTAR_HOME ?= $(realpath $(dir $(FSTAR_EXE))/..)
 
 # Assume FSTAR_HOME points to the F* source tree
 include $(FSTAR_HOME)/.common.mk

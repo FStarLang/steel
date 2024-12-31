@@ -5,13 +5,8 @@ INCLUDE_STEEL=../../include/steel
 
 world: $(INCLUDE_STEEL)/Steel_SpinLock.h
 
-ifdef FSTAR_HOME
-  # Assume there is a F* source tree
-  FSTAR_EXE=$(FSTAR_HOME)/bin/fstar.exe
-else
-  # Assume F* in the PATH
-  FSTAR_EXE=fstar.exe
-endif
+STEEL_HOME ?= ../..
+include $(STEEL_HOME)/mk/locate_fstar.mk
 
 FSTAR = $(RUNLIM) $(FSTAR_EXE) --cache_checked_modules \
   --include $(LIB_STEEL) \

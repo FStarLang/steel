@@ -1,5 +1,6 @@
 STEEL_ROOT ?= ../..
 include $(STEEL_ROOT)/mk/common.mk
+include $(STEEL_ROOT)/mk/locate_fstar.mk
 $(call need_exe,FSTAR_EXE)
 
 all: steel steelc

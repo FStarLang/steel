@@ -1,4 +1,5 @@
 include $(STEEL_HOME)/mk/common.mk
+include $(STEEL_HOME)/mk/locate_fstar.mk
 
 .DEFAULT_GOAL := ocaml
 $(call need_exe, FSTAR_EXE, fstar.exe to be used)
