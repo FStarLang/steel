@@ -6,21 +6,12 @@ ifeq (3.81,$(MAKE_VERSION))
     install make, then invoke gmake instead of make)
 endif
 
-all: lib verify
-
-# Find fstar.exe
-ifdef FSTAR_HOME
-FSTAR_EXE ?= $(FSTAR_HOME)/bin/fstar.exe
-endif
-FSTAR_EXE ?= $(shell which fstar.exe)
-
-ifeq (,$(FSTAR_EXE))
-  $(error "Did not find fstar.exe in PATH and FSTAR_EXE/FSTAR_HOME unset, aborting.")
-endif
-export FSTAR_EXE
-
 # Define the Steel root directory. We need to fix it to use the Windows path convention on Windows+Cygwin.
 export STEEL_HOME := $(CURDIR)
+
+include $(STEEL_HOME)/mk/locate_fstar.mk
+
+all: lib verify
 
 .PHONY: .force
 .force:

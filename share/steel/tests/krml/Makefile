@@ -4,17 +4,7 @@ STEEL_HOME ?= ../../../..
 
 RECENT_GCC	= $(shell [ "$$(gcc -dumpversion | cut -c -1)" -ge 5 ] && echo yes)
 
-ifdef FSTAR_HOME
-  # Assume there is a F* source tree
-  FSTAR_EXE=$(FSTAR_HOME)/bin/fstar.exe
-else
-  FSTAR_EXE=$(shell which fstar.exe)
-  ifeq ($(FSTAR_EXE),)
-    $(error "fstar.exe not found, please install F*")
-  endif
-  # Assume F* in the PATH, in some ..../bin directory
-  FSTAR_HOME=$(dir FSTAR_EXE)/..
-endif
+include $(STEEL_HOME)/mk/locate_fstar.mk
 
 TEST_OPTS	= -warn-error @4 -verbose -skip-makefiles
 KRML_BIN	= $(KRML_HOME)/krml
