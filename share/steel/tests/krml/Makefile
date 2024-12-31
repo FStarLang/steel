@@ -4,8 +4,6 @@ STEEL_HOME ?= ../../../..
 
 RECENT_GCC	= $(shell [ "$$(gcc -dumpversion | cut -c -1)" -ge 5 ] && echo yes)
 
-include $(STEEL_HOME)/mk/locate_fstar.mk
-
 TEST_OPTS	= -warn-error @4 -verbose -skip-makefiles
 KRML_BIN	= $(KRML_HOME)/krml
 KRML		= $(KRML_BIN) $(KOPTS) $(TEST_OPTS)
@@ -46,6 +44,7 @@ FSTAR_OPTIONS = --cache_checked_modules \
   --cmi --warn_error -274 \
   $(OTHERFLAGS)
 
+FSTAR_EXE ?= fstar.exe
 FSTAR		= $(FSTAR_EXE) $(FSTAR_OPTIONS)
 
 all: world

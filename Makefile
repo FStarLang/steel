@@ -9,31 +9,25 @@ endif
 # Define the Steel root directory. We need to fix it to use the Windows path convention on Windows+Cygwin.
 export STEEL_HOME := $(CURDIR)
 
-include $(STEEL_HOME)/mk/locate_fstar.mk
+include $(STEEL_HOME)/mk/common.mk
+.DEFAULT_GOAL := all
+
+FSTAR_EXE ?= fstar.exe
 
 all: lib verify
 
 .PHONY: .force
 .force:
 
-plugin: plugin.src
+plugin: plugin.src extraction.src
 	cd src/ocaml && $(FSTAR_EXE) --ocamlenv dune build
 	cd src/ocaml && dune install --prefix=$(STEEL_HOME)
 
 plugin.src: .force
-	@# NOTE: I would have preferred to separate the cache dir
-	@# into something like build/plugin.checked, but this
-	@# means every client now has to point there too, and we have
-	@# to install that directory. So I'm just placing them in lib/steel
-	@# as the Makefile there does. This should be fine really.
-	$(MAKE) -f mk/plugin.mk \
-	  CACHE_DIR=lib/steel \
-	  OUTPUT_DIR=build/plugin.ml \
-	  CODEGEN=Plugin \
-	  SRC=lib/steel \
-	  TAG=plugin \
-	  EXTRACT="--extract '+Steel.Effect.Common +Steel.ST.GenElim.Base +Steel.ST.GenElim1.Base'" \
-	  ROOTS="Steel.Effect.Common.fst Steel.ST.GenElim.Base.fst Steel.ST.GenElim1.Base.fst"
+	$(MAKE) -f mk/plugin.mk
+
+extraction.src: .force
+	$(MAKE) -f mk/extraction.mk
 
 .PHONY: lib
 lib:

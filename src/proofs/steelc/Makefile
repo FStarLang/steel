@@ -2,18 +2,13 @@ all: steelc
 
 # assuming src/proofs/steelc
 STEEL_HOME=../../..
-
-ifneq (,$(FSTAR_HOME))
-  FSTAR=$(FSTAR_HOME)/bin/fstar.exe
-else
-  FSTAR=fstar.exe
-endif
+FSTAR_EXE ?= fstar.exe
 
 FSTAR_FILES:=$(wildcard *.fst *.fsti)
 
 FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel.C,-Steel.ST.C,+Steel.ST.C.Types.Array.Base' --include $(STEEL_HOME)/lib/steel --include $(STEEL_HOME)/lib/steel/c --load_cmxs steel
 
-MY_FSTAR=$(RUNLIM) $(FSTAR) $(SIL) $(FSTAR_OPTIONS)
+MY_FSTAR=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)
 
 %.checked:
 	$(call msg, "CHECK", $(basename $(notdir $@)))

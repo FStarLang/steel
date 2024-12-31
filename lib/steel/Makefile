@@ -1,13 +1,13 @@
 STEEL_ROOT ?= ../..
 include $(STEEL_ROOT)/mk/common.mk
-include $(STEEL_ROOT)/mk/locate_fstar.mk
-$(call need_exe,FSTAR_EXE)
 
 all: steel steelc
 
 FSTAR_FILES:=$(wildcard *.fst *.fsti)
 
 FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel' --load_cmxs steel
+
+FSTAR_EXE ?= fstar.exe
 
 COMPAT_INDEXED_EFFECTS=--compat_pre_typed_indexed_effects
 MY_FSTAR=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)

@@ -1,7 +1,7 @@
 .PHONY: verify clean
 
-FSTAR_HOME ?= $(realpath $(dir $(shell which fstar.exe))/..)
-KREMLIN_HOME ?= $(FSTAR_HOME)/../kremlin
+FSTAR_EXE ?= fstar.exe
+KRML_EXE ?= krml
 
 # List the files that should be verified by verify-core and verify-all
 # Those files are the roots from where all dependencies are computed
@@ -30,7 +30,7 @@ FSTAR_OPTIONS=--odir $(OUTPUT_DIRECTORY) \
 		 --cache_checked_modules \
 		 --cmi
 
-FSTAR=$(FSTAR_HOME)/bin/fstar.exe $(FSTAR_OPTIONS) $(ALREADY_CACHED)
+FSTAR=$(FSTAR_EXE) $(FSTAR_OPTIONS) $(ALREADY_CACHED)
 
 .depend:
 	mkdir -p $(CACHE_DIRECTORY)
@@ -65,7 +65,7 @@ KRML_BUNDLING_OPTIONS=-bundle 'LList32=LList.ST.*,Steel.*' \
   -no-prefix LList.ST
 
 compile:
-	$(KREMLIN_HOME)/krml -warn-error +9 -skip-compilation \
+	$(KRML_EXE) -warn-error +9 -skip-compilation \
 		$(KRML_BUNDLING_OPTIONS) \
 		$(OUTPUT_DIRECTORY)/*.krml \
 		-tmpdir=$(OUTPUT_DIRECTORY)
