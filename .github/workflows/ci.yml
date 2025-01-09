@@ -109,3 +109,10 @@ jobs:
             '${{ github.event.head_commit.message || github.event.pull_request.title || github.head_commit.message }}' by ${{ github.event.head_commit.author.username || github.event.pull_request.user.login || github.head_commit.author.username }} (commit [${{github.sha}}](${{ github.event.head_commit.url || github.even.pull_request.html_url}}))
             Status: ${{ steps.cistep.outcome == 'success' && '✅' || steps.cistep.outcome == 'cancelled' && '⚠' || '❌' }} ([link](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}))
             Elapsed time: ${{ steps.duration.outputs.duration }}
+
+  # Main is protected to require this job.
+  ciok:
+    runs-on: ubuntu-latest
+    needs: ci
+    steps:
+      - run: exit 0
