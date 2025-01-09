@@ -6,7 +6,7 @@ INCLUDE_STEEL=../../include/steel
 world: $(INCLUDE_STEEL)/Steel_SpinLock.h
 
 STEEL_HOME ?= ../..
-include $(STEEL_HOME)/mk/locate_fstar.mk
+FSTAR_EXE ?= fstar.exe
 
 FSTAR = $(RUNLIM) $(FSTAR_EXE) --cache_checked_modules \
   --include $(LIB_STEEL) \

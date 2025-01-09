@@ -2,9 +2,9 @@ ifeq (,$(STEEL_HOME))
 	$(error STEEL_HOME should be defined in the enclosing Makefile as the prefix directory where Steel was installed, or the root directory of its source repository)
 endif
 include $(STEEL_HOME)/mk/common.mk
-include $(STEEL_HOME)/mk/locate_fstar.mk
 .DEFAULT_GOAL := verify
-$(call need_exe,FSTAR_EXE)
+
+FSTAR_EXE ?= fstar.exe
 
 # Add Steel to the OCaml (ocamlfind) search path
 ifeq ($(OS),Windows_NT)

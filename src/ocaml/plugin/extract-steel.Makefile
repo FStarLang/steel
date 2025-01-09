@@ -5,15 +5,11 @@ OUTPUT_DIRECTORY=generated
 
 CODEGEN = Plugin
 
-ifneq (,$(FSTAR_HOME))
-	FSTAR=$(FSTAR_HOME)/bin/fstar.exe
-else
-	FSTAR=fstar.exe
-endif
+FSTAR_EXE ?= fstar.exe
 
 FSTAR_FILES:=$(wildcard $(LIB_STEEL)/*.fst $(LIB_STEEL)/*.fsti)
 
-MY_FSTAR=$(RUNLIM) $(FSTAR) $(SIL) $(OTHERFLAGS) --include $(LIB_STEEL) --cache_checked_modules --odir $(OUTPUT_DIRECTORY) --warn_error @241 --already_cached '*,'
+MY_FSTAR=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(OTHERFLAGS) --include $(LIB_STEEL) --cache_checked_modules --odir $(OUTPUT_DIRECTORY) --warn_error @241 --already_cached '*,'
 EXTRACT_MODULES=--extract '+Steel.Effect.Common +Steel.ST.GenElim.Base +Steel.ST.GenElim1.Base'
 
 COMPAT_INDEXED_EFFECTS=--compat_pre_typed_indexed_effects

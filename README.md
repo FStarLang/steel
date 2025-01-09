@@ -72,10 +72,8 @@ those are not installed as of now.
 
 1. Make sure `fstar.exe` is in your `PATH`. If F* was installed with
    opam, you may need to run `eval $(opam env)`. If F* is not in your
-   `PATH`, set the `FSTAR_HOME` environment variable to the directory
-   where F* was installed (or to the F* source tree), so that the F*
-   executable should be in `$FSTAR_HOME/bin/fstar.exe`; or set the
-   environment variable `FSTAR_EXE` to the path of the executable.
+   `PATH`, set the `FSTAR_EXE` environment variable the full path
+   for the F* executable.
 2. Run `make -j`
 
 ### Building the source and installing to a custom location
@@ -107,11 +105,9 @@ GNU Make rules to call F* with the Steel include path and the Steel
 plugin loaded.
 
 1. Make sure `fstar.exe` is in your `PATH`. If F* was installed with
-   opam, you may need to run `eval $(opam env)`. Alternatively,
-   instead of having F* in your `PATH`, you can also set the
-   `FSTAR_HOME` environment variable to the directory where F* was
-   installed (or to the F* source tree), so that the F* executable
-   should be in `$FSTAR_HOME/bin/fstar.exe`.
+   opam, you may need to run `eval $(opam env)`. If F* is not in your
+   `PATH`, set the `FSTAR_EXE` environment variable the full path
+   for the F* executable.
 
 2. Define the `STEEL_HOME` environment variable. This should be one of the following:
    * If used directly from source: The root directory of your clone of the Steel repository

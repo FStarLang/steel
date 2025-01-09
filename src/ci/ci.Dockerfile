@@ -17,6 +17,7 @@ ADD --chown=opam:opam ./ steel/
 # Install F* and Karamel from the Karamel CI install script
 # FIXME: the `opam depext` command should be unnecessary with opam 2.1
 ENV FSTAR_HOME=$HOME/FStar
+ENV FSTAR_EXE=$HOME/FStar/bin/fstar.exe
 ENV KRML_HOME=$HOME/karamel
 RUN sudo apt-get update && sudo apt-get install --yes --no-install-recommends \
     wget \
@@ -32,6 +33,7 @@ RUN sudo apt-get update && sudo apt-get install --yes --no-install-recommends \
     git clone --branch $(jq -c -r '.RepoVersions.karamel' steel/src/ci/config.json || echo master) https://github.com/FStarLang/karamel $KRML_HOME && \
     eval $(opam env) && $KRML_HOME/.docker/build/install-other-deps.sh && \
     env OTHERFLAGS='--admit_smt_queries true' make -C $KRML_HOME -j $opamthreads
+ENV FSTAR_HOME=
 
 ENV PATH=$HOME/bin:$PATH
 
