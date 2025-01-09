@@ -5,6 +5,8 @@ on:
     - _**
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *' # 2AM UTC
 
 defaults:
   run:
