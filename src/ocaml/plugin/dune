@@ -4,7 +4,7 @@
  (public_name steel)
  (libraries
     batteries
-    fstar.lib
+    fstar.pluginlib
  )
  (modes native)
  (wrapped false)

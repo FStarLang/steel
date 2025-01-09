@@ -28,7 +28,9 @@ jobs:
           echo "CI_SLACK_CHANNEL=$(jq -c -r '.NotificationChannel' src/ci/config.json)" >> $GITHUB_ENV
       - name: Determine the build flavor
         run: |
-          if docker image inspect fstar:local-branch-$FSTAR_BRANCH ; then echo CI_FLAVOR=hierarchic >> $GITHUB_ENV ; else echo CI_FLAVOR=ci >> $GITHUB_ENV ; fi
+          # if docker image inspect fstar:local-branch-$FSTAR_BRANCH ; then echo CI_FLAVOR=hierarchic >> $GITHUB_ENV ; else echo CI_FLAVOR=ci >> $GITHUB_ENV ; fi
+          # F* CI no longer generating images, avoid hierarchical build
+          echo 'CI_FLAVOR=ci' >> $GITHUB_ENV
       - name: Build Steel and its dependencies
         run: |
           ci_docker_image_tag=steel:local-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT

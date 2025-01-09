@@ -25,7 +25,7 @@ RUN sudo apt-get update && sudo apt-get install --yes --no-install-recommends \
     && \
     git clone --branch $(jq -c -r '.RepoVersions.fstar' steel/src/ci/config.json || echo master) https://github.com/FStarLang/FStar $FSTAR_HOME && \
     eval $(opam env) && \
-    $FSTAR_HOME/bin/get_fstar_z3.sh $HOME/bin && \
+    $FSTAR_HOME/.scripts/get_fstar_z3.sh $HOME/bin && \
     opam depext conf-gmp conf-m4 && \
     opam install --deps-only $FSTAR_HOME/fstar.opam && \
     env OTHERFLAGS='--admit_smt_queries true' make -C $FSTAR_HOME -j $opamthreads && \
