@@ -37,12 +37,22 @@ lib:
 verify-steel: plugin
 	+$(MAKE) -C lib/steel steel
 
+.PHONY: verify-proofs
+# steelc has interfaces for modules in src/proofs, so we depend
+# on them. This is not great at all since it introduces a choke point.
+# It would be better to filter-out ALL_CHECKED_FILES instead.
+verify-proofs: verify-steelc
+	+$(MAKE) -C src/proofs
+
 .PHONY: verify-steelc
 verify-steelc: verify-steel
 	+$(MAKE) -C lib/steel/c steelc
 
 .PHONY: verify
 verify: verify-steel verify-steelc
+ifneq (,$(STEEL_NIGHTLY_CI))
+verify: verify-proofs
+endif
 
 clean: clean_ocaml
 	+$(MAKE) -C lib/steel clean ; true
