@@ -13,7 +13,7 @@ val prod_perm (p1 p2: P.perm) : Pure P.perm
   ))
 
 [@@noextract_to "krml"] // proof-only
-val typedef (t: Type0) : Type0
+val typedef (t: Type0) : Type u#1
 
 inline_for_extraction [@@noextract_to "krml"]
 let typeof (#t: Type0) (td: typedef t) : Tot Type0 = t

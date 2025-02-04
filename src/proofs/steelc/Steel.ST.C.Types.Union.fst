@@ -79,7 +79,7 @@ let union_set_field_same
 let union_fractionable
   (#tn: Type0) (#tf: Type0) (#n: string) (#fields: field_description_t tf)
   (s: union_t0 tn n fields)
-: GTot bool
+: prop
 = match U.case_of_union (union_field_pcm fields) s with
   | Some f -> (union_field_typedef fields f).fractionable (s f)
   | _ -> true

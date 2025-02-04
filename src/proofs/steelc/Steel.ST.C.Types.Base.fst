@@ -3,18 +3,19 @@ module Steel.ST.C.Types.Base
 open Steel.C.Model.PCM
 open Steel.ST.GenElim1
 
-#set-options "--smtencoding.elim_box true --smtencoding.l_arith_repr native --smtencoding.nl_arith_repr native"
-
+#push-options "--retry 5"
 let prod_perm
   p1 p2
-= let w = let open FStar.Real in P.MkPerm?.v p1 *. P.MkPerm?.v p2 in
-  assert (let open FStar.Real in (p2 `P.lesser_equal_perm` P.full_perm ==> w <=. P.MkPerm?.v p1 *. 1.0R));
+= let open FStar.Real in
+  let w = P.MkPerm?.v p1 *. P.MkPerm?.v p2 in
+  assert (p2 `P.lesser_equal_perm` P.full_perm ==> w <=. P.MkPerm?.v p1 *. 1.0R);
   P.MkPerm w
+#pop-options
 
 noeq
-type typedef (t: Type0) : Type0 = {
+type typedef (t: Type0) : Type u#1 = {
   pcm: pcm t;
-  fractionable: (t -> GTot bool);
+  fractionable: (t -> prop);
   mk_fraction: (
     (x: t) ->
     (p: P.perm) ->
@@ -111,7 +112,7 @@ type typedef (t: Type0) : Type0 = {
   );
 }
 
-let fractionable td x = td.fractionable x == true
+let fractionable td x = td.fractionable x
 let mk_fraction td x p = td.mk_fraction x p
 let mk_fraction_full td x = td.mk_fraction_full x
 let mk_fraction_compose td x p1 p2 = td.mk_fraction_compose x p1 p2
