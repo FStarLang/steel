@@ -55,8 +55,8 @@ let struct_eq_intro
 let struct_fractionable
   (#field_t: eqtype) (#fields: field_description_gen_t field_t)
   (s: struct_t1 fields)
-: GTot bool
-= FStar.StrongExcludedMiddle.strong_excluded_middle (forall (f: field_t) . (fields.fd_typedef f).fractionable (s f))
+: prop
+= forall (f: field_t) . (fields.fd_typedef f).fractionable (s f)
 
 [@@noextract_to "krml"] // proof-only
 let struct_mk_fraction

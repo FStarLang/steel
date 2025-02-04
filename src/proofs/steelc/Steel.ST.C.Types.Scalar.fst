@@ -14,10 +14,10 @@ let scalar_t t = F.fractional (option t)
 let scalar_fractionable
   (#t: Type)
   (s: scalar_t t)
-: GTot bool
+: prop
 = match s with
   | Some (_, p) -> p `P.lesser_equal_perm` P.full_perm
-  | _ -> true
+  | _ -> True
 
 [@@noextract_to "krml"] // proof-only
 let scalar_mk_fraction

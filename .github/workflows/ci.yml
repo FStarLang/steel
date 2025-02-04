@@ -23,6 +23,10 @@ jobs:
       - run: echo "HOME=/home/user" | sudo tee -a $GITHUB_ENV
       - uses: mtzguido/set-opam-env@master
 
+      - name: 'Nightly: check the (slow) proofs'
+        if: ${{ github.event_name == 'schedule' }}
+        run: echo 'STEEL_NIGHTLY_CI=1' >>$GITHUB_ENV
+
       - uses: actions/checkout@master
         id: checkout-fstar
         with:

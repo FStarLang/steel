@@ -2,10 +2,11 @@
   "fstar_exe": "fstar.exe",
   "options": [
     "--load_cmxs",
-    "steel"
+    "steel",
+    "--cache_dir", "_cache"
   ],
   "include_dirs": [
-    "lib/steel",
-    "share/steel/examples/steel"
+    "../../../lib/steel",
+    "../../../lib/steel/c"
   ]
 }

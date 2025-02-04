@@ -1,0 +1,79 @@
+[
+  "6°º€\u0017ÈiPÉF¢\u0013O\u007f%©",
+  [
+    [
+      "Steel.ST.C.Model.Rewrite.rewrite_forall_from_intro",
+      1,
+      2,
+      1,
+      [ "@query", "equation_Steel.ST.C.Model.Rewrite.rewrite_forall_from" ],
+      0,
+      "4c5c2782aed2d19bbf6875a1700a6c49"
+    ],
+    [
+      "Steel.ST.C.Model.Rewrite.rewrite_forall_to_intro",
+      1,
+      2,
+      1,
+      [ "@query", "equation_Steel.ST.C.Model.Rewrite.rewrite_forall_to" ],
+      0,
+      "a6b40fd6a407049c5d76a4b84cbee36e"
+    ],
+    [
+      "Steel.ST.C.Model.Rewrite.rewrite_pcm_op",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query", "equation_Prims.squash",
+        "lemma_Steel.ST.C.Model.Rewrite.rewrite_pcm_composable",
+        "refinement_interpretation_Tm_refine_2de20c066034c13bf76e9c0b94f4806c"
+      ],
+      0,
+      "c32c5c8aeb9793d75b5a05d678842e8e"
+    ],
+    [
+      "Steel.ST.C.Model.Rewrite.rewrite_iso",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "FStar.Classical_interpretation_Tm_arrow_6980332764c4493a7b0df5c02f7aefbe",
+        "FStar.FunctionalExtensionality_interpretation_Tm_arrow_a7d5cc170be69663c495e8582d2bc62a",
+        "data_elim_Steel.C.Model.Connection.Mkmorphism",
+        "data_elim_Steel.ST.C.Model.Rewrite.Mkrewrite_elts",
+        "equation_FStar.FunctionalExtensionality.feq",
+        "equation_FStar.FunctionalExtensionality.restricted_t",
+        "equation_Steel.C.Model.Connection.is_inverse_of",
+        "equation_Steel.C.Model.Connection.mkmorphism",
+        "equation_Steel.C.Model.PCM.pcm",
+        "equation_Steel.ST.C.Model.Rewrite.rewrite_forall_from",
+        "equation_Steel.ST.C.Model.Rewrite.rewrite_forall_to",
+        "fuel_guarded_inversion_Steel.ST.C.Model.Rewrite.rewrite_elts",
+        "function_token_typing_Steel.C.Model.Connection.__proj__Mkmorphism__item__morph",
+        "interpretation_Tm_abs_134069e179ddf4705519081c391c4e10",
+        "lemma_FStar.FunctionalExtensionality.feq_on_domain",
+        "lemma_Steel.ST.C.Model.Rewrite.rewrite_pcm_composable",
+        "lemma_Steel.ST.C.Model.Rewrite.rewrite_pcm_one",
+        "lemma_Steel.ST.C.Model.Rewrite.rewrite_pcm_op",
+        "lemma_Steel.ST.C.Model.Rewrite.rewrite_pcm_refine",
+        "proj_equation_Steel.C.Model.Connection.Mkmorphism_morph",
+        "proj_equation_Steel.ST.C.Model.Rewrite.Mkrewrite_elts_rewrite_from_to",
+        "proj_equation_Steel.ST.C.Model.Rewrite.Mkrewrite_elts_rewrite_to_from",
+        "projection_inverse_Steel.C.Model.Connection.Mkmorphism_morph",
+        "refinement_interpretation_Tm_refine_346bd691c37d97d8306372618eb53845",
+        "refinement_interpretation_Tm_refine_4a30f4d7b900bc33b9b6487c52d170bd",
+        "refinement_interpretation_Tm_refine_7e4a6c5999db731b5d17d0418dfeea3e",
+        "refinement_interpretation_Tm_refine_abf6bee69d7e9c40ac7b7246c1370028",
+        "refinement_interpretation_Tm_refine_dfd4655e39b736771bea4656096932b2",
+        "token_correspondence_Steel.ST.C.Model.Rewrite.__proj__Mkrewrite_elts__item__rewrite_from_to",
+        "token_correspondence_Steel.ST.C.Model.Rewrite.__proj__Mkrewrite_elts__item__rewrite_to_from",
+        "typing_Steel.C.Model.PCM.one", "typing_Steel.C.Model.PCM.op",
+        "typing_Tm_abs_134069e179ddf4705519081c391c4e10"
+      ],
+      0,
+      "4b6ee4cc4895a2bb9e1b0d29c59dcaeb"
+    ]
+  ]
+]
