@@ -109,8 +109,8 @@ unfold
 let normal_steps =
    [delta_attr [`%__steel_reduce__; `%__inner_steel_reduce__];
     delta_only [`%Mkvprop'?.t; `%Mkvprop'?.hp; `%Mkvprop'?.sel;
-      `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__mult;
-      `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit];
+      `%FStar.Algebra.CommMonoid.Equiv.CM?.mult;
+      `%FStar.Algebra.CommMonoid.Equiv.CM?.unit];
     delta_qualifier ["unfold"];
     iota;zeta;primops; simplify]
 
@@ -419,8 +419,8 @@ let frame_vc_norm () : Tac unit = with_compat_pre_core 0 (fun _ ->
   // the reflexivity lemma on frame_equalities'
   norm [delta_attr [`%__steel_reduce__];
     delta_only [`%Mkvprop'?.t; `%Mkvprop'?.hp; `%Mkvprop'?.sel;
-      `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__mult;
-      `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit];
+      `%FStar.Algebra.CommMonoid.Equiv.CM?.mult;
+      `%FStar.Algebra.CommMonoid.Equiv.CM?.unit];
     delta_qualifier ["unfold"];
     iota;zeta;primops; simplify];
 
@@ -1686,10 +1686,10 @@ let normal_tac_steps = [primops; iota; zeta; delta_only [
           `%flatten; `%sort;
           `%my_sortWith; `%my_partition;
           `%my_bool_of_compare; `%my_compare_of_bool;
-          `%fst; `%__proj__Mktuple2__item___1;
-          `%snd; `%__proj__Mktuple2__item___2;
-          `%CE.__proj__CM__item__unit;
-          `%CE.__proj__CM__item__mult;
+          `%fst; `%Mktuple2?._1;
+          `%snd; `%Mktuple2?._2;
+          `%CE.CM?.unit;
+          `%CE.CM?.mult;
           `%rm]]
 
 /// The normalization function, using the above normalization steps
@@ -2007,12 +2007,12 @@ let canon_l_r (use_smt:bool)
          `%flatten; `%sort;
          `%my_sortWith; `%my_partition;
          `%my_bool_of_compare; `%my_compare_of_bool;
-         `%fst; `%__proj__Mktuple2__item___1;
-         `%snd; `%__proj__Mktuple2__item___2;
-         `%CE.__proj__CM__item__unit;
-         `%CE.__proj__CM__item__mult;
+         `%fst; `%Mktuple2?._1;
+         `%snd; `%Mktuple2?._2;
+         `%CE.CM?.unit;
+         `%CE.CM?.mult;
          `%rm;
-         `%CE.__proj__EQ__item__eq;
+         `%CE.EQ?.eq;
          `%req;
          `%star;]
       ];
@@ -2365,10 +2365,10 @@ let rec solve_can_be_split (args:list argv) : Tac bool =
                       if rnbr = 0 then apply_lemma (`equiv_sym);
 
                        norm [delta_only [
-                              `%__proj__CM__item__unit;
-                              `%__proj__CM__item__mult;
+                              `%CM?.unit;
+                              `%CM?.mult;
                               `%rm;
-                              `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+                              `%Mktuple2?._1; `%Mktuple2?._2;
                               `%fst; `%snd];
                             delta_attr [`%__reduce__];
                             primops; iota; zeta];
@@ -2408,10 +2408,10 @@ let solve_can_be_split_dep (args:list argv) : Tac bool =
               if lnbr <> 0 && rnbr = 0 then apply_lemma (`equiv_sym);
               or_else (fun _ ->  flip()) (fun _ -> ());
               norm [delta_only [
-                     `%__proj__CM__item__unit;
-                     `%__proj__CM__item__mult;
+                     `%CM?.unit;
+                     `%CM?.mult;
                      `%rm;
-                     `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+                     `%Mktuple2?._1; `%Mktuple2?._2;
                      `%fst; `%snd];
                    delta_attr [`%__reduce__];
                    primops; iota; zeta];
@@ -2448,10 +2448,10 @@ let solve_can_be_split_forall (args:list argv) : Tac bool =
             if lnbr <> 0 && rnbr = 0 then apply_lemma (`equiv_sym);
             or_else (fun _ ->  flip()) (fun _ -> ());
             norm [delta_only [
-                   `%__proj__CM__item__unit;
-                   `%__proj__CM__item__mult;
+                   `%CM?.unit;
+                   `%CM?.mult;
                    `%rm;
-                   `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+                   `%Mktuple2?._1; `%Mktuple2?._2;
                    `%fst; `%snd];
                 delta_attr [`%__reduce__];
                  primops; iota; zeta];
@@ -2480,8 +2480,8 @@ let open_existentials_forall_dep () : Tac unit
   then fail "Tactic disabled: no available lemmas in context";
   norm [
     delta_only [
-    `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit;
-    `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__mult;
+    `%FStar.Algebra.CommMonoid.Equiv.CM?.unit;
+    `%FStar.Algebra.CommMonoid.Equiv.CM?.mult;
     `%rm;
     ];
     iota;
@@ -2555,10 +2555,10 @@ let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
               if lnbr <> 0 && rnbr = 0 then apply_lemma (`equiv_sym);
               or_else (fun _ ->  flip()) (fun _ -> ());
               norm [delta_only [
-                     `%__proj__CM__item__unit;
-                     `%__proj__CM__item__mult;
+                     `%CM?.unit;
+                     `%CM?.mult;
                      `%rm;
-                     `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+                     `%Mktuple2?._1; `%Mktuple2?._2;
                      `%fst; `%snd];
                    delta_attr [`%__reduce__];
                    primops; iota; zeta];
@@ -2602,10 +2602,10 @@ let solve_equiv_forall (args:list argv) : Tac bool =
                             if lnbr <> 0 && rnbr = 0 then apply_lemma (`equiv_sym);
                             or_else (fun _ ->  flip()) (fun _ -> ());
                             norm [delta_only [
-                                    `%__proj__CM__item__unit;
-                                    `%__proj__CM__item__mult;
+                                    `%CM?.unit;
+                                    `%CM?.mult;
                                     `%rm;
-                                    `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+                                    `%Mktuple2?._1; `%Mktuple2?._2;
                                     `%fst; `%snd];
                                   delta_attr [`%__reduce__];
                                   primops; iota; zeta];
@@ -2634,10 +2634,10 @@ let solve_equiv (args:list argv) : Tac bool =
               if lnbr <> 0 && rnbr = 0 then apply_lemma (`equiv_sym);
               or_else (fun _ -> flip ()) (fun _ -> ());
               norm [delta_only [
-                      `%__proj__CM__item__unit;
-                      `%__proj__CM__item__mult;
+                      `%CM?.unit;
+                      `%CM?.mult;
                       `%rm;
-                      `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+                      `%Mktuple2?._1; `%Mktuple2?._2;
                       `%fst; `%snd];
                     delta_attr [`%__reduce__];
                     primops; iota; zeta];
@@ -2675,10 +2675,10 @@ let solve_can_be_split_post (args:list argv) : Tac bool =
                             if lnbr <> 0 && rnbr = 0 then apply_lemma (`equiv_sym);
                             or_else (fun _ ->  flip()) (fun _ -> ());
                             norm [delta_only [
-                                    `%__proj__CM__item__unit;
-                                    `%__proj__CM__item__mult;
+                                    `%CM?.unit;
+                                    `%CM?.mult;
                                     `%rm;
-                                    `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+                                    `%Mktuple2?._1; `%Mktuple2?._2;
                                     `%fst; `%snd];
                                   delta_attr [`%__reduce__];
                                   primops; iota; zeta];
@@ -3129,10 +3129,10 @@ let selector_tactic () : Tac unit =
   apply_lemma (`intro_can_be_split_frame);
   flip ();
   norm [delta_only [
-         `%CE.__proj__CM__item__unit;
-         `%CE.__proj__CM__item__mult;
+         `%CE.CM?.unit;
+         `%CE.CM?.mult;
          `%rm;
-         `%__proj__Mktuple2__item___1; `%__proj__Mktuple2__item___2;
+         `%Mktuple2?._1; `%Mktuple2?._2;
          `%fst; `%snd];
        delta_attr [`%__reduce__];
        primops; iota; zeta];
