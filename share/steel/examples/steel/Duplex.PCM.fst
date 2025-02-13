@@ -1,7 +1,6 @@
 module Duplex.PCM
 
 open FStar.PCM
-
 open Steel.Channel.Protocol
 module P = FStar.Preorder
 module R = FStar.ReflexiveTransitiveClosure
@@ -643,8 +642,9 @@ let upd_gen_action #p r x y f =
   rewrite_slprop (pts_to r (reveal (hide y))) (pts_to r y) (fun _ -> ())
 
 
-#push-options "--z3rlimit_factor 4 --ifuel 2 --fuel 1"
+#push-options "--z3rlimit_factor 8 --ifuel 2 --fuel 1 --split_queries no"
 #restart-solver
+
 let write_a_f_aux
   (#p:dprot)
   (#next:dprot{more next /\ tag_of next = Send})
@@ -716,7 +716,7 @@ let write_a_f_aux
     res
 #pop-options
 
-#push-options "--z3rlimit_factor 4 --ifuel 2 --fuel 1"
+#push-options "--z3rlimit_factor 8 --ifuel 2 --fuel 1 --split_queries no"
 #restart-solver
 let write_b_f_aux
 (#p:dprot)
