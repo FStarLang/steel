@@ -23,7 +23,7 @@ COMPAT_INDEXED_EFFECTS=--compat_pre_typed_indexed_effects
 # extract an .ml file
 $(OUTPUT_DIRECTORY)/%.ml:
 	$(call msg, "EXTRACT", $(basename $(notdir $@)))
-	$(Q)$(MY_FSTAR) $(subst .checked,,$(notdir $<)) --codegen $(CODEGEN) --extract_module $(basename $(notdir $(subst .checked,,$<)))
+	$(Q)$(MY_FSTAR) $< --codegen $(CODEGEN)
 	chmod -x $@
 
 .depend-steel: $(FSTAR_FILES)
