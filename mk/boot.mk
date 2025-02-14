@@ -46,15 +46,13 @@ FSTAR = $(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)
 	$(FSTAR) --already_cached ',*' $<
 	@touch -c $@  ## SHOULD NOT BE NEEDED
 
-%.ml: FF=$(notdir $(subst $(EXTENSION),,$<))
-%.ml: MM=$(basename $(FF))
 %.ml: LBL=$(notdir $@)
 # ^ HACK we use notdir to get the module name since we need to pass in
 # the fst (not the checked file), but we don't know where it is, so this
 # is relying on F* looking in its include path.
 %.ml:
 	$(call msg, "EXTRACT", $(LBL))
-	$(FSTAR) $(FF) --already_cached ',*' --codegen $(CODEGEN) --extract_module $(MM)
+	$(FSTAR) $< --already_cached ',*' --codegen $(CODEGEN)
 	@touch -c $@  ## SHOULD NOT BE NEEDED
 
 $(CACHE_DIR)/.depend$(TAG):

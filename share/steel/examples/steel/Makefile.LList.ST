@@ -47,7 +47,7 @@ $(CACHE_DIRECTORY)/%.checked:
 	touch -c $@
 
 $(OUTPUT_DIRECTORY)/%.krml:
-	$(FSTAR) $(notdir $(subst .checked,,$<)) --codegen Kremlin \
+	$(FSTAR) $(notdir $(subst .checked,,$<)) --codegen krml \
 	  --extract_module $(basename $(notdir $(subst .checked,,$<)))
 	touch -c $@
 

@@ -544,7 +544,7 @@ let skip = intro_normal_f #format_string interpret_format_string skip'
 
 
 /// `test`: A small test function
-/// Running `fstar --codegen OCaml Steel.ST.Printf.fst --extract Steel.ST.Printf`
+/// Running `fstar --codegen OCaml Steel.ST.Printf.fst`
 /// produces the following for the body of this function
 ///    ```
 ///            print_string "Hello ";
