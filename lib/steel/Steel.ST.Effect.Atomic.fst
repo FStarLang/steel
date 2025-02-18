@@ -18,7 +18,6 @@ module Steel.ST.Effect.Atomic
 friend Steel.ST.Effect.AtomicAndGhost
 friend Steel.Effect.Atomic
 open Steel.Memory
-module T = FStar.Tactics
 module SEA = Steel.Effect.Atomic
 
 let as_atomic_action (#a:Type u#a)

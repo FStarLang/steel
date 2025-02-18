@@ -17,11 +17,9 @@
 module Steel.Effect.M
 //Note: This file is standalone and not used anywhere else in the Steel codebase
 module Sem = Steel.Semantics.Hoare.MST
-module Mem = Steel.Memory
 
 open Steel.Semantics.Instantiate
 
-module Ins = Steel.Semantics.Instantiate
 
 open Steel.Memory
 

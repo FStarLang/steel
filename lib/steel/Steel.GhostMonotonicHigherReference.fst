@@ -26,7 +26,6 @@ open Steel.FractionalPermission
 open Steel.Preorder
 
 module Preorder = FStar.Preorder
-module Q = Steel.Preorder
 module M = Steel.Memory
 module PR = Steel.GhostPCMReference
 module A = Steel.Effect.Atomic

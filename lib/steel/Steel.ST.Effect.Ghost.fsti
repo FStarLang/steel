@@ -20,7 +20,6 @@ module Steel.ST.Effect.Ghost
     SteelGhost *)
 #push-options "--warn_error -330" //we intentionally use polymonads
 open Steel.Memory
-module T = FStar.Tactics
 include Steel.Effect.Common
 module STAG = Steel.ST.Effect.AtomicAndGhost
 module STA = Steel.ST.Effect.Atomic

@@ -71,7 +71,6 @@ val frame00 (#a:Type)
     (fun h0 r h1 -> req (focus_rmem h0 pre) /\ ens (focus_rmem h0 pre) r (focus_rmem h1 (post r)) /\
       frame_opaque frame (focus_rmem h0 frame) (focus_rmem h1 frame))
 
-module Sem = Steel.Semantics.Hoare.MST
 module Mem = Steel.Memory
 
 let equiv_middle_left_assoc (a b c d:slprop)

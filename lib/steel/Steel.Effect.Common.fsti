@@ -41,7 +41,6 @@ irreducible let ite_attr : unit = ()
 unfold
 let true_p : prop = True
 
-module T = FStar.Tactics.V2
 
 let join_preserves_interp (hp:slprop) (m0:hmem hp) (m1:mem{disjoint m0 m1})
 : Lemma

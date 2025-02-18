@@ -1,6 +1,4 @@
 module Steel.C.Model.Ref
-module P = FStar.PCM
-module U = Steel.C.Model.Universe
 open FStar.FunctionalExtensionality
 
 friend Steel.C.Model.Ref.Base
@@ -236,7 +234,6 @@ let compatible_elim'
   })
 = compatible_elim pcm x y
 
-module STC = Steel.ST.Coercions
 
 let ref_read_sel
   (#a: Type u#0) (#b: Type u#b) (#p: pcm b)

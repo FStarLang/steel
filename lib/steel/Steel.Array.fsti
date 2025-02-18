@@ -28,7 +28,6 @@ include Steel.ST.Array
 /// we want to transparently reuse the corresponding operations in
 /// Steel, so we need to bring in the lift from Steel.ST to Steel,
 /// defined in Steel.ST.Coercions.
-module STC = Steel.ST.Coercions
 
 module P = Steel.FractionalPermission
 module US = FStar.SizeT

@@ -5,7 +5,6 @@ open Steel.Memory
 open Steel.Effect
 open Steel.Reference
 
-module Spec = Trees
 
 /// The implementation of the Selectors.Tree interface.
 /// Predicates prefixed by (**) correspond to stateful lemmas for folding and unfolding the tree predicate

@@ -4,7 +4,6 @@ open Steel.ST.C.Types
 open Steel.C.Typenat
 open Steel.C.Typestring
 
-module SZ = FStar.SizeT
 module U64 = FStar.UInt64
 
 (** In this file we demonstrate how Steel could be used to manipulate the following data type used in Hacl*:

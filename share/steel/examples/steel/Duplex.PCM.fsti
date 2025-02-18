@@ -5,8 +5,6 @@ open Steel.Effect.Atomic
 open Steel.Effect
 open Steel.Channel.Protocol
 
-module P = FStar.Preorder
-module R = FStar.ReflexiveTransitiveClosure
 
 let dprot' = protocol unit
 

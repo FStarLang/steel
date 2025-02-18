@@ -123,7 +123,6 @@ module SteelIntroExists
 open Steel.Effect.Common
 open Steel.ST.GenElim
 
-module T = FStar.Tactics
 
 #set-options "--ide_id_info_off"
 

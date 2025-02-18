@@ -223,6 +223,7 @@ let unsnoc_tl (#a: Type) (l: list a) : Pure (a) (requires (Cons? l)) (ensures (f
 
 #push-options "--z3rlimit 70 --query_stats --fuel 4 --ifuel 2"
 #restart-solver
+module L = FStar.List.Tot
 module AT = Steel.Effect.Atomic
 let enqueue
   #a #u #hd tl #v last

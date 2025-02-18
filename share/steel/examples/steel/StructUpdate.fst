@@ -1,6 +1,4 @@
 module StructUpdate
-module P = FStar.PCM
-module M = Steel.Memory
 open FStar.PCM
 
 type t (a:Type) (b:Type) =

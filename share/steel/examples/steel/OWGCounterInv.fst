@@ -38,7 +38,6 @@ open Steel.Utils
 
 module R = Steel.Reference
 module P = Steel.FractionalPermission
-module A = Steel.Effect.Atomic
 
 open Steel.DisposableInvariant
 

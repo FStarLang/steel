@@ -4,7 +4,6 @@ open FStar.Ghost
 open Steel.Effect.Atomic
 open Steel.Effect
 open Steel.Array
-module US = FStar.SizeT
 
 /// Some examples using Steel arrays
 

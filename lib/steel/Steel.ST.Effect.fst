@@ -18,8 +18,6 @@ module Steel.ST.Effect
 friend Steel.Effect
 open Steel.Memory
 open FStar.Ghost
-module Mem = Steel.Memory
-module T = FStar.Tactics
 include Steel.Effect.Common
 open Steel.Effect
 #set-options "--warn_error -330"  //turn off the experimental feature warning

@@ -17,7 +17,6 @@
 module Steel.ST.Effect.AtomicAndGhost
 
 open Steel.Memory
-module T = FStar.Tactics
 include Steel.Effect.Common
 module STF = Steel.ST.Effect
 

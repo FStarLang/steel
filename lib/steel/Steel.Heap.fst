@@ -255,7 +255,6 @@ let join_associative2 (m0 m1 m2:heap)
 ////////////////////////////////////////////////////////////////////////////////
 let slprop = p:(heap ^-> prop) { heap_prop_is_affine p }
 
-module W = FStar.WellFounded
 
 
 let interp (p:slprop u#a) (m:heap u#a)

@@ -20,7 +20,6 @@ open Steel.Memory
 open Steel.Effect
 open Steel.FractionalPermission
 open Steel.Reference
-module L = FStar.List.Tot
 
 let (=.=) #a (x y: a) : vprop = pure (x == y)
 

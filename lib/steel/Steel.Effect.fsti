@@ -17,8 +17,6 @@
 module Steel.Effect
 
 open Steel.Memory
-module Mem = Steel.Memory
-module FExt = FStar.FunctionalExtensionality
 open FStar.Ghost
 module T = FStar.Tactics
 
