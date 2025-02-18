@@ -1,6 +1,7 @@
 module Steel.C.Model.Frac
 include Steel.ST.C.Model.Frac
 
+open Steel.ST.Coercions {}
 open Steel.C.Model.PCM
 open Steel.C.Model.Ref
 open Steel.Effect

@@ -1,5 +1,6 @@
 module Steel.C.Model.Ref
 open FStar.FunctionalExtensionality
+open Steel.ST.Coercions {}
 
 friend Steel.C.Model.Ref.Base
 
