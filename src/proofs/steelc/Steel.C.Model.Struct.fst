@@ -1,14 +1,11 @@
 module Steel.C.Model.Struct
 include Steel.ST.C.Model.Struct
 
-module STC = Steel.ST.Coercions
-module P = FStar.PCM
 open Steel.C.Model.PCM
 open Steel.C.Model.Connection
 open Steel.C.Model.Ref
 // module Ptr = Steel.C.Model.Ptr
 open Steel.Effect
-module A = Steel.Effect.Atomic
 
 open FStar.FunctionalExtensionality
 open FStar.Classical

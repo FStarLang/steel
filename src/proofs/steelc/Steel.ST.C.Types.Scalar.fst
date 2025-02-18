@@ -6,7 +6,6 @@ open Steel.ST.C.Types.Base
 open Steel.C.Model.PCM
 
 module R = Steel.ST.C.Model.Ref
-module HR = Steel.ST.HigherReference
 module F = Steel.ST.C.Model.Frac
 
 let scalar_t t = F.fractional (option t)

@@ -1,7 +1,6 @@
 module Selectors.LList3
 
 open Steel.FractionalPermission
-module Mem = Steel.Memory
 
 #push-options "--__no_positivity"
 noeq

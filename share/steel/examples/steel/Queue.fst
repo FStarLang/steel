@@ -1,5 +1,8 @@
 module Queue
 
+module L = FStar.List.Tot
+open Steel.Utils {} // patterns
+
 #set-options "--ide_id_info_off"
 
 let pure_upd_next
@@ -223,6 +226,7 @@ let unsnoc_tl (#a: Type) (l: list a) : Pure (a) (requires (Cons? l)) (ensures (f
 
 #push-options "--z3rlimit 70 --query_stats --fuel 4 --ifuel 2"
 #restart-solver
+
 module AT = Steel.Effect.Atomic
 let enqueue
   #a #u #hd tl #v last

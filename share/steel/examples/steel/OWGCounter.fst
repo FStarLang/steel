@@ -41,7 +41,6 @@ open Steel.Effect
 
 module R = Steel.Reference
 module P = Steel.FractionalPermission
-module A = Steel.Effect.Atomic
 
 #set-options "--ide_id_info_off --using_facts_from '* -FStar.Tactics -FStar.Reflection' --fuel 0 --ifuel 0"
 

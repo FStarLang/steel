@@ -21,7 +21,6 @@ module Steel.ST.Coercions
 open FStar.Ghost
 open Steel.Memory
 open Steel.ST.Effect.Ghost
-module U = FStar.Universe
 
 module SF = Steel.Effect
 module SA = Steel.Effect.Atomic

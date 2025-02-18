@@ -21,7 +21,6 @@ open Steel.Effect.Atomic
 open Steel.Effect
 open Steel.FractionalPermission
 open Steel.Reference
-module L = FStar.List.Tot
 module U = Steel.Utils
 
 module T = FStar.Tactics

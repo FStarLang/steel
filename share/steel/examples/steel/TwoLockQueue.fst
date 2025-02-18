@@ -7,8 +7,6 @@ open Steel.Effect
 open Steel.FractionalPermission
 open Steel.Reference
 open  Steel.SpinLock
-module L = FStar.List.Tot
-module U = Steel.Utils
 module Q = Queue
 
 /// This module provides an implementation of Michael and Scott's two lock queue, using the

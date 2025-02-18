@@ -29,7 +29,6 @@ module G = FStar.Ghost
 module Seq = FStar.Seq
 module Map = FStar.PartialMap
 module US = FStar.SizeT
-module R = Steel.ST.Reference
 module A = Steel.ST.Array
 
 

@@ -138,7 +138,6 @@ open Steel.Memory
 open Steel.Effect.Atomic
 open Steel.Effect
 open Steel.PCMReference
-module Mem = Steel.Memory
 module PR = Steel.PCMReference
 
 let chan (p:dprot) = ref (t p) (pcm p)

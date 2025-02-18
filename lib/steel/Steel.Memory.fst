@@ -14,7 +14,6 @@
    limitations under the License.
 *)
 module Steel.Memory
-module F = FStar.FunctionalExtensionality
 open FStar.FunctionalExtensionality
 open FStar.PCM
 module H = Steel.Heap
@@ -539,7 +538,6 @@ let elim_wand (p1 p2: slprop u#a) (m:mem) (m1:mem) = H.elim_wand p1 p2 (heap_of_
 ////////////////////////////////////////////////////////////////////////////////
 // Preorders and effects
 ////////////////////////////////////////////////////////////////////////////////
-module PP = Steel.Preorder
 
 let mem_evolves =
   fun (m0 m1:full_mem) ->

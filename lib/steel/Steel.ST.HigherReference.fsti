@@ -18,7 +18,6 @@ module Steel.ST.HigherReference
 open FStar.Ghost
 open Steel.ST.Util
 
-module U32 = FStar.UInt32
 
 (** This module provides a reference whose ownership is controlled
     using fractional permissions.

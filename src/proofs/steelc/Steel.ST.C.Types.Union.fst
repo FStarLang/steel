@@ -6,7 +6,6 @@ open Steel.ST.C.Types.Scalar
 
 open Steel.C.Model.PCM
 
-module GHR = Steel.ST.GhostHigherReference
 module R = Steel.ST.C.Model.Ref
 module HR = Steel.ST.HigherReference
 module U = Steel.ST.C.Model.Union

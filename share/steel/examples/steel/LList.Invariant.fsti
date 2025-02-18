@@ -20,7 +20,6 @@ open Steel.Memory
 open Steel.Effect
 open Steel.FractionalPermission
 open Steel.Reference
-module L = FStar.List.Tot
 
 val cell (a:Type0) : Type0
 let t (a:Type0) = ref (cell a)

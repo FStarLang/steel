@@ -5,8 +5,6 @@ open Steel.Effect.Atomic
 open Steel.Effect
 open Steel.FractionalPermission
 open Steel.Reference
-module L = FStar.List.Tot
-module U = Steel.Utils
 
 /// This module provides a library for queues of elements, with the standard enqueue and dequeue operations, which we use in TwoLockQueue to model Michael and Scott's concurrent two lock queue.
 /// We only prove that this implementation is safe, and do not specify functional correctness here

@@ -17,10 +17,7 @@
 module Steel.ST.Effect.AtomicAndGhost
 friend Steel.Effect.Atomic
 friend Steel.ST.Effect
-module C = Steel.Effect.Common
 open Steel.Memory
-module T = FStar.Tactics
-module STF = Steel.ST.Effect
 module SEA = Steel.Effect.Atomic
 open Steel.Effect.Atomic
 

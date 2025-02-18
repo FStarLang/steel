@@ -9,7 +9,6 @@ module L = FStar.List.Tot
 module LL = Selectors.LList3
 module U32 = FStar.UInt32
 
-module MB = LowStar.Monotonic.Buffer // for is_null
 
 inline_for_extraction noextract let a = U32.t
 let cell = LL.cell a

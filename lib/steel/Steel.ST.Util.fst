@@ -17,11 +17,8 @@ module Steel.ST.Util
 open FStar.Ghost
 open Steel.Memory
 open Steel.ST.Effect.Ghost
-module U = FStar.Universe
 module SEA = Steel.Effect.Atomic
 module SE = Steel.Effect
-module STG = Steel.ST.Effect.Ghost
-module STAG = Steel.ST.Effect.AtomicAndGhost
 open Steel.ST.Coercions
 
 #set-options "--ide_id_info_off"

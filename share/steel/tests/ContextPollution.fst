@@ -3,9 +3,6 @@ module ContextPollution
 let warmup (x:bool { x == true }) = assert x
 
 //SNIPPET_START: context_test1$
-module T = FStar.Tactics
-module B = LowStar.Buffer
-module SA = Steel.Array
 open FStar.Seq
 
 #push-options "--query_stats"
