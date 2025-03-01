@@ -1,0 +1,63 @@
+name: Steel OPAM build
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *' # 2AM UTC
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  opam:
+    # We run two jobs, one of them against the latest F* in opam (fstar-master=false)
+    # and one against the current F* master (fstar-master=true).
+    strategy:
+      fail-fast: false
+      matrix:
+        fstar-master: [true, false]
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Steel
+        uses: actions/checkout@v4
+        with:
+          path: steel
+
+      - name: Setup ocaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 4.14.2
+
+      - name: Pin F* to master
+        if: ${{ matrix.fstar-master }}
+        run: opam pin fstar --dev-repo
+
+      # Build steel, against either latest F* in opam
+      # or the current F* master we just pinned.
+      - name: OPAM build
+        id: cistep
+        run: opam install steel/steel.opam
+
+      - name: Calculate Time
+        if: ${{ always () }}
+        id: duration
+        uses: RockyIsHere/actions-calculate-log-time@v0.2.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post result to Zulip
+        if: ${{ always () }} # && secrets.ZULIP_API_KEY != '' }}
+        continue-on-error: true
+        uses: zulip/github-actions-zulip/send-message@v1
+        with:
+          api-key: ${{ secrets.ZULIP_API_KEY }}
+          email: "github-commits-bot@fstar.zulipchat.com"
+          organization-url: "https://fstar.zulipchat.com"
+          to: "steel-ci"
+          type: "stream"
+          topic: "OPAM build (fstar-master = ${{ matrix.fstar-master }}) on '${{github.ref_name}}'"
+          content: |
+            '${{ github.event.head_commit.message || github.event.pull_request.title || github.head_commit.message }}' by ${{ github.event.head_commit.author.username || github.event.pull_request.user.login || github.head_commit.author.username }} (commit [${{github.sha}}](${{ github.event.head_commit.url || github.even.pull_request.html_url}}))
+            Status: ${{ steps.cistep.outcome == 'success' && '✅' || steps.cistep.outcome == 'cancelled' && '⚠' || '❌' }} ([link](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}))
+            Elapsed time: ${{ steps.duration.outputs.duration }}
