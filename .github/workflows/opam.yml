@@ -33,6 +33,11 @@ jobs:
         if: ${{ matrix.fstar-master }}
         run: opam pin -n fstar --dev-repo
 
+      # Place this in a separate step just to have a clearer
+      # indication of how long it took.
+      - name: Install OPAM deps
+        run: opam install --deps-only steel/steel.opam
+
       # Build steel, against either latest F* in opam
       # or the current F* master we just pinned.
       - name: OPAM build
