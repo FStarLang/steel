@@ -6,6 +6,9 @@ all: steelc
 FSTAR_FILES:=$(wildcard *.fst *.fsti)
 
 FSTAR_OPTIONS=$(OTHERFLAGS) --cache_checked_modules --warn_error @241 --already_cached '*,-Steel.C,-Steel.ST.C' --include .. --load_cmxs steel
+ifeq ($(ADMIT),1)
+FSTAR_OPTIONS += --admit_smt_queries true
+endif
 
 FSTAR_EXE ?= fstar.exe
 

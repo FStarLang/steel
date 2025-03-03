@@ -15,6 +15,9 @@ FSTAR_OPTIONS+=--compat_pre_typed_indexed_effects
 FSTAR_OPTIONS+=--use_hints
 FSTAR_OPTIONS+=--cache_dir _cache
 FSTAR_OPTIONS+=--load_cmxs steel
+ifeq ($(ADMIT),1)
+FSTAR_OPTIONS+=--admit_smt_queries true
+endif
 
 MY_FSTAR=$(FSTAR_EXE) $(SIL) $(FSTAR_OPTIONS)
 
