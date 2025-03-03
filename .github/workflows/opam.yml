@@ -31,7 +31,7 @@ jobs:
 
       - name: Pin F* to master
         if: ${{ matrix.fstar-master }}
-        run: opam pin fstar --dev-repo
+        run: opam pin -n fstar --dev-repo
 
       # Build steel, against either latest F* in opam
       # or the current F* master we just pinned.
