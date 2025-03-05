@@ -1,4 +1,4 @@
-module ExtractSteel
+module ExtractSteel.Krml
 friend FStarC.Extraction.Krml
 
 (* IMPORTANT: these `open` directives come from FStarC.Extraction.Krml.

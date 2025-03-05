@@ -1,4 +1,4 @@
-module ExtractSteelC
+module ExtractSteelC.Krml
 
 friend FStarC.Extraction.Krml
 open FStarC
