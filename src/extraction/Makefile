@@ -7,7 +7,7 @@ FSTAR_EXE ?= fstar.exe
 OUTPUT_DIRECTORY = $(CURDIR)/../ocaml/plugin/generated
 FSTAR_C=$(RUNLIM) $(FSTAR_EXE) $(SIL) $(FSTAR_BOOT_OPTIONS)
 
-EXTRACT_FILES=ExtractSteel_Krml.ml ExtractSteelC_Krml.ml
+EXTRACT_FILES := ExtractSteel_ML.ml ExtractSteel_Krml.ml ExtractSteelC_Krml.ml
 extract: $(addprefix $(OUTPUT_DIRECTORY)/,$(EXTRACT_FILES))
 
 $(OUTPUT_DIRECTORY)/%.ml: %.fst
