@@ -1,22 +1,15 @@
 module ExtractSteel.Krml
 friend FStarC.Extraction.Krml
 
-(* IMPORTANT: these `open` directives come from FStarC.Extraction.Krml.
-   Without them, spurious dependencies on F* ulib will be introduced *)
 open FStarC
 open FStarC.Effect
-open FStarC.List
-open FStarC
-open FStarC.Util
 open FStarC.Extraction
 open FStarC.Extraction.ML
 open FStarC.Extraction.ML.Syntax
 open FStarC.Const
-open FStarC.BaseTypes
+open FStarC.Extraction.Krml
 
 module BU = FStarC.Util
-
-open FStarC.Extraction.Krml
 
 let steel_translate_type_without_decay : translate_type_without_decay_t = fun env t ->
   match t with
