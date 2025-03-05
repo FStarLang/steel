@@ -11,6 +11,7 @@ ifeq ($(OS),Windows_NT)
 else
   OCAMLPATH := $(STEEL_HOME)/lib:$(OCAMLPATH)
 endif
+export OCAMLPATH
 
 FSTAR_FILES += $(filter-out $(EXCLUDE_FILES),$(wildcard *.fst *.fsti))
 ADDITIONAL_INCLUDES ?= 
