@@ -1,6 +1,6 @@
 CACHE_DIR=build/extraction.checked
 OUTPUT_DIR=build/extraction.ml
-CODEGEN=OCaml
+CODEGEN=PluginNoLib
 SRC=src/extraction
 TAG=extraction
 ROOTS=$(shell find src/extraction -name '*.fst' -o -name '*.fsti')
