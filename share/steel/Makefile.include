@@ -2,7 +2,6 @@ ifeq (,$(STEEL_HOME))
 	$(error STEEL_HOME should be defined in the enclosing Makefile as the prefix directory where Steel was installed, or the root directory of its source repository)
 endif
 include $(STEEL_HOME)/mk/common.mk
-.DEFAULT_GOAL := verify
 
 FSTAR_EXE ?= fstar.exe
 

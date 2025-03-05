@@ -3,7 +3,6 @@ all: steelc
 # assuming src/proofs/steelc
 STEEL_HOME=../../..
 include $(STEEL_HOME)/mk/common.mk
-.DEFAULT_GOAL := all
 
 FSTAR_EXE ?= fstar.exe
 
