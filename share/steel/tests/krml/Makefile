@@ -110,8 +110,8 @@ $(OUTPUT_DIR)/%.exe: $(ALL_KRML_FILES) $(KRML_BIN)
 
 # Various flags to be passed to some targets...
 $(OUTPUT_DIR)/SteelArrayArith.exe: EXTRA=-static-header Steel.ArrayArith -no-prefix Steel.ArrayArith
-$(OUTPUT_DIR)/SteelLock.exe: EXTRA=-bundle Steel.* -add-include 'Steel:"steel_types.h"'
 $(OUTPUT_DIR)/SizeT.exe: EXTRA=-ccopt -std=c2x
+$(OUTPUT_DIR)/SteelLock.exe: EXTRA=-bundle Steel.* -add-include '"steel_full.h"' # uses spinlock
 
 # A pseudo-target for WASM compilation that does not match any specific file.
 # All WASM targets get the -wasm flag; some specific targets may override

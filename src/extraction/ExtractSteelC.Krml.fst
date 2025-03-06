@@ -1,15 +1,13 @@
-module ExtractSteelC
-
+module ExtractSteelC.Krml
 friend FStarC.Extraction.Krml
+
 open FStarC
 open FStarC.Effect
-open FStarC.List
 open FStarC.Util
 open FStarC.Extraction
 open FStarC.Extraction.ML
 open FStarC.Extraction.ML.Syntax
-open FStarC.Const
-open FStarC.BaseTypes
+open FStar.Char
 open FStarC.Extraction.Krml
 module BU = FStarC.Util
 

@@ -44,11 +44,6 @@ endif
 # In other words, make `make` less insane.
 .DELETE_ON_ERROR:
 
-.DEFAULT_GOAL:=__undef
-.PHONY: __undef
-__undef:
-	$(error "This makefile does not have a default goal")
-
 # Check that a variable is defined. If not, abort with an (optional) error message.
 need =												\
   $(if $(value $(strip $1)),,									\

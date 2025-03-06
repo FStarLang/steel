@@ -1,6 +1,7 @@
+default: ocaml
+
 include $(STEEL_HOME)/mk/common.mk
 
-.DEFAULT_GOAL := ocaml
 $(call need_dir_mk, CACHE_DIR, directory for checked files)
 $(call need_dir_mk, OUTPUT_DIR, directory for extracted OCaml files)
 $(call need, CODEGEN, backend (OCaml / Plugin))

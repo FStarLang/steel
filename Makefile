@@ -10,7 +10,6 @@ endif
 export STEEL_HOME := $(CURDIR)
 
 include $(STEEL_HOME)/mk/common.mk
-.DEFAULT_GOAL := all
 
 FSTAR_EXE ?= fstar.exe
 

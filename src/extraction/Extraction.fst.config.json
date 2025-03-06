@@ -4,8 +4,7 @@
     "--lax",
     "--MLish",
     "--with_fstarc",
-    "--MLish_effect", "FStarC.Effect",
-    "--cache_dir"
+    "--MLish_effect", "FStarC.Effect"
   ],
   "include_dirs": [
   ]
