@@ -763,7 +763,7 @@ val intro_vrefine (#opened:inames)
   (v: vprop) (p: (normal (t_of v) -> Tot prop))
 : SteelGhost unit opened v (fun _ -> vrefine v p)
   (requires fun h -> p (h v))
-  (ensures fun h _ h' -> h' (vrefine v p) == h v)
+  (ensures fun h _ h' -> (h' (vrefine v p) <: t_of v) == h v)
 
 /// We can transform back vprop [v] refined with predicate [p] to the underlying [v],
 /// where [p] holds on the selector of [v]
