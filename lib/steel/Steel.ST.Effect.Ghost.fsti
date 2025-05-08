@@ -85,7 +85,7 @@ effect STGhostT (a:Type) (opened:inames) (pre:pre_t) (post:post_t a) =
 val lift_ghost_atomic
     (a:Type)
     (opened:inames)
-    (#framed:eqtype_as_type bool)
+    (#framed:bool)
     (#[@@@ defer_to framing_implicit] pre:pre_t)
     (#[@@@ defer_to framing_implicit] post:post_t a)
     (#[@@@ defer_to framing_implicit] req:pure_pre)

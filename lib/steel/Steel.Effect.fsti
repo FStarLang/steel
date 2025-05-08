@@ -116,8 +116,8 @@ let bind_ens (#a:Type) (#b:Type)
 /// Requires/ensures logical VCs are defined using weakest preconditions combinators defined above,
 /// and discharged by SMT.
 val bind (a:Type) (b:Type)
-  (#framed_f:eqtype_as_type bool)
-  (#framed_g:eqtype_as_type bool)
+  (#framed_f:bool)
+  (#framed_g:bool)
   (#[@@@ defer_to framing_implicit] pre_f:pre_t) (#[@@@ defer_to framing_implicit] post_f:post_t a)
   (#[@@@ defer_to framing_implicit] req_f:req_t pre_f) (#[@@@ defer_to framing_implicit] ens_f:ens_t pre_f a post_f)
   (#[@@@ defer_to framing_implicit] pre_g:a -> pre_t) (#[@@@ defer_to framing_implicit] post_g:a -> post_t b)
@@ -178,8 +178,8 @@ let subcomp_pre (#a:Type)
 /// As for bind, separation logic goals are encoded as squashed implicits which will be discharged
 /// by tactic, while logical requires/ensures operating on selectors are discharged by SMT
 val subcomp (a:Type)
-  (#framed_f:eqtype_as_type bool)
-  (#framed_g:eqtype_as_type bool)
+  (#framed_f:bool)
+  (#framed_g:bool)
   (#[@@@ defer_to framing_implicit] pre_f:pre_t) (#[@@@ defer_to framing_implicit] post_f:post_t a)
   (#[@@@ defer_to framing_implicit] req_f:req_t pre_f) (#[@@@ defer_to framing_implicit] ens_f:ens_t pre_f a post_f)
   (#[@@@ defer_to framing_implicit] pre_g:pre_t) (#[@@@ defer_to framing_implicit] post_g:post_t a)
@@ -227,8 +227,8 @@ let if_then_else_ens (#a:Type)
 /// The soundness of this combinator is automatically proven with respect to the subcomp
 /// subtyping combinator defined above by the F* layered effects framework
 let if_then_else (a:Type)
-  (#framed_f:eqtype_as_type bool)
-  (#framed_g:eqtype_as_type bool)
+  (#framed_f:bool)
+  (#framed_g:bool)
   (#[@@@ defer_to framing_implicit] pre_f:pre_t) (#[@@@ defer_to framing_implicit] pre_g:pre_t)
   (#[@@@ defer_to framing_implicit] post_f:post_t a) (#[@@@ defer_to framing_implicit] post_g:post_t a)
   (#[@@@ defer_to framing_implicit] req_then:req_t pre_f) (#[@@@ defer_to framing_implicit] ens_then:ens_t pre_f a post_f)
@@ -305,10 +305,10 @@ let bind_pure_steel__ens (#a:Type) (#b:Type)
 /// The composition combinator.
 val bind_pure_steel_ (a:Type) (b:Type)
   (#[@@@ defer_to framing_implicit] wp:pure_wp a)
-  (#framed:eqtype_as_type bool)
+  (#framed:bool)
   (#[@@@ defer_to framing_implicit] pre:pre_t) (#[@@@ defer_to framing_implicit] post:post_t b)
   (#[@@@ defer_to framing_implicit] req:a -> req_t pre) (#[@@@ defer_to framing_implicit] ens:a -> ens_t pre b post)
-  (f:eqtype_as_type unit -> PURE a wp) (g:(x:a -> repr b framed pre post (req x) (ens x)))
+  (f:unit -> PURE a wp) (g:(x:a -> repr b framed pre post (req x) (ens x)))
 : repr b
     framed
     pre
