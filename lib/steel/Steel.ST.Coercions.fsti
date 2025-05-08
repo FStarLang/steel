@@ -96,7 +96,7 @@ val coerce_ghostF (#a:Type)
 /// A sub-effect from ST to Steel
 val lift_st_steel
       (a:Type)
-      (#framed:eqtype_as_type bool)
+      (#framed:bool)
       (#[@@@ defer_to framing_implicit] pre:pre_t)
       (#[@@@ defer_to framing_implicit] post:post_t a)
       (#[@@@ defer_to framing_implicit] req:pure_pre)
@@ -108,9 +108,9 @@ sub_effect STF.STBase ~> SF.SteelBase = lift_st_steel
 
 val lift_sta_sa
       (a:Type)
-      (#framed:eqtype_as_type bool)
+      (#framed:bool)
       (#o:inames)
-      (#obs:eqtype_as_type observability)
+      (#obs:observability)
       (#[@@@ defer_to framing_implicit] pre:pre_t)
       (#[@@@ defer_to framing_implicit] post:post_t a)
       (#[@@@ defer_to framing_implicit] req:Type0)

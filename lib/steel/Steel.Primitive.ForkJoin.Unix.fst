@@ -83,7 +83,7 @@ let can_be_split_forall_frame (#a:Type) (p q:post_t a) (frame:vprop) (x:a)
    Steel.Memory.star_commutative q frame
 
 let bind (a:Type) (b:Type)
-  (#framed_f:eqtype_as_type bool) (#framed_g:eqtype_as_type bool)
+  (#framed_f:bool) (#framed_g:bool)
   (#[@@@ defer_to framing_implicit] pre_f:pre_t) (#[@@@ defer_to framing_implicit] post_f:post_t a)
   (#[@@@ defer_to framing_implicit] pre_g:a -> pre_t) (#[@@@ defer_to framing_implicit] post_g:post_t b)
   (#[@@@ defer_to framing_implicit] frame_f:vprop) (#[@@@ defer_to framing_implicit] frame_g:vprop)
@@ -117,7 +117,7 @@ let bind (a:Type) (b:Type)
       <: (x:a -> SteelT unit ((frame `star` frame_f) `star` post_f x) (fun _ -> post)))
 
 let subcomp (a:Type)
-  (#framed_f:eqtype_as_type bool) (#framed_g:eqtype_as_type bool)
+  (#framed_f:bool) (#framed_g:bool)
   (#[@@@ defer_to framing_implicit] pre_f:pre_t) (#[@@@ defer_to framing_implicit] post_f:post_t a)
   (#[@@@ defer_to framing_implicit] pre_g:pre_t) (#[@@@ defer_to framing_implicit] post_g:post_t a)
   (#[@@@ defer_to framing_implicit] p1:squash (can_be_split pre_g pre_f))
@@ -163,9 +163,9 @@ effect SteelKF (a:Type) (pre:pre_t) (post:post_t a) =
 // But for our example, Tot is here sufficient
 
 let bind_tot_steelK_ (a:Type) (b:Type)
-  (#framed:eqtype_as_type bool)
+  (#framed:bool)
   (#[@@@ defer_to framing_implicit] pre:pre_t) (#[@@@ defer_to framing_implicit] post:post_t b)
-  (f:eqtype_as_type unit -> Tot a) (g:(x:a -> steelK b framed pre post))
+  (f:unit -> Tot a) (g:(x:a -> steelK b framed pre post))
 : steelK b
     framed
     pre

@@ -55,12 +55,12 @@ let bind_div_st_ens (#a:Type) (#b:Type)
 
 let bind_div_st_ (a:Type) (b:Type)
                   (#[@@@ defer_to framing_implicit] wp:pure_wp a)
-                  (#framed:eqtype_as_type bool)
+                  (#framed:bool)
                   (#[@@@ defer_to framing_implicit] pre:pre_t)
                   (#[@@@ defer_to framing_implicit] post:post_t b)
                   (#[@@@ defer_to framing_implicit] req:a -> Type0)
                   (#[@@@ defer_to framing_implicit] ens:a -> b -> Type0)
-                  (f:eqtype_as_type unit -> DIV a wp)
+                  (f:unit -> DIV a wp)
                   (g:(x:a -> STF.repr b framed pre post (req x) (ens x)))
   : STF.repr b
          framed
@@ -150,7 +150,7 @@ let coerce_ghostF #a #o #p #q #pre #post f
 
 let lift_st_steel
       (a:Type)
-      (#framed:eqtype_as_type bool)
+      (#framed:bool)
       (#pre:pre_t)
       (#post:post_t a)
       (#req:Type0)
@@ -161,9 +161,9 @@ let lift_st_steel
 
 let lift_sta_sa
       (a:Type)
-      (#framed:eqtype_as_type bool)
+      (#framed:bool)
       (#o:inames)
-      (#obs:eqtype_as_type observability)
+      (#obs:observability)
       (#pre:pre_t)
       (#post:post_t a)
       (#req:Type0)
