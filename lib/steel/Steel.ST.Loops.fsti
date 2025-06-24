@@ -28,7 +28,7 @@ let u32_between (s f:US.t)
 /// for_loop: for (i = start; i < finish; i++) inv { body i }
 val for_loop (start:US.t)
              (finish:US.t { US.v start <= US.v finish })
-             (inv: nat_at_most finish -> vprop)
+             (inv: nat_at_most finish -> GTot vprop)
              (body:
                     (i:u32_between start finish ->
                           STT unit
@@ -39,7 +39,7 @@ val for_loop (start:US.t)
       (fun _ -> inv (US.v finish))
 
 /// while_loop: while (cond()) { body () }
-val while_loop (inv: bool -> vprop)
+val while_loop (inv: bool -> GTot vprop)
                (cond: (unit -> STT bool
                                      (exists_ inv)
                                      (fun b -> inv b)))

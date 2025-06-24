@@ -25,7 +25,7 @@ val for_loop' (start:US.t)
               (finish:US.t { US.v start <= US.v finish })
               (current:US.t { US.v start <= US.v current /\
                                US.v current <= US.v finish })
-              (inv: nat_at_most finish -> vprop)
+              (inv: nat_at_most finish -> GTot vprop)
               (body:
                     (i:u32_between start finish ->
                           SteelT unit

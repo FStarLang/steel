@@ -45,7 +45,7 @@ let for_loop' (start:US.t)
 
 let for_loop (start:US.t)
              (finish:US.t { US.v start <= US.v finish })
-             (inv: nat_at_most finish -> vprop)
+             (inv: nat_at_most finish -> GTot vprop)
              (body:
                     (i:u32_between start finish ->
                           STT unit
@@ -74,7 +74,7 @@ let exists_to_h_exists (#a:Type) #o (p:a -> vprop)
   = let w = elim_exists () in
     intro_h_exists w p
 
-let coerce_cond (inv: Ghost.erased bool -> vprop)
+let coerce_cond (inv: Ghost.erased bool -> GTot vprop)
                 (cond: (unit -> STT bool
                                    (exists_ inv)
                                    (fun b -> inv b)))
@@ -84,7 +84,7 @@ let coerce_cond (inv: Ghost.erased bool -> vprop)
     intro_exists_erased w inv;
     cond ()
 
-let coerce_body (inv: Ghost.erased bool -> vprop)
+let coerce_body (inv: Ghost.erased bool -> GTot vprop)
                 (body: (unit -> STT unit
                                    (inv true)
                                    (fun _ -> exists_ inv)))
@@ -96,7 +96,7 @@ let coerce_body (inv: Ghost.erased bool -> vprop)
     return b
 
 /// while_loop: while (cond()) { body () }
-let while_loop' (inv: Ghost.erased bool -> vprop)
+let while_loop' (inv: Ghost.erased bool -> GTot vprop)
                 ($cond: (unit -> STT bool
                                      (exists_ inv)
                                      (fun b -> inv b)))
@@ -124,7 +124,7 @@ let e_exists_to_exists (#a:Type) #o (p:a -> vprop)
     intro_exists #a (reveal (reveal w)) p
 
 let lift_cond_exists_to_e_exists
-                   (inv: bool -> vprop)
+                   (inv: bool -> GTot vprop)
                    (cond: (unit -> STT bool
                                      (exists_ inv)
                                      (fun b -> inv b)))
@@ -137,7 +137,7 @@ let lift_cond_exists_to_e_exists
     b
 
 let lift_body_exists_to_e_exists
-                   (inv: bool -> vprop)
+                   (inv: bool -> GTot vprop)
                    (body: (unit -> STT unit
                                      (inv true)
                                      (fun _ -> exists_ inv)))
@@ -150,7 +150,7 @@ let lift_body_exists_to_e_exists
 
 
 /// while_loop: while (cond()) { body () }
-let while_loop (inv: bool -> vprop)
+let while_loop (inv: bool -> GTot vprop)
                (cond: (unit -> STT bool
                                   (exists_ inv)
                                   (fun b -> inv b)))

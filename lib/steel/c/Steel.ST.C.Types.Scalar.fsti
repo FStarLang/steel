@@ -111,16 +111,11 @@ let read (#t: Type) (#v: Ghost.erased (scalar_t t)) (r: ref (scalar t)) : ST t
   (fun v1 -> forall v0 p . (* {:pattern (mk_fraction (scalar t) (mk_scalar v0) p)} *) Ghost.reveal v == mk_fraction (scalar t) (mk_scalar v0) p ==> v0 == v1)
 = let v0 = FStar.IndefiniteDescription.indefinite_description_tot _ (fun v0 -> exists p . Ghost.reveal v == mk_fraction (scalar t) (mk_scalar v0) p) in
   let p = FStar.IndefiniteDescription.indefinite_description_tot _ (fun p -> Ghost.reveal v == mk_fraction (scalar t) (mk_scalar (Ghost.reveal v0)) p) in
-  let prf v0' p' : Lemma
-    (requires (Ghost.reveal v == mk_fraction (scalar t) (mk_scalar v0') p'))
-    (ensures (v0' == Ghost.reveal v0 /\ p' == Ghost.reveal p))
-  = mk_scalar_inj (Ghost.reveal v0) v0' p p'
-  in
-  let prf' v0' p' : Lemma
-    (Ghost.reveal v == mk_fraction (scalar t) (mk_scalar v0') p' ==> (v0' == Ghost.reveal v0 /\ p' == Ghost.reveal p))
-  = Classical.move_requires (prf v0') p'
-  in
-  Classical.forall_intro_2 prf';
+  introduce forall v0' p'.
+      Ghost.reveal v == mk_fraction (scalar t) (mk_scalar v0') p' ==>
+      v0' == Ghost.reveal v0 /\ p' == Ghost.reveal p with
+    introduce _ ==> _ with _.
+    mk_scalar_inj (Ghost.reveal v0) v0' p p';
   rewrite (pts_to _ _) (pts_to r (mk_fraction (scalar t) (mk_scalar (Ghost.reveal v0)) p));
   let v1 = read0 r in
   rewrite (pts_to _ _) (pts_to r v);
