@@ -30,7 +30,7 @@ let u32_between (s f:US.t)
 /// for_loop: for (i = start; i < finish; i++) inv { body i }
 val for_loop (start:US.t)
              (finish:US.t { US.v start <= US.v finish })
-             (inv: nat_at_most finish -> vprop)
+             (inv: nat_at_most finish -> GTot vprop)
              (body:
                     (i:u32_between start finish ->
                           SteelT unit
@@ -45,8 +45,8 @@ noextract
 let for_loop_full
   (start:US.t)
   (finish:US.t { US.v start <= US.v finish })
-  (inv: nat_at_most finish -> vprop)
-  (inv_sel: (i:nat_at_most finish) -> t_of (inv i) -> prop)
+  (inv: nat_at_most finish -> GTot vprop)
+  (inv_sel: (i:nat_at_most finish) -> t_of (inv i) -> GTot prop)
   (body:
     (i:u32_between start finish ->
     Steel unit
@@ -77,7 +77,7 @@ let for_loop_full
 
 
 /// while_loop: while (cond()) { body () }
-val while_loop (inv: Ghost.erased bool -> vprop)
+val while_loop (inv: Ghost.erased bool -> GTot vprop)
                (cond: (unit -> SteelT bool
                                      (AT.h_exists inv)
                                      (fun b -> inv b)))
