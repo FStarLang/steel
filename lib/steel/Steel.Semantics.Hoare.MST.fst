@@ -1163,6 +1163,7 @@ let step_frame_ret
     =
   NMSTATE?.reflect (fun (_, n) -> step_frame_ret_aux frame f, n)
 
+#push-options "--z3rlimit 50"
 let step_frame
       (#st:st)
       (#a:Type)
@@ -1198,6 +1199,7 @@ let step_frame
       (frame_lpre next_flpre f_frame')
       (frame_lpost next_flpre next_flpost f_frame')
       (Frame f frame' f_frame')
+#pop-options
 
 let step_par_ret_aux
       (#st:st)
