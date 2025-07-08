@@ -56,6 +56,15 @@ let update_addr (m:heap) (a:addr) (c:cell)
   : heap
   = update_addr' m a (Some c)
 
+let lemma_update_addr (m:heap) (a:addr) (c:cell)
+  : Lemma ((update_addr m a c) a == Some c)
+  = ()
+
+let lemma_update_addr' (m:heap) (a:addr) (c:cell) (a':addr)
+  : Lemma (requires a =!= a')
+          (ensures (update_addr m a c) a' == m a')
+  = ()
+
 let disjoint_cells (c0 c1:cell u#h) : prop =
     let Ref t0 p0 f0 v0 = c0 in
     let Ref t1 p1 f1 v1 = c1 in
@@ -508,7 +517,7 @@ let pts_to_compatible_fwd (#a:Type u#a)
               pts_to_cell pcm v1 c1 /\
               c == join_cells c0 c1)
 
-#push-options "--z3rlimit_factor 12"
+
 let pts_to_compatible_bk (#a:Type u#a)
                           (#pcm:_)
                           (x:ref a pcm)
@@ -520,14 +529,14 @@ let pts_to_compatible_bk (#a:Type u#a)
       interp (pts_to x (op pcm v0 v1)) m)
     (ensures
       interp (pts_to x v0 `star` pts_to x v1) m)
-  = let Addr addr = x in
-    let c = select_addr m addr in
-    let Ref _ _ _ v = select_addr m addr in
+  = let Addr x_addr = x in
+    let c = select_addr m x_addr in
+    let Ref _ _ _ v = select_addr m x_addr in
     let v01 = (op pcm v0 v1) in
     assert (pts_to_cell pcm v01 c);
     let Ref _ _ frac v = c in
     assert (compatible pcm v01 v);
-    let aux frame
+    let aux (frame : a)
       : Lemma
         (requires
            composable pcm v01 frame /\
@@ -538,7 +547,6 @@ let pts_to_compatible_bk (#a:Type u#a)
              interp (pts_to x v1) m1 /\
              disjoint m0 m1 /\
              m `mem_equiv` join m0 m1)
-        [SMTPat (composable pcm v01 frame)]
       = let c0 = Ref a pcm (Frac.half_perm frac) v0 in
         pcm.FStar.PCM.assoc_r v0 v1 frame;
         let c1 : cell = Ref a pcm (Frac.half_perm frac) (op pcm v1 frame) in
@@ -557,12 +565,27 @@ let pts_to_compatible_bk (#a:Type u#a)
         };
         assert (disjoint_cells c0 c1);
         assert (c == join_cells c0 c1);
-        let m0 = update_addr empty_heap addr c0 in
-        let m1 = update_addr m addr c1 in
-        assert (disjoint m0 m1) //fire the existential
+        let m0 = update_addr empty_heap x_addr c0 in
+        let m1 = update_addr m x_addr c1 in
+        assert (disjoint m0 m1); //fire the existential
+        assert (interp (pts_to x v0) m0);
+        assert (interp (pts_to x v1) m1);
+        let aux (x : addr) : Lemma (m x == join m0 m1 x)
+        =
+          if x = x_addr then () else (
+            assert (empty_heap x == None);
+            lemma_update_addr' m x_addr c0 x;
+            assert (None? (m0 x));
+            assert (m1 x == m x);
+            ()
+          )
+        in
+        Classical.forall_intro aux;
+        assert (m `mem_equiv` join m0 m1);
+        ()
     in
+    Classical.forall_intro (Classical.move_requires aux);
     ()
-#pop-options
 
 let pts_to_compatible (#a:Type u#a)
                       (#pcm:_)
