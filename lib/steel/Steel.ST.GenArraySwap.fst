@@ -4,6 +4,8 @@ open Steel.ST.GenElim
 module Prf = Steel.ST.GenArraySwap.Proof
 module R = Steel.ST.Reference
 
+#push-options "--fuel 1 --ifuel 1"
+
 let gcd_inv_prop
   (n0: nat)
   (l0: nat)
@@ -394,7 +396,8 @@ let impl_jump
   else idx `SZ.add` l
 
 #restart-solver
-#push-options "--z3rlimit 24 --split_queries always" // This proof is really brittle.
+
+#push-options "--z3rlimit 100 --split_queries always" // This proof is really brittle.
 inline_for_extraction
 let array_swap_outer_body
   (#t: Type)
@@ -459,8 +462,10 @@ let array_swap_outer_body
     intro_array_swap_outer_invariant pts_to n l bz s0 pi (i' `SZ.lt` d) _ _;
     noop ()
   ))
+#pop-options
 
 #restart-solver
+
 inline_for_extraction
 let array_swap_aux
   (#t: Type)

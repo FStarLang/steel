@@ -508,6 +508,7 @@ let pts_to_compatible_fwd (#a:Type u#a)
               pts_to_cell pcm v1 c1 /\
               c == join_cells c0 c1)
 
+#push-options "--z3rlimit_factor 12"
 let pts_to_compatible_bk (#a:Type u#a)
                           (#pcm:_)
                           (x:ref a pcm)
@@ -561,6 +562,7 @@ let pts_to_compatible_bk (#a:Type u#a)
         assert (disjoint m0 m1) //fire the existential
     in
     ()
+#pop-options
 
 let pts_to_compatible (#a:Type u#a)
                       (#pcm:_)
