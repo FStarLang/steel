@@ -158,7 +158,7 @@ let steel_translate_expr : translate_expr_t = fun env e ->
          string_of_mlpath p = "Steel.Effect.Atomic.with_invariant" ->
     Errors.raise_error0
       Errors.Fatal_ExtractionUnsupported
-      (BU.format2
+      (Format.fmt2
          "Extraction of with_invariant requires its argument to be a function literal \
          at extraction time, try marking its argument inline_for_extraction (%s, %s)"
          (string_of_int (fst e.loc))
@@ -189,7 +189,7 @@ let steel_translate_let : translate_let_t = fun env flavor lb ->
         Some (DGlobal (meta, name, List.length tvars, t, EBufCreateL (Eternal, expr)))
       with e ->
           Errors.log_issue0 Errors.Warning_DefinitionNotTranslated
-            (BU.format2 "Error extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) (BU.print_exn e));
+            (Format.fmt2 "Error extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) (BU.print_exn e));
           Some (DGlobal (meta, name, List.length tvars, t, EAny))
         end
     | _ -> raise NotSupportedByKrmlExtension

@@ -10,7 +10,6 @@ open FStarC.Extraction.ML.Term
 open FStarC.Class.Show
 open FStarC.Syntax.Print {} // instances
 
-module BU = FStarC.Util
 module SS = FStarC.Syntax.Subst
 module S = FStarC.Syntax.Syntax
 module U = FStarC.Syntax.Util
@@ -45,7 +44,7 @@ let tr_expr (g:uenv) (t:term) : mlexpr & e_tag & mlty =
     raise NotSupportedByExtension;
   let Some (fv, us, args) = hua in
   if !dbg then
-    BU.print1 "ExtractSteel.ML.tr_expr (%s)\n" (show hua);
+    Format.print1 "ExtractSteel.ML.tr_expr (%s)\n" (show hua);
   match fv, us, args with
   | fv, _, [_a; _fp; _fp'; _o; _p; _i; _body]
       when S.fv_eq_lid fv steel_with_invariant_g_lid
