@@ -87,7 +87,7 @@ let my_types_without_decay () =
     BU.starts_with (Syntax.string_of_mlpath p) "Steel.ST.C.Types.Struct.struct_t0"
     || BU.starts_with (Syntax.string_of_mlpath p) "Steel.ST.C.Types.Union.union_t0"
     ->
-      TQualified (must (lident_of_typestring tag))
+      TQualified (Option.must (lident_of_typestring tag))
 
   | MLTY_Named ([arg], p) when
       Syntax.string_of_mlpath p = "Steel.ST.C.Types.Array.array_ptr_gen"
@@ -108,7 +108,7 @@ let my_types_without_decay () =
     Syntax.string_of_mlpath p = "Steel.ST.C.Types.Base.void_ptr"
     || Syntax.string_of_mlpath p = "Steel.ST.C.Types.Array.array_void_ptr"
     ->
-      BU.print1 "Converting %s to TAny" (Syntax.string_of_mlpath p);
+      Format.print1 "Converting %s to TAny" (Syntax.string_of_mlpath p);
       TAny
 
   | MLTY_Named ([t; n; s], p)
@@ -117,7 +117,7 @@ let my_types_without_decay () =
     ->
       TArray (
         translate_type_without_decay env t,
-        (UInt32, string_of_int (must (int_of_typenat n))))
+        (UInt32, string_of_int (Option.must (int_of_typenat n))))
   
   | _ -> raise NotSupportedByKrmlExtension
 end
@@ -194,7 +194,7 @@ let my_exprs () = register_pre_translate_expr begin fun env e ->
     || string_of_mlpath p = "Steel.ST.C.Types.Union.union_switch_field0"
     ->
       EAddrOf (EField (
-        TQualified (must (lident_of_string struct_name)),
+        TQualified (Option.must (lident_of_string struct_name)),
         EBufRead (translate_expr env r, EQualified (["C"], "_zero_for_deref")),
         field_name))
 
@@ -325,7 +325,7 @@ let parse_steel_c_fields env (fields: mlty): option (list _) =
       in
       match go fields with
       | None ->
-        BU.print1 "Failed to parse fields from %s.\n"
+        Format.print1 "Failed to parse fields from %s.\n"
           (FStarC.Extraction.ML.Code.string_of_mlty ([], "") fields);
         None
 
@@ -333,7 +333,7 @@ let parse_steel_c_fields env (fields: mlty): option (list _) =
           print_endline "Got fields:";
           List.fold_left
             (fun () (field, ty) ->
-               BU.print2 "  %s : %s\n"
+               Format.print2 "  %s : %s\n"
                  field
                  (FStarC.Extraction.ML.Code.string_of_mlty ([], "") ty))
             ()
@@ -341,7 +341,7 @@ let parse_steel_c_fields env (fields: mlty): option (list _) =
           Some (
             List.map
               (fun (field, ty) ->
-                 BU.print1 "Translating %s.\n"
+                 Format.print1 "Translating %s.\n"
                    (FStarC.Extraction.ML.Code.string_of_mlty ([], "") ty);
                  (field, translate_type_without_decay env ty))
               fields)
@@ -350,7 +350,7 @@ let define_struct_gen
   env p args fields
 =
     let env = List.fold_left (fun env name -> extend_t env name) env args in
-    let fields = must (parse_steel_c_fields env fields) in
+    let fields = Option.must (parse_steel_c_fields env fields) in
     Some (DTypeFlat (p, [], List.length args,
       List.map (fun (field, ty) -> (field, (ty, true))) fields))
 
@@ -361,7 +361,7 @@ let define_struct
   print_endline "Parsing struct definition.";
   match lident_of_typestring tag with
   | None ->
-    BU.print1 "Failed to parse struct tag from %s.\n"
+    Format.print1 "Failed to parse struct tag from %s.\n"
       (FStarC.Extraction.ML.Code.string_of_mlty ([], "") tag);
     None
   | Some p ->
@@ -371,7 +371,7 @@ let define_union_gen
   env p args fields
 =
     let env = List.fold_left (fun env name -> extend_t env name) env args in
-    let fields = must (parse_steel_c_fields env fields) in
+    let fields = Option.must (parse_steel_c_fields env fields) in
     Some (DUntaggedUnion (p, [], List.length args, fields))
 
 let define_union
@@ -381,7 +381,7 @@ let define_union
   print_endline "Parsing union definition.";
   match lident_of_typestring tag with
   | None ->
-    BU.print1 "Failed to parse union tag from %s.\n"
+    Format.print1 "Failed to parse union tag from %s.\n"
       (FStarC.Extraction.ML.Code.string_of_mlty ([], "") tag);
     None
   | Some p ->
