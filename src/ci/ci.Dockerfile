@@ -39,7 +39,6 @@ ENV PATH=$HOME/bin:$PATH
 
 # Steel CI proper
 ARG STEEL_NIGHTLY_CI
-ARG OTHERFLAGS=--use_hints
 RUN eval $(opam env) && . $HOME/.cargo/env && env STEEL_NIGHTLY_CI="$STEEL_NIGHTLY_CI" make -k -j $opamthreads -C steel ci
 
 ENV STEEL_HOME $HOME/steel
