@@ -38,7 +38,6 @@ FSTAR_OPTIONS = --cache_checked_modules \
   --include $(KRML_HOME)/krmllib/compat --include $(KRML_HOME)/krmllib/obj \
   --include $(KRML_HOME)/krmllib --include $(KRML_HOME)/runtime \
   --include $(STEEL_HOME)/lib/steel --load_cmxs steel \
-  --use_hints --record_hints \
   --already_cached 'Prims,FStar,C,TestLib,Spec.Loops,-C.Compat,-C.Nullity,LowStar,WasmSupport,Steel' \
   --trivial_pre_for_unannotated_effectful_fns false \
   --cmi --warn_error -274 \
