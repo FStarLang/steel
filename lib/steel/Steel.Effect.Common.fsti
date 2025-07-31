@@ -798,7 +798,7 @@ let rec get_candidates (t:term) (l:list term) : Tac (list term) =
   | [] -> []
   | hd::tl ->
       let n, _ = collect_app hd in
-      if term_eq_old n name then (
+      if lax_term_eq n name then (
         hd::(get_candidates t tl)
       ) else get_candidates t tl
 
@@ -1603,12 +1603,12 @@ let equivalent_sorted (#a:Type) (eq:CE.equiv a) (m:CE.cm a eq) (am:amap a) (l1 l
 #pop-options
 
 /// Finds the position of first occurrence of x in xs.
-/// This is now specialized to terms and their funny term_eq_old.
+/// This is now specialized to terms and their funny lax_term_eq.
 let rec where_aux (n:nat) (x:term) (xs:list term) :
     Tac (option nat) (decreases xs) =
   match xs with
   | [] -> None
-  | x'::xs' -> if term_eq_old x x' then Some n else where_aux (n+1) x xs'
+  | x'::xs' -> if lax_term_eq x x' then Some n else where_aux (n+1) x xs'
 let where = where_aux 0
 
 let fatom (t:term) (ts:list term) (am:amap term) : Tac (exp * list term * amap term) =
@@ -1628,13 +1628,13 @@ let rec reification_aux (ts:list term) (am:amap term)
   let hd, tl = collect_app_ref t in
   match inspect_unascribe hd, List.Tot.Base.list_unref tl with
   | Tv_FVar fv, [(t1, Q_Explicit) ; (t2, Q_Explicit)] ->
-    if term_eq_old (pack (Tv_FVar fv)) mult
+    if lax_term_eq (pack (Tv_FVar fv)) mult
     then (let (e1, ts, am) = reification_aux ts am mult unit t1 in
           let (e2, ts, am) = reification_aux ts am mult unit t2 in
           (Mult e1 e2, ts, am))
     else fatom t ts am
   | _, _ ->
-    if term_eq_old t unit
+    if lax_term_eq t unit
     then (Unit, ts, am)
     else fatom t ts am
 
@@ -2200,7 +2200,7 @@ let rec term_mem (te: term) (l: list term) : Tac bool =
   match l with
   | [] -> false
   | t' :: q ->
-    if te `term_eq_old` t' then true else term_mem te q
+    if te `lax_term_eq` t' then true else term_mem te q
 
 let rec lookup_by_term_attr' (attr: term) (e: env) (found: list fv) (l: list fv) : Tac (list fv)
 =
@@ -2778,7 +2778,7 @@ let rec term_dict_assoc
   | [] -> []
   | (k, v) :: q ->
     let q' = term_dict_assoc key q in
-    if k `term_eq_old` key
+    if k `lax_term_eq` key
     then (v :: q')
     else q'
 
