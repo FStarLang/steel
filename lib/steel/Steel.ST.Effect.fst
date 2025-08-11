@@ -21,7 +21,6 @@ open FStar.Ghost
 include Steel.Effect.Common
 open Steel.Effect
 #set-options "--warn_error -330"  //turn off the experimental feature warning
-#set-options "--ide_id_info_off"
 
 let repr a framed pre post req ens : Type u#2 =
   Steel.Effect.repr a framed pre post (fun _ -> req) (fun _ v _ -> ens v)

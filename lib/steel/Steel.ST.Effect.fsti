@@ -24,7 +24,6 @@ open Steel.Memory
 open FStar.Ghost
 include Steel.Effect.Common
 #set-options "--warn_error -330"  //turn off the experimental feature warning
-#set-options "--ide_id_info_off"
 
 val repr (a:Type)
          (framed:bool)

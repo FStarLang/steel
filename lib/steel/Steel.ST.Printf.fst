@@ -59,7 +59,6 @@ module L = FStar.List.Tot
 module A = Steel.ST.Array
 module U32 = FStar.UInt32
 
-#set-options "--ide_id_info_off"
 
 /// `lmbuffer a l` is
 ///    - an array of `a`

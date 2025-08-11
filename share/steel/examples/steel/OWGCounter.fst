@@ -42,7 +42,7 @@ open Steel.Effect
 module R = Steel.Reference
 module P = Steel.FractionalPermission
 
-#set-options "--ide_id_info_off --using_facts_from '* -FStar.Tactics -FStar.Reflection' --fuel 0 --ifuel 0"
+#set-options "--using_facts_from '* -FStar.Tactics -FStar.Reflection' --fuel 0 --ifuel 0"
 
 let half_perm = half_perm full_perm
 

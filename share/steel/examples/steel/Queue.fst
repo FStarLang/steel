@@ -3,7 +3,6 @@ module Queue
 module L = FStar.List.Tot
 open Steel.Utils {} // patterns
 
-#set-options "--ide_id_info_off"
 
 let pure_upd_next
   (#a: Type0)
@@ -196,8 +195,6 @@ let new_queue #a v =
   intro_exists ([(pc, c)]) (queue_lc pc pc [v]);
   intro_exists ([v]) (queue_l pc pc);
   return pc
-
-#push-options "--ide_id_info_off --print_implicits"
 
 let witness_h_exists_erased (#a:Type) (#opened_invariants:_) (#p: Ghost.erased a -> vprop) (_:unit)
   : SteelGhostT (Ghost.erased a) opened_invariants

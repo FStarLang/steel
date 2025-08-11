@@ -26,8 +26,6 @@ open Steel.FractionalPermission
 /// while allowing to reclaim the locked resource once the lock is not needed anymore.
 /// This is analogous to Cancellable Invariants in Iris.
 
-#push-options "--ide_id_info_off"
-
 /// The abstract type of ghost locks. Only used for proof purposes, will be erased at extraction time
 val inv (p:vprop) : Type0
 

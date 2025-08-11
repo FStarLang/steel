@@ -22,7 +22,7 @@ include Steel.Effect.Common
 
 /// This module defines atomic and ghost variants of the Steel effect
 
-#set-options "--warn_error -330 --ide_id_info_off"  //turn off the experimental feature warning
+#set-options "--warn_error -330"  //turn off the experimental feature warning
 
 
 (*** SteelAGCommon effect ***)

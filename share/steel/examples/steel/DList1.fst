@@ -594,7 +594,6 @@ let intro_dlist_snoc_cons #a #u (left tail head:t a) (hd: erased (cell a)) (xs:e
         dlist_snoc left tail head (next hd) (econs hd xs))
   = rewrite_slprop _ _ (fun m -> dlist_snoc_cons left tail head hd xs)
 
-#push-options "--ide_id_info_off"
 let enil #a (x:erased a) : erased (list a) = hide [reveal x]
 
 let new_dlist' (#a:Type) (init:a)

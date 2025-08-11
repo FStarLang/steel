@@ -346,8 +346,6 @@ let hr_share_imbalance (#a:Type)
 = HR.share #_ #_ #_ #v r;
   _
 
-#set-options "--ide_id_info_off"
-
 let pts_to_equiv
   r1 r2 v
 = rewrite (ref_equiv r1 r2) (ref_equiv0 r1 r2);

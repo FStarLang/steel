@@ -8,7 +8,7 @@ open Steel.Reference
 
 /// Some examples using Steel references with fractional permissions
 
-#push-options "--fuel 0 --ifuel 0 --ide_id_info_off"
+#push-options "--fuel 0 --ifuel 0"
 
 (** Swap examples **)
 

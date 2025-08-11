@@ -31,7 +31,6 @@ module PR = Steel.GhostPCMReference
 module A = Steel.Effect.Atomic
 open FStar.Real
 
-#set-options "--ide_id_info_off"
 
 let ref a p = PR.ref (history a p) pcm_history
 

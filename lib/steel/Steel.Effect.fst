@@ -21,7 +21,6 @@ module Mem = Steel.Memory
 open Steel.Semantics.Instantiate
 module FExt = FStar.FunctionalExtensionality
 
-#set-options "--ide_id_info_off"
 
 let _:squash (forall p q. can_be_split p q == Mem.slimp (hp_of p) (hp_of q)) = reveal_can_be_split ()
 

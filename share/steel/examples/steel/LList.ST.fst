@@ -24,7 +24,6 @@ open Steel.ST.Util
 
 open Steel.ST.Reference
 
-#set-options "--ide_id_info_off"
 
 let rec is_list #a ll l : Tot vprop (decreases l) =
   match l with

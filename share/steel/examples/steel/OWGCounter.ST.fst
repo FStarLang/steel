@@ -46,7 +46,6 @@ module GR = Steel.ST.GhostReference
  *   protected by a lock
  *)
 
-#set-options "--ide_id_info_off"
 
 let half_perm = half_perm full_perm
 

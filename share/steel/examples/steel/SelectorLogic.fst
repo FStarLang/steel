@@ -5,8 +5,6 @@ module Mem = Steel.Memory
 
 (* Extending selectors to support wand; establishing a correspondence with linear logic *)
 
-#push-options "--ide_id_info_off"
-
 let selector (hp:slprop) (a:(hmem hp) -> Type) = (h:hmem hp -> GTot (a h))
 
 /// The basis of our selector framework: Separation logic assertions enhanced with selectors

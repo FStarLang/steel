@@ -21,7 +21,6 @@ module SEA = Steel.Effect.Atomic
 module SE = Steel.Effect
 open Steel.ST.Coercions
 
-#set-options "--ide_id_info_off"
 
 let weaken #o p q l =
   coerce_ghost (fun () -> SEA.rewrite_slprop p q l)

@@ -30,7 +30,6 @@ module M = Steel.Memory
 module PR = Steel.PCMReference
 open FStar.Real
 
-#set-options "--ide_id_info_off"
 
 let ref a p = M.ref (history a p) pcm_history
 

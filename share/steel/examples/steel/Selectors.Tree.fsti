@@ -7,7 +7,6 @@ open Steel.Effect
 
 module Spec = Trees
 
-#set-options "--ide_id_info_off"
 
 /// This module provides a library of operations on trees.
 /// The definition of the `linked_tree` predicate is hidden behind the `Selectors.Tree.Core` interface.

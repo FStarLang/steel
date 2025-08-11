@@ -27,7 +27,6 @@ module G = FStar.Ghost
 
 /// Monomorphization of LList.ST for UInt32
 
-#set-options "--ide_id_info_off"
 
 type u32 = FStar.UInt32.t
 

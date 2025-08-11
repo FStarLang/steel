@@ -41,7 +41,7 @@ module STF = Steel.ST.Effect
 /// [pure_post] abbreviations. The tactic in Steel.Effect.Common relies
 /// on those names to distinguish between vprop and non-vprop goals.
 
-#set-options "--warn_error -330 --ide_id_info_off"  //turn off the experimental feature warning
+#set-options "--warn_error -330"  //turn off the experimental feature warning
 
 (*** STAGCommon effect ***)
 val repr (a:Type u#a)               //result type

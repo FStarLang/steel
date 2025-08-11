@@ -24,7 +24,6 @@ module Mem = Steel.Memory
 module H = Steel.HigherReference
 module U = FStar.Universe
 
-#set-options "--ide_id_info_off"
 
 let ref a = H.ref (U.raise_t a)
 

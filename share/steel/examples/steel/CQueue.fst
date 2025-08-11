@@ -1,7 +1,6 @@
 module CQueue
 open CQueue.LList
 
-#set-options "--ide_id_info_off"
 
 //Re-define squash, since this module explicitly
 //replies on proving equalities of the form `t_of v == squash p`

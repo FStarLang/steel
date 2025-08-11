@@ -28,7 +28,6 @@ open Steel.Reference
 open Steel.Primitive.ForkJoin
 
 #set-options "--warn_error -330"  //turn off the experimental feature warning
-#set-options "--ide_id_info_off"
 
 // (* Some helpers *)
 let change_slprop_equiv (p q : vprop)

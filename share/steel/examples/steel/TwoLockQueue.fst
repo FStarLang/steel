@@ -16,8 +16,6 @@ module Q = Queue
 /// ensuring that at most one enqueue (resp. dequeue) is happening at any time
 /// We only prove that this implementation is memory safe, and do not prove the functional correctness of the concurrent queue
 
-#push-options "--ide_id_info_off"
-
 /// Adding the definition of the vprop equivalence to the context, for proof purposes
 let _: squash (forall p q. p `equiv` q <==> hp_of p `Steel.Memory.equiv` hp_of q) =
   Classical.forall_intro_2 reveal_equiv
