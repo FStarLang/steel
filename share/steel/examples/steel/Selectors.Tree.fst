@@ -9,7 +9,7 @@ open Steel.Reference
 /// The implementation of the Selectors.Tree interface.
 /// Predicates prefixed by (**) correspond to stateful lemmas for folding and unfolding the tree predicate
 
-#set-options "--fuel 1 --ifuel 1 --z3rlimit 50 --ide_id_info_off"
+#set-options "--fuel 1 --ifuel 1 --z3rlimit 50"
 
 let rec append_left #a ptr v =
   if is_null_t ptr then (

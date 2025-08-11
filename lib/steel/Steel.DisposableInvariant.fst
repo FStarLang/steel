@@ -23,8 +23,6 @@ open Steel.Effect
 open Steel.FractionalPermission
 open Steel.Reference
 
-#push-options "--ide_id_info_off"
-
 [@@__reduce__]
 let conditional_inv (r:ghost_ref bool) (p:vprop) =
       (fun (b:bool) ->

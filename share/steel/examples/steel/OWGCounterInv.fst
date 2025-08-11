@@ -41,7 +41,7 @@ module P = Steel.FractionalPermission
 
 open Steel.DisposableInvariant
 
-#set-options "--using_facts_from '* -FStar.Tactics -FStar.Reflection' --fuel 0 --ifuel 0 --ide_id_info_off"
+#set-options "--using_facts_from '* -FStar.Tactics -FStar.Reflection' --fuel 0 --ifuel 0"
 
 (**** A few wrappers over library functions ****)
 

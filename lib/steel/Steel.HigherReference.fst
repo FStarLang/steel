@@ -24,7 +24,6 @@ open Steel.PCMFrac
 open FStar.Real
 module RP = Steel.PCMReference
 
-#set-options "--ide_id_info_off"
 
 module Mem = Steel.Memory
 

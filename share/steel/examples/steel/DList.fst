@@ -8,8 +8,6 @@ open Steel.Reference
 open DList.Invariant
 module U = Steel.Utils
 
-#push-options "--ide_id_info_off"
-
 let new_dlist (#a:Type) (init:a)
   : Steel (t a & cell a)
     emp

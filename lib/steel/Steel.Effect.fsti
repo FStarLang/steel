@@ -26,7 +26,6 @@ include Steel.Effect.Common
 /// selectors, which will be discharged by SMT
 
 #set-options "--warn_error -330"  //turn off the experimental feature warning
-#set-options "--ide_id_info_off"
 
 (* Defining the Steel effect with selectors *)
 

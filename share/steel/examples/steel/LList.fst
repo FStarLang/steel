@@ -7,7 +7,6 @@ open Steel.Reference
 include LList.Invariant
 module L = FStar.List.Tot.Base
 
-#set-options "--ide_id_info_off"
 
 let rec datas (#a:Type) (l:list (cell a)) : list a =
   match l with

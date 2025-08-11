@@ -27,7 +27,6 @@ open Steel.Effect
 /// This module exposes the core PCM-based memory model defined in Steel.Memory
 /// as ghost Steel computations.
 
-#set-options "--ide_id_info_off"
 
 /// The type of a reference to ghost state in pcm [p]
 [@@erasable]

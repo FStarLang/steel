@@ -124,7 +124,6 @@ open Steel.Effect.Common
 open Steel.ST.GenElim
 
 
-#set-options "--ide_id_info_off"
 
 assume val test_2626_aux
   (#opened: _)

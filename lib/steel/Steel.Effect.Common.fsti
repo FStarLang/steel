@@ -24,7 +24,6 @@ open FStar.Ghost
 /// different Steel effects.
 /// It also contains the tactic responsible for frame inference through a variant of AC-unification
 
-#set-options "--ide_id_info_off"
 
 (* Normalization helpers *)
 

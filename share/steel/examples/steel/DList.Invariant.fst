@@ -569,8 +569,6 @@ let intro_dlist_snoc_cons #a #u (left tail head:t a) (hd: cell a) (xs:_)
         dlist_snoc left tail head (next hd) (hd :: xs))
   = sladmit()
 
-#push-options "--ide_id_info_off"
-
 let new_dlist' (#a:Type) (init:a)
   : Steel (t a & cell a)
     emp

@@ -26,7 +26,6 @@ open Steel.Effect
 /// This module exposes the core PCM-based memory model defined in Steel.Memory
 /// as stateful Steel computations.
 
-#set-options "--ide_id_info_off"
 
 /// Lifting the pts_to separation logic, PCM-indexed predicate to a vprop.
 /// Its selector is non-informative (it is unit)

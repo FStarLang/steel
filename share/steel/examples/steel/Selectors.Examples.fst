@@ -6,7 +6,7 @@ open Steel.Reference
 
 /// A few small tests for the selector effect.
 
-#push-options "--fuel 0 --ifuel 0 --ide_id_info_off"
+#push-options "--fuel 0 --ifuel 0"
 
 let swap (#a:Type0) (r1 r2:ref a) : Steel unit
   (vptr r1 `star` vptr r2)

@@ -17,8 +17,6 @@ let cllist_head #a c =
 let cllist_tail #a c =
   c.tail
 
-#push-options "--ide_id_info_off"
-
 let cllist0_refine
   (#a: Type0)
   (c: cllist_ptrvalue a)
