@@ -397,7 +397,7 @@ let impl_jump
 
 #restart-solver
 
-#push-options "--z3rlimit 100 --split_queries always" // This proof is really brittle.
+#push-options "--z3rlimit 100 --z3smtopt '(set-option :smt.arith.solver 2)' --split_queries always" // This proof is really brittle.
 inline_for_extraction
 let array_swap_outer_body
   (#t: Type)
