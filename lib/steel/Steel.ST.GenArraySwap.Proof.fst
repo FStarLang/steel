@@ -1,6 +1,10 @@
 module Steel.ST.GenArraySwap.Proof
+
 open FStar.Math.Lemmas
 open FStar.Mul
+module SZ = FStar.SizeT
+
+#set-options "--z3cliopt smt.arith.nl=false"
 
 let lemma_mod_lt
   (a:int)
@@ -59,8 +63,6 @@ let lemma_bezout_one_zero
     x1 == 1 /\ x2 == 1
   ))
 = ()
-
-#set-options "--z3cliopt smt.arith.nl=false"
 
 let int_semiring () =
   FStar.Tactics.CanonCommSemiring.int_semiring ();
@@ -671,6 +673,7 @@ let array_swap_inner_invariant
         Seq.index s idx == Seq.index s0 (if i' < i || (i' = i && j' < j) then jump (n) (l) idx else idx)
   ))
 
+#push-options "--z3rlimit 20"
 let array_swap_inner_invariant_end
   (#t: Type)
   (n: nat)
@@ -692,8 +695,7 @@ let array_swap_inner_invariant_end
   ))
 //  [SMTPat (array_swap_inner_invariant s0 n l bz s i j idx)]
 = ()
-
-module SZ = FStar.SizeT
+#pop-options
 
 let sz_rem_spec
   (n: SZ.t)

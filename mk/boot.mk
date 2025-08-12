@@ -34,7 +34,6 @@ FSTAR_OPTIONS += --include "$(SRC)"
 FSTAR_OPTIONS += --cache_checked_modules
 FSTAR_OPTIONS += --warn_error -321
 FSTAR_OPTIONS += --compat_pre_typed_indexed_effects
-FSTAR_OPTIONS += --z3version 4.13.3
 ifeq ($(ADMIT),1)
 FSTAR_OPTIONS += --admit_smt_queries true
 endif
