@@ -376,12 +376,12 @@ let affine_star p q h = ()
 
 let equiv_symmetric (p1 p2:slprop u#a) = ()
 let equiv_extensional_on_star (p1 p2 p3:slprop u#a) = ()
-let emp_unit p
+let emp_unit (p:slprop u#a)
   = let emp_unit_1 p m
       : Lemma
-        (requires interp p m)
-        (ensures  interp (p `star` emp) m)
-        [SMTPat (interp (p `star` emp) m)]
+        (requires interp u#a p m)
+        (ensures  interp u#a (p `star` emp) m)
+        [SMTPat (interp u#a (p `star` emp) m)]
       = let emp_m : heap = on _ (fun _ -> None) in
         assert (disjoint emp_m m);
         assert (interp (p `star` emp) (join m emp_m));
@@ -1279,24 +1279,27 @@ let witinv_framon #a (p : a -> slprop)
     in
     Classical.forall_intro_4 (fun x y m frame -> Classical.move_requires (aux x y m) frame)
 
-let witness_h_exists #a p =
+let witness_h_exists (#a:Type u#a) (p:a -> slprop u#b) =
   fun frame h0 ->
-  let w = FStar.IndefiniteDescription.indefinite_description_tot
+  assert (interp (h_exists p `star` frame) h0); 
+  FStar.Classical.forall_intro (elim_h_exists u#a u#b p);
+  assert (exists x. interp (p x `star` frame) h0);
+  let w = FStar.IndefiniteDescription.indefinite_description_tot u#a
     a
     (fun x -> interp (p x `star` frame) h0) in
   (| w, h0 |)
 
-let lift_h_exists (#a:_) (p:a -> slprop)
+let lift_h_exists (#a:Type u#a) (p:a -> slprop u#b)
   : action (h_exists p) unit
-           (fun _a -> h_exists #(U.raise_t a) (U.lift_dom p))
-  = let g : refined_pre_action (h_exists p) unit (fun _a -> h_exists #(U.raise_t a) (U.lift_dom p))
+           (fun _a -> h_exists #(U.raise_t u#a u#c a) (U.lift_dom u#a u#(1 + b) u#c p))
+  = let g : refined_pre_action (h_exists p) unit (fun _a -> h_exists #(U.raise_t u#a u#c a) (U.lift_dom u#a u#(1 + b) u#c p))
           = fun h ->
               let aux (x:a) (h:heap)
                 : Lemma
                   (requires interp (p x) h)
-                  (ensures interp (h_exists (U.lift_dom p)) h)
-                  [SMTPat (interp (p x) h)]
-                = assert (interp (U.lift_dom p (U.raise_val x)) h)
+                  (ensures interp (h_exists (U.lift_dom u#a u#(1 + b) u#c p)) h)
+                  [SMTPat (interp u#b (p x) h)]
+                = assert (interp (U.lift_dom u#a u#(1 + b) u#c p (U.raise_val u#a u#c x)) h)
               in
               (| (), h |)
     in
