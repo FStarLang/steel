@@ -51,10 +51,10 @@ val state_correspondence (inames:inames)
     (let s = state_uses inames in
      s.S.hprop == slprop /\
      s.S.mem == mem /\
-     s.S.interp == interp /\
-     s.S.star == star /\
-     s.S.locks_invariant == locks_invariant inames /\
-     (forall (p q frame:slprop)
+     s.S.interp == interp u#1 /\
+     s.S.star == star u#1 /\
+     s.S.locks_invariant == locks_invariant u#1 inames /\
+     (forall (p q frame:slprop u#1)
         (m0:mem{interp (p `star` frame `star` locks_invariant inames m0) m0})
         (m1:mem{interp (q `star` frame `star` locks_invariant inames m1) m1}).
        (forall (f_frame:mprop frame). f_frame (core_mem m0) == f_frame (core_mem m1)) ==> 

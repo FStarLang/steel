@@ -62,7 +62,7 @@ let intro_can_be_split_pure'
 : Lemma
   (p ==> emp `can_be_split` pure p)
 = reveal_can_be_split ();
-  Classical.forall_intro (pure_interp p)
+  Classical.forall_intro (pure_interp u#1 p)
 
 let intro_can_be_split_pure
   (p: prop)

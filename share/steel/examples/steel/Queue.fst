@@ -42,8 +42,8 @@ let emp_equiv_pure
   (requires p)
   (ensures (emp `equiv` pure p))
 = reveal_emp ();
-  Classical.forall_intro intro_emp;
-  Classical.forall_intro (pure_interp p)
+  Classical.forall_intro (intro_emp u#1);
+  Classical.forall_intro (pure_interp u#1 p)
 
 let rec next_last
   (#a: Type)

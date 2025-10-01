@@ -8,7 +8,7 @@ endif
 
 # Define the Steel root directory. We need to fix it to use the Windows path convention on Windows+Cygwin.
 export STEEL_HOME := $(CURDIR)
-
+export OTHERFLAGS += --proof_recovery
 include $(STEEL_HOME)/mk/common.mk
 
 FSTAR_EXE ?= fstar.exe

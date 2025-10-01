@@ -19,8 +19,8 @@ open Steel.Memory
 module S = Steel.Semantics.Hoare.MST
 
 let is_unit ()
-  : Lemma (S.is_unit emp equiv star)
-  = let aux (y:slprop)
+  : Lemma (S.is_unit (emp u#1) equiv (star u#1))
+  = let aux (y:slprop u#1)
       : Lemma (star emp y `equiv` y /\ star y emp `equiv` y)
       = emp_unit y; star_commutative emp y
     in
@@ -28,17 +28,17 @@ let is_unit ()
 
 #push-options "--warn_error -271"
 let state_obeys_st_laws uses =
-  Classical.forall_intro_3 star_associative;
-  Classical.forall_intro_2 star_commutative;
+  Classical.forall_intro_3 (star_associative u#1);
+  Classical.forall_intro_2 (star_commutative u#1);
   is_unit ();
-  FStar.Classical.forall_intro_3 disjoint_join;
-  let aux (m0 m1:mem)
+  FStar.Classical.forall_intro_3 (disjoint_join u#1);
+  let aux (m0 m1:mem u#1)
     : Lemma (requires disjoint m0 m1)
             (ensures join m0 m1 == join m1 m0)
             [SMTPat (disjoint m0 m1)]
     = join_commutative m0 m1
   in
-  let aux (m0 m1 m2:mem)
+  let aux (m0 m1 m2:mem u#1)
     : Lemma
       (requires
         disjoint m1 m2 /\
@@ -49,7 +49,7 @@ let state_obeys_st_laws uses =
       [SMTPat (disjoint m0 (join m1 m2))]
     = join_associative m0 m1 m2
   in
-  let aux (p1 p2 p3:slprop)
+  let aux (p1 p2 p3:slprop u#1)
     : Lemma (p1 `equiv` p2 ==> (p1 `star` p3) `equiv` (p2 `star` p3))
       [SMTPat ()]
     = equiv_extensional_on_star  p1 p2 p3
@@ -61,6 +61,6 @@ let state_correspondence inames =
     let s = state_uses inames in
     assert_norm (s.S.hprop == slprop)  ;
     assert_norm (s.S.mem == mem)  ;
-    assert_norm (s.S.interp == interp);
-    assert_norm (s.S.star == star);
-    assert_norm (s.S.locks_invariant == locks_invariant inames)
+    assert_norm (s.S.interp == interp u#1);
+    assert_norm (s.S.star == star u#1);
+    assert_norm (s.S.locks_invariant == locks_invariant u#1 inames)

@@ -32,13 +32,11 @@ let is_null #a r = H.is_null #(U.raise_t a) r
 
 let pts_to_sl r p v = H.pts_to_sl r p (U.raise_val v)
 
-val raise_val_inj (#a:Type) (x y:a) : Lemma
-  (requires U.raise_val x == U.raise_val y)
+let raise_val_inj (#a:Type u#0) (x y:a) : Lemma
+  (requires U.raise_val u#0 u#1 x == U.raise_val u#0 u#1 y)
   (ensures x == y)
-
-let raise_val_inj x y =
-  U.downgrade_val_raise_val x;
-  U.downgrade_val_raise_val y
+= U.downgrade_val_raise_val u#0 u#1 x;
+  U.downgrade_val_raise_val u#0 u#1 y
 
 
 let pts_to_ref_injective
@@ -146,14 +144,14 @@ let share_pt #a #uses #p #v r =
   rewrite_slprop (H.pts_to r (half_perm p) v') (pts_to r (half_perm p) v) (fun _ -> ());
   rewrite_slprop (H.pts_to r (half_perm p) v') (pts_to r (half_perm p) v) (fun _ -> ())
 
-let hide_raise_reveal (#a:Type) (v0:erased a) (v1:erased a)
-  : Lemma (hide (U.raise_val (reveal v0)) == hide (U.raise_val (reveal v1)) <==>
+let hide_raise_reveal (#a:Type0) (v0:erased a) (v1:erased a)
+  : Lemma (hide (U.raise_val u#0 u#1 (reveal v0)) == hide (U.raise_val u#0 u#1 (reveal v1)) <==>
            v0 == v1)
-           [SMTPat (hide (U.raise_val (reveal v0)));
-            SMTPat (hide (U.raise_val (reveal v1)))]
-  = let u0 = hide (U.raise_val (reveal v0)) in
-    let u1 = hide (U.raise_val (reveal v1)) in
-    assert (U.downgrade_val (U.raise_val (reveal v0)) == U.downgrade_val (U.raise_val (reveal v1)) <==>
+           [SMTPat (hide (U.raise_val u#0 u#1 (reveal v0)));
+            SMTPat (hide (U.raise_val u#0 u#1 (reveal v1)))]
+  = let u0 = hide (U.raise_val u#0 u#1 (reveal v0)) in
+    let u1 = hide (U.raise_val u#0 u#1 (reveal v1)) in
+    assert (U.downgrade_val (U.raise_val u#0 u#1 (reveal v0)) == U.downgrade_val (U.raise_val u#0 u#1 (reveal v1)) <==>
             v0 == v1)
 
 let gather_pt #a #uses #p0 #p1 #v0 #v1 r =
@@ -166,10 +164,10 @@ let gather_pt #a #uses #p0 #p1 #v0 #v1 r =
   u
 
 let raise_equiv (#t:Type) (x y:t)
-  : Lemma (U.raise_val x == U.raise_val y <==>
+  : Lemma (U.raise_val u#0 u#1 x == U.raise_val u#0 u#1 y <==>
            x == y)
-  = assert (U.downgrade_val (U.raise_val x) == x);
-    assert (U.downgrade_val (U.raise_val y) == y)
+  = assert (U.downgrade_val (U.raise_val u#0 u#1 x) == x);
+    assert (U.downgrade_val (U.raise_val u#0 u#1 y) == y)
 
 
 let downgrade_equiv (#t:Type) (x y:U.raise_t t)
@@ -208,7 +206,7 @@ let cas_action (#t:eqtype)
                   frame
      in
      assert (b <==> (Ghost.reveal hv == U.raise_val v_old));
-     assert (b <==> U.raise_val (Ghost.reveal v) == U.raise_val v_old);
+     assert (b <==> U.raise_val u#0 u#1 (Ghost.reveal v) == U.raise_val u#0 u#1 v_old);
      raise_equiv (Ghost.reveal v) v_old;
      b
 

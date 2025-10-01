@@ -72,7 +72,7 @@ let post #s a (c:comm_monoid s) = a -> c.r
  *  Also see: https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/views.pdf
  *)
 noeq
-type action #s (c:comm_monoid s) (a:Type) = {
+type action (#s:Type u#s) (c:comm_monoid u#s u#s s) (a:Type) = {
    pre: c.r;
    post: a -> c.r;
    sem: (frame:c.r ->
@@ -209,7 +209,7 @@ let rec run #s #c (i:nat) #pre #a #post (f:m s c a pre post) (state:s)
  *   - Note, we'll probably have to add a thunk to make it work with
  *     the current implementation but that's a detail
  *)
-let eff #s (#c:comm_monoid s) a (pre:c.r) (post: a -> c.r) =
+let eff (#s:Type u#1) (#c:comm_monoid s) a (pre:c.r) (post: a -> c.r) =
   m s c a pre post
 
 /// eff is a monad: we give a return and bind for it, though we don't
@@ -259,7 +259,7 @@ let par #s (#c:comm_monoid s)
 assume val heap : Type u#1
 
 /// Assume some monoid of heap assertions
-assume val hm : comm_monoid heap
+assume val hm : comm_monoid u#1 u#1 heap
 
 /// For this demo, we'll also assume that this assertions are affine
 ///  i.e., it's ok to forget some properties of the heap
@@ -296,9 +296,9 @@ assume val upd_ok (x:ref 'a) (v:'a) (h:heap) (frame:hm.r)
             hm.interp (pts_to x v `hm.star` frame) h'))
 
 /// Here's a sample action for dereference
-let (!) (x:ref 'a)
-  : eff 'a (ptr_live x) (pts_to x)
-  = let act : action hm 'a =
+let (!) (#a:Type) (x:ref a)
+  : eff a (ptr_live x) (pts_to x)
+  = let act : action hm a =
     {
       pre = ptr_live x;
       post = pts_to x;

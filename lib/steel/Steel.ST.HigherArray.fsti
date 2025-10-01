@@ -70,9 +70,12 @@ val base_len_null_ptr (elt: Type u#a) : Lemma
 /// this type, we use standard dependent pairs instead of a custom
 /// record type.
 inline_for_extraction
+let array_length (#elt:Type u#a) (p:ptr elt) : Type0 =
+  length:Ghost.erased nat { offset p + length <= base_len (base p) }
+inline_for_extraction
 [@@noextract_to "krml"]
-let array ([@@@strictly_positive] elt: Type u#a) : Tot Type0 =
-  (p: ptr elt & (length: Ghost.erased nat {offset p + length <= base_len (base p)}))
+let array ([@@@strictly_positive] elt: Type u#a) : Tot Type0 = dtuple2 (ptr elt) array_length
+//  (p: ptr elt & array_length p(length: Ghost.erased nat {offset p + length <= base_len (base p)}))
 
 inline_for_extraction
 [@@noextract_to "krml"]
@@ -282,7 +285,7 @@ let index
     (US.v i < length a \/ US.v i < Seq.length s)
     (fun res -> Seq.length s == length a /\ US.v i < Seq.length s /\ res == Seq.index s (US.v i))
 = rewrite
-    (pts_to _ _ _)
+    (pts_to a p s)
     (pts_to (| (ptr_of a), (dsnd a) |) p s);
   let res = index_ptr (ptr_of a) i in
   rewrite

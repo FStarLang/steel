@@ -183,12 +183,12 @@ let vdep_sel'
 
 let vdep_sel
   v p
-= Classical.forall_intro_2 (Classical.move_requires_2 (fun (m0 m1: mem) -> (join_commutative m0) m1));
+= Classical.forall_intro_2 (Classical.move_requires_2 (fun (m0 m1: mem u#1) -> (join_commutative m0) m1));
   vdep_sel' v p
 
 let vdep_sel_eq
   v p m
-= Classical.forall_intro_2 (Classical.move_requires_2 (fun (m0 m1: mem) -> (join_commutative m0) m1));
+= Classical.forall_intro_2 (Classical.move_requires_2 (fun (m0 m1: mem u#1) -> (join_commutative m0) m1));
   ()
 
 let vrewrite_sel

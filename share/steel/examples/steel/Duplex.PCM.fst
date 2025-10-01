@@ -641,7 +641,7 @@ let upd_gen_action #p r x y f =
   rewrite_slprop (pts_to r (reveal (hide y))) (pts_to r y) (fun _ -> ())
 
 
-#push-options "--z3rlimit_factor 8 --ifuel 2 --fuel 1 --split_queries no"
+#push-options "--z3rlimit_factor 8 --ifuel 2 --fuel 1 --split_queries no --retry 3"
 #restart-solver
 
 let write_a_f_aux
@@ -715,7 +715,7 @@ let write_a_f_aux
     res
 #pop-options
 
-#push-options "--z3rlimit_factor 8 --ifuel 2 --fuel 1 --split_queries no"
+#push-options "--z3rlimit_factor 8 --ifuel 2 --fuel 1 --split_queries no --retry 3"
 #restart-solver
 let write_b_f_aux
 (#p:dprot)
@@ -745,7 +745,7 @@ let write_b_f_aux
             assert (composable post (A_W (step next x) (extend tr x)));
             assert (compose (A_W (step next x) (extend tr x)) post == res)
           ) else if is_recv (step next x) then (
-            assert (composable post (A_R next tr));
+            assert_spinoff (composable post (A_R next tr));
             assert (compose (A_R next tr) post == res)
           ) else (
             assert (is_fin (step next x));
