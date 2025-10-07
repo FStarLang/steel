@@ -68,7 +68,7 @@ let raise_pcm
     let x' = downgrade_val x in
     let y' = downgrade_val y in
     assert (composable p x' y');
-    assert (op p x' y' == downgrade_val (raise_val (one p)));
+    assert (op p x' y' == downgrade_val (raise_val u#a u#b (one p)));
     assert (op res x y == one res)
   in
   let aux2
