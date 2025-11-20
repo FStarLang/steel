@@ -254,7 +254,7 @@ let struct_field
     ()
     (struct_field_lift_fpu p k)
 
-#push-options "--split_queries always"
+#push-options "--split_queries always --z3rlimit 30"
 
 #restart-solver
 let struct_field_ext
@@ -374,6 +374,7 @@ let struct_to_substruct
       assert (prod_op p' (struct_to_substruct_f p p' inj surj sq x1) (struct_to_substruct_f p p' inj surj sq x2) `feq` struct_to_substruct_f p p' inj surj sq (prod_op p x1 x2))
     )
 
+#push-options "--z3rlimit 32"
 let substruct_lift_fpu'
   (#a: eqtype)
   (#b: a -> Type)
@@ -405,10 +406,11 @@ let substruct_lift_fpu'
       | Some k' -> f' v' k' <: b k
       | _ -> v k
     )
+#pop-options
 
-#push-options "--query_stats --z3rlimit 64 --split_queries always"
-
+#push-options "--z3rlimit 128"
 #restart-solver
+
 let substruct_lift_fpu_prf
   (#a: eqtype)
   (#b: a -> Type)
@@ -444,6 +446,7 @@ let substruct_lift_fpu_prf
     composable (prod_pcm p') x' frame' /\ op (prod_pcm p') x' frame' `feq` v'
   ));
   assert ((~ (exists (k' : a') . True)) ==> Ghost.reveal x' `feq` one (prod_pcm p'));
+  FStar.Pure.BreakVC.break_vc ();
   assert (compatible (prod_pcm p') y' (f' v'));
   assert (forall (frame': restricted_t a' b') .
     (composable (prod_pcm p') y' frame' /\ op (prod_pcm p') frame' y' == f' v') ==> (
@@ -454,6 +457,7 @@ let substruct_lift_fpu_prf
   assert (compatible (prod_pcm p) y v_new);
   assert (p_refine (prod_pcm p) v_new);
   Classical.forall_intro_2 (fun k -> is_unit (p k));
+  FStar.Pure.BreakVC.break_vc ();
   let prf (frame: restricted_t a b) : Lemma
     (requires (
       composable (prod_pcm p) x frame

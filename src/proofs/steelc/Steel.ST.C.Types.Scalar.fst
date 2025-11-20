@@ -33,6 +33,7 @@ let scalar_mk_fraction
 
 #set-options "--smtencoding.elim_box true --smtencoding.l_arith_repr native --smtencoding.nl_arith_repr native" // for mk_fraction_split
 
+#push-options "--z3rlimit 40"
 let scalar t = {
   pcm = F.pcm_frac;
   fractionable = scalar_fractionable #t;
@@ -81,6 +82,7 @@ let scalar t = {
     | Some (v, _) -> Some (v, P.full_perm)
   );
 }
+#pop-options
 
 let mk_scalar v = (Some (Some v, P.full_perm))
 

@@ -841,6 +841,7 @@ let select_join #a #p (r:ref a p) (x:erased a) (h:full_heap) (hl hr:heap)
   = ()
 
 #push-options "--z3rlimit_factor 16 --fuel 1 --initial_ifuel 2 --max_ifuel 2"
+#restart-solver
 let select_refine_pre (#a:_) (#p:_)
                       (r:ref a p)
                       (x:erased a)
