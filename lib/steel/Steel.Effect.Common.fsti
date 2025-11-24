@@ -2954,10 +2954,16 @@ let rec pick_next (guarded_uvars: list int) (dict: _) (fuel: nat) : Tac bool =
       pick_next guarded_uvars dict (fuel - 1)
     in
     if sorted_lists_intersect guarded_uvars l
-    then next ()
+    then (
+      print ("Delaying goal with guarded uvars: " ^ term_to_string t);
+      next ()
+    )
     else if solve_or_delay dict
     then true
-    else next ()
+    else (
+      print ("Could not solve goal, delaying: " ^ term_to_string t);
+      next ()
+    )
 
 /// Main loop to schedule solving of goals.
 /// The goals () function fetches all current goals in the context
