@@ -250,7 +250,7 @@ let affine_star (p q:slprop) (m:mem) =
 let iname = nat
 module S = FStar.Set
 module L = FStar.List.Tot
-module W = FStar.Witnessed.Core
+module W = Steel.Witnessed.Core
 
 let rec lock_store_invariant (e:inames) (l:lock_store u#a) : slprop u#a =
   let current_addr = L.length l - 1 in
