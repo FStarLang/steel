@@ -12,7 +12,6 @@ FSTAR = $(RUNLIM) $(FSTAR_EXE) --cache_checked_modules \
   --include $(LIB_STEEL) \
   --load_cmxs steel \
   --warn_error @241 \
-  --cmi \
   --already_cached '*,'
 
 ROOTS = $(LIB_STEEL)/Steel.SpinLock.fsti

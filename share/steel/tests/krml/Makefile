@@ -40,7 +40,7 @@ FSTAR_OPTIONS = --cache_checked_modules \
   --include $(STEEL_HOME)/lib/steel --load_cmxs steel \
   --already_cached 'Prims,FStar,C,TestLib,Spec.Loops,-C.Compat,-C.Nullity,LowStar,WasmSupport,Steel' \
   --trivial_pre_for_unannotated_effectful_fns false \
-  --cmi --warn_error -274 \
+  --warn_error -274 \
   $(OTHERFLAGS)
 
 FSTAR_EXE ?= fstar.exe

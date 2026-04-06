@@ -27,8 +27,7 @@ FSTAR_OPTIONS=--odir $(OUTPUT_DIRECTORY) \
 		 $(OTHERFLAGS) \
 		 --cache_dir $(CACHE_DIRECTORY) \
 	         $(addprefix --include , $(INCLUDE_PATHS)) \
-		 --cache_checked_modules \
-		 --cmi
+		 --cache_checked_modules
 
 FSTAR=$(FSTAR_EXE) $(FSTAR_OPTIONS) $(ALREADY_CACHED)
 
