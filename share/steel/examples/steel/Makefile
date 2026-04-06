@@ -21,20 +21,10 @@ counter:
 
 endif
 
-ifdef KRML_HOME
-
 llist2: Selectors.LList2.fst.checked
 	+$(MAKE) -C $@
 
 llist3: Selectors.LList3.fst.checked
 	+$(MAKE) -C $@
-
-else
-
-llist2:
-
-llist3:
-
-endif
 
 .PHONY: counter llist2 llist3

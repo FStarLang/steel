@@ -1,5 +1,7 @@
 # This Dockerfile should be run from the root Steel directory
 
+# Guido 2026/04/26: This seems pretty outdated, not fixing.
+
 ARG FSTAR_BRANCH=master
 FROM fstar:local-branch-$FSTAR_BRANCH
 

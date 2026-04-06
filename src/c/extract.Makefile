@@ -7,6 +7,7 @@ world: $(INCLUDE_STEEL)/Steel_SpinLock.h
 
 STEEL_HOME ?= ../..
 FSTAR_EXE ?= fstar.exe
+KRML_EXE ?= krml
 
 FSTAR = $(RUNLIM) $(FSTAR_EXE) --cache_checked_modules \
   --include $(LIB_STEEL) \
@@ -28,10 +29,8 @@ include .depend
 	  $(notdir $(subst .checked,,$<)) && \
 	touch $@
 
-KRML=$(KRML_HOME)/krml
-
 $(INCLUDE_STEEL)/Steel_SpinLock.h: $(ALL_KRML_FILES)
-	$(KRML) \
+	$(KRML_EXE) \
 	  -fparentheses \
 	  -fcurly-braces \
 	  -fno-shadow \

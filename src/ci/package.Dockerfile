@@ -1,5 +1,7 @@
 # This Dockerfile should be run from the root Steel directory
 
+# Guido 2026/04/26: This seems pretty outdated, not fixing.
+
 ARG ocaml_version=4.14
 FROM ocaml/opam:ubuntu-20.04-ocaml-$ocaml_version
 

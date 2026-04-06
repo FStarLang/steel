@@ -5,7 +5,7 @@ open Steel.ST.Loops
 
 module U64 = FStar.UInt64
 
-let main () = C.EXIT_SUCCESS // dummy for compilation
+let main () = 0l
 
 noeq
 type llist_cell = {
