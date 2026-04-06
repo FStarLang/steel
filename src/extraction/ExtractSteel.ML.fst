@@ -28,7 +28,7 @@ let steel_st_with_invariant_g_lid = Ident.lid_of_str "Steel.ST.Util.with_invaria
 let steel_with_invariant_lid = Ident.lid_of_str "Steel.Effect.Atomic.with_invariant"
 let steel_st_with_invariant_lid = Ident.lid_of_str "Steel.ST.Util.with_invariant"
 
-let hua (t:term) : option (S.fv & list S.universe & S.args) =
+let hua (t:term) : ML (option (S.fv & list S.universe & S.args)) =
   let t = U.unmeta t in
   let hd, args = U.head_and_args_full t in
   let hd = U.unmeta hd in
@@ -37,7 +37,7 @@ let hua (t:term) : option (S.fv & list S.universe & S.args) =
   | Tm_uinst ({ n = Tm_fvar fv }, us) -> Some (fv, us, args)
   | _ -> None
 
-let tr_expr (g:uenv) (t:term) : mlexpr & e_tag & mlty =
+let tr_expr (g:uenv) (t:term) : ML (mlexpr & e_tag & mlty) =
   let cb = FStarC.Extraction.ML.Term.term_as_mlexpr in
   let hua = hua t in
   if None? hua then
