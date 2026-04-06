@@ -15,8 +15,8 @@
 *)
 
 module Steel.ST.Effect.Atomic
-friend Steel.ST.Effect.AtomicAndGhost
 friend Steel.Effect.Atomic
+friend Steel.ST.Effect.AtomicAndGhost
 open Steel.Memory
 module SEA = Steel.Effect.Atomic
 

@@ -20,6 +20,15 @@ module Steel.ST.Coercions
     Client modules should typically just [open Steel.ST.Util] and
     that should bring most of what they need in scope.
 *)
+
+(* These have to be given in topological order. *)
+friend Steel.Effect
+friend Steel.Effect.Atomic
+friend Steel.ST.Effect.AtomicAndGhost
+friend Steel.ST.Effect
+friend Steel.ST.Effect.Atomic
+friend Steel.ST.Effect.Ghost
+
 open FStar.Ghost
 open Steel.Memory
 open Steel.ST.Effect.Ghost
@@ -31,13 +40,6 @@ module STF = Steel.ST.Effect
 module STG = Steel.ST.Effect.Ghost
 module STA = Steel.ST.Effect.Atomic
 module STAG = Steel.ST.Effect.AtomicAndGhost
-
-friend Steel.ST.Effect.AtomicAndGhost
-friend Steel.Effect.Atomic
-friend Steel.Effect
-friend Steel.ST.Effect
-friend Steel.ST.Effect.Ghost
-friend Steel.ST.Effect.Atomic
 
 unfold
 let bind_div_st_req (#a:Type) (wp:pure_wp a)

@@ -15,10 +15,11 @@
 *)
 
 module Steel.ST.Effect.Ghost
-friend Steel.ST.Effect.AtomicAndGhost
 friend Steel.Effect.Atomic
+friend Steel.ST.Effect.AtomicAndGhost
 open Steel.Memory
 module SEA = Steel.Effect.Atomic
+module NMSTTotal = Steel.NMSTTotal
 
 
 /// Any Steel ghost computation can always be lifted to an atomic computation if needed.

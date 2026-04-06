@@ -16,8 +16,9 @@
 
 module Steel.Effect.Atomic
 
-open Steel.Effect
 friend Steel.Effect
+open Steel.Effect
+module NMSTTotal = Steel.NMSTTotal
 
 #set-options "--warn_error -330"  //turn off the experimental feature warning
 
