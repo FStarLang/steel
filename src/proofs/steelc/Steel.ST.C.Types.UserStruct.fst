@@ -1,4 +1,8 @@
 module Steel.ST.C.Types.UserStruct
+friend Steel.ST.C.Types.Base
+friend Steel.ST.C.Types.Struct.Aux
+friend Steel.ST.C.Types.Rewrite
+
 open Steel.ST.GenElim1
 open Steel.ST.C.Types.Base
 module RW = Steel.ST.C.Types.Rewrite
@@ -7,10 +11,6 @@ module S = Steel.ST.C.Types.Struct.Aux
 module FX = FStar.FunctionalExtensionality
 module Conn = Steel.C.Model.Connection
 module MS = Steel.ST.C.Model.Struct
-
-friend Steel.ST.C.Types.Base
-friend Steel.ST.C.Types.Struct.Aux
-friend Steel.ST.C.Types.Rewrite
 
 [@@noextract_to "krml"]
 let rewrite_from_struct

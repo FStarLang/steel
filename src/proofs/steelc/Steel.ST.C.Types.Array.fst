@@ -1,7 +1,7 @@
 module Steel.ST.C.Types.Array
-open Steel.ST.GenElim1
 friend Steel.ST.C.Types.Base
 friend Steel.ST.C.Types.Struct.Aux
+open Steel.ST.GenElim1
 open Steel.ST.C.Types.Struct.Aux
 
 open Steel.C.Model.PCM
@@ -528,6 +528,14 @@ let array_ref_of_base
 =
   let ar = array_of_base0 r in
   let a : array_ref td = array_ptr_of ar in
+  assert (seq_of_base_array0 v `Seq.equal` seq_of_base_array #_ #tn v);
+  rewrite (array_pts_to ar (seq_of_base_array0 v))
+          (array_pts_to ar (seq_of_base_array #_ #tn v));
+  intro_pure (array_ref_of_base_post v r a ar);
+  intro_exists ar (fun ar' ->
+    array_pts_to ar' (seq_of_base_array v) `star` pure (
+    array_ref_of_base_post v r a ar'
+  ));
   return a
 
 #push-options "--z3rlimit 64"
@@ -610,7 +618,11 @@ let full_seq_seq_of_base_array'
   (b: base_array_t' t n)
 : Lemma
   (ensures (full_seq td (seq_of_base_array0 b) <==> full (base_array1 td n) b))
-= assert (forall (i: base_array_index_t n) . base_array_index' b i == Seq.index (seq_of_base_array0 b) (SZ.v i))
+= introduce forall (i: base_array_index_t n) . base_array_index' b i == Seq.index (seq_of_base_array0 b) (SZ.v i)
+  with begin
+    Seq.init_ghost_index_ (SZ.v n) (fun j -> base_array_index' b (SZ.uint_to_t j)) (SZ.v i);
+    SZ.size_v_inj i
+  end
 
 let array_ref_free
   #t #td #s a len

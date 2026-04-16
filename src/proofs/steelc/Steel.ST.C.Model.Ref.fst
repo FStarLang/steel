@@ -1,9 +1,10 @@
 module Steel.ST.C.Model.Ref
+
+friend Steel.C.Model.Ref.Base
+
 module P = FStar.PCM
 module U = Steel.C.Model.Universe
 open FStar.FunctionalExtensionality
-
-friend Steel.C.Model.Ref.Base
 
 let mk_id_ref
   (#a: Type0)
@@ -21,7 +22,7 @@ let ref_alloc #a p x =
   let x' : U.raise_t u#0 u#1 a = U.raise_val u#0 u#1 x in
   let p' : pcm u#1 _ = U.raise_pcm u#0 u#1 p in
 //  let fp : P.pcm u#1 _ = fstar_pcm_of_pcm p' in // FIXME: I can define this local definition, but WHY WHY WHY can't I USE it?
-  compatible_refl p' x';
+  // compatible_refl p' x';
   let r0 : Steel.Memory.ref (U.raise_t u#0 u#1 a) (fstar_pcm_of_pcm (U.raise_pcm u#0 u#1 p)) = Steel.ST.PCMReference.alloc #_ #(fstar_pcm_of_pcm (U.raise_pcm u#0 u#1 p)) x' in
   let r : ref a p = mk_id_ref p r0 in
   connection_compose_id_right (lower_conn r);

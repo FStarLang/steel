@@ -1,6 +1,6 @@
 module Steel.ST.C.Types.Union
-open Steel.ST.GenElim1
 friend Steel.ST.C.Types.Base
+open Steel.ST.GenElim1
 open Steel.ST.C.Types.Fields
 open Steel.ST.C.Types.Scalar
 
@@ -65,9 +65,17 @@ let union_get_field
   u field
 = U.union_to_field_f _ (Some field) u
 
+#push-options "--fuel 2 --ifuel 2 --z3rlimit 60"
 let union_get_field_same
   tn n fields field v
-= ()
+= let p = union_field_pcm fields in
+  let u = union_set_field tn n fields field v in
+  assert (u == U.field_to_union_f p (Some field) v);
+  assert (u (Some field) == v);
+  assert (unknown (union_field_typedef fields (Some field)) == one (p (Some field)));
+  assert (~ (u (Some field) == one (p (Some field))));
+  ()
+#pop-options
 
 module FX = FStar.FunctionalExtensionality
 
@@ -279,6 +287,7 @@ let union0
   );
   mk_fraction_join = (fun v p1 p2 ->
     union_eq_intro (op (union_pcm tn n fields) (union_mk_fraction v p1) (union_mk_fraction v p2)) (union_mk_fraction v (p1 `P.sum_perm` p2)) (fun f ->
+      union_fractionable_fields v f;
       (union_field_typedef fields f).mk_fraction_join (v f) p1 p2
     )
   );
