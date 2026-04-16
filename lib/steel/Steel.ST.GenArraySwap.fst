@@ -420,7 +420,7 @@ let array_swap_outer_body
     (array_swap_outer_invariant pts_to n l bz s0 pi true)
     (fun _ -> exists_ (array_swap_outer_invariant pts_to n l bz s0 pi))
 =
-  let _ = elim_array_swap_outer_invariant pts_to n l bz s0 pi true in
+  let unfold _ = elim_array_swap_outer_invariant pts_to n l bz s0 pi true in
   let _ = gen_elim () in
   let i = R.read pi in
   let s = vpattern_replace pts_to in
@@ -432,19 +432,18 @@ let array_swap_outer_body
     Steel.ST.Loops.while_loop
       (array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx)
       (fun _ ->
-        let gb = elim_exists () in
-        let _ = elim_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx gb in
+        let unfold gb = elim_exists () in
+        let unfold _ = elim_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx gb in
         let j = R.read pj in
-        [@@inline_let]
-        let b = j `SZ.lt` (q `SZ.sub` 1sz) in
+        let unfold b = j `SZ.lt` (q `SZ.sub` 1sz) in
         intro_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx b _ _ _;
         return b
       )
       (fun _ ->
-        let _ = elim_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx true in
+        let unfold _ = elim_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx true in
         let j = R.read pj in
         let idx = R.read pidx in
-        let j' = j `SZ.add` 1sz in
+        let unfold j' = j `SZ.add` 1sz in
         let idx' = impl_jump n l idx in
         let x = index _ n idx' in
         let _ = upd _ n idx x in
@@ -453,11 +452,10 @@ let array_swap_outer_body
         intro_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx (SZ.v j' < bz.q_n - 1) _ _ _;
         noop ()
       );
-    let _ = elim_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx false in
+    let unfold _ = elim_array_swap_inner_invariant pts_to n l bz s0 pi i pj pidx false in
     let idx = R.read pidx in
     let _ = upd _ n idx save in
-    [@@inline_let]
-    let i' = i `SZ.add` 1sz in
+    let unfold i' = i `SZ.add` 1sz in
     R.write pi i';
     intro_array_swap_outer_invariant pts_to n l bz s0 pi (i' `SZ.lt` d) _ _;
     noop ()

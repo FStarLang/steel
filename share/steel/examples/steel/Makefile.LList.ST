@@ -27,8 +27,7 @@ FSTAR_OPTIONS=--odir $(OUTPUT_DIRECTORY) \
 		 $(OTHERFLAGS) \
 		 --cache_dir $(CACHE_DIRECTORY) \
 	         $(addprefix --include , $(INCLUDE_PATHS)) \
-		 --cache_checked_modules \
-		 --cmi
+		 --cache_checked_modules
 
 FSTAR=$(FSTAR_EXE) $(FSTAR_OPTIONS) $(ALREADY_CACHED)
 
@@ -55,7 +54,7 @@ verify: $(ALL_CHECKED_FILES)
 
 STEEL_KRML_FILES=Steel_ST_Reference.krml
 
-extract: $(addprefix $(OUTPUT_DIRECTORY)/,$(STEEL_KRML_FILES)) $(filter-out $(OUTPUT_DIRECTORY)/FStar_NMST% $(OUTPUT_DIRECTORY)/FStar_MST% $(OUTPUT_DIRECTORY)/Steel_%, $(ALL_KRML_FILES))
+extract: $(addprefix $(OUTPUT_DIRECTORY)/,$(STEEL_KRML_FILES)) $(filter-out $(OUTPUT_DIRECTORY)/Steel_NMST% $(OUTPUT_DIRECTORY)/Steel_MST% $(OUTPUT_DIRECTORY)/Steel_%, $(ALL_KRML_FILES))
 
 KRML_BUNDLING_OPTIONS=-bundle 'LList32=LList.ST.*,Steel.*' \
   -library Steel.ST.Reference \

@@ -31,8 +31,7 @@ Steel.ST.EphemeralHashtbl.fst.checked: OTHERFLAGS+=--ext 'compat:injectivity'
 .depend: $(FSTAR_FILES)
 	$(call msg, "DEPEND")
 	$(Q)true $(shell rm -f .depend.rsp) $(foreach f,$(FSTAR_FILES),$(shell echo $(f) >> $@.rsp))
-	$(Q)$(MY_FSTAR) --dep full @$@.rsp > $@.tmp
-	mv $@.tmp $@
+	$(Q)$(MY_FSTAR) --dep full @$@.rsp -o $@
 
 include .depend
 

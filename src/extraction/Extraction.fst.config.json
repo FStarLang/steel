@@ -2,9 +2,8 @@
   "fstar_exe": "fstar.exe",
   "options": [
     "--lax",
-    "--MLish",
     "--with_fstarc",
-    "--MLish_effect", "FStarC.Effect"
+    "--warn_error", "-272"
   ],
   "include_dirs": [
   ]

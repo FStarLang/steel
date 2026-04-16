@@ -28,8 +28,7 @@ open Steel.ST.Util
 /// definitions are all meant to be inlined and benefit from the
 /// latter module's primitive extraction. We seal it under an
 /// interface to avoid unpleasantly leaking the lifting of values
-/// of lower universes into the SMT context. Due to this interface,
-/// cross-module inlining must be enabled using F*'s --cmi option.
+/// of lower universes into the SMT context.
 
 /// An abstract type to represent a base array (whole allocation
 /// unit), exposed for proof purposes only

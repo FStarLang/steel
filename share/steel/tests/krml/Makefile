@@ -5,8 +5,10 @@ STEEL_HOME ?= ../../../..
 RECENT_GCC	= $(shell [ "$$(gcc -dumpversion | cut -c -1)" -ge 5 ] && echo yes)
 
 TEST_OPTS	= -warn-error @4 -verbose -skip-makefiles
-KRML_BIN	= $(KRML_HOME)/krml
-KRML		= $(KRML_BIN) $(KOPTS) $(TEST_OPTS)
+KRML_EXE	?= krml
+KRML		= $(KRML_EXE) $(KOPTS) $(TEST_OPTS)
+
+KRMLLIB := $(shell $(KRML_EXE) -locate-krmllib)
 
 # TODO: disambiguate between broken tests that arguably should work (maybe
 # HigherOrder6?) and helper files that are required for multiple-module tests
@@ -33,17 +35,17 @@ CACHE_DIR	= .cache
 OUTPUT_DIR	= .output
 HINTS_DIR	= .hints
 
+FSTAR_EXE ?= fstar.exe
+
 FSTAR_OPTIONS = --cache_checked_modules \
   --cache_dir $(CACHE_DIR) --odir $(OUTPUT_DIR) \
-  --include $(KRML_HOME)/krmllib/compat --include $(KRML_HOME)/krmllib/obj \
-  --include $(KRML_HOME)/krmllib --include $(KRML_HOME)/runtime \
+  --include $(KRMLLIB)/compat --include $(KRMLLIB) \
   --include $(STEEL_HOME)/lib/steel --load_cmxs steel \
   --already_cached 'Prims,FStar,C,TestLib,Spec.Loops,-C.Compat,-C.Nullity,LowStar,WasmSupport,Steel' \
   --trivial_pre_for_unannotated_effectful_fns false \
-  --cmi --warn_error -274 \
+  --warn_error -274 \
   $(OTHERFLAGS)
 
-FSTAR_EXE ?= fstar.exe
 FSTAR		= $(FSTAR_EXE) $(FSTAR_OPTIONS)
 
 all: world
@@ -74,7 +76,7 @@ ifndef MAKE_RESTARTS
 ifndef NODEPEND
 .depend: .FORCE
 	$(FSTAR) --dep full $(subst .wasm-test,.fst,$(WASM_FILES)) $(subst .test,.fst,$(FILES)) \
-	  $(BROKEN) $(KRML_HOME)/runtime/WasmSupport.fst --extract 'krml:*,-Prims' > $@
+	  $(BROKEN) --extract 'krml:*,-Prims' > $@
 
 .PHONY: .FORCE
 .FORCE:
@@ -96,7 +98,7 @@ $(OUTPUT_DIR)/%.krml: | .depend
 	  $(notdir $(subst .checked,,$<))
 
 .PRECIOUS: $(OUTPUT_DIR)/%.exe
-$(OUTPUT_DIR)/%.exe: $(ALL_KRML_FILES) $(KRML_BIN)
+$(OUTPUT_DIR)/%.exe: $(ALL_KRML_FILES)
 	$(KRML) $(EXTRA) -tmpdir $(subst .exe,.out,$@) -no-prefix $(notdir $*) \
 	  -I $(STEEL_HOME)/include/steel \
 	  -add-include '"steel_base.h"' \
@@ -116,7 +118,7 @@ $(OUTPUT_DIR)/SteelLock.exe: EXTRA=-bundle Steel.* -add-include '"steel_full.h"'
 # All WASM targets get the -wasm flag; some specific targets may override
 # NEGATIVE for negative tests.
 .PRECIOUS: $(OUTPUT_DIR)/%.wasm
-$(OUTPUT_DIR)/%.wasm: $(ALL_KRML_FILES) $(KRML_BIN)
+$(OUTPUT_DIR)/%.wasm: $(ALL_KRML_FILES)
 	$(KRML) -minimal -bundle WasmSupport= -bundle 'FStar.*' -bundle Prims \
 	  -bundle C -bundle C.Endianness -bundle C.Nullity -bundle C.String \
 	  -bundle TestLib \

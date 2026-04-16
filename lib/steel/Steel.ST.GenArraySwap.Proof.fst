@@ -105,6 +105,10 @@ let bezout
 : Tot Type
 = (b: bezout_t { bezout_prop n l b })
 
+// Note, we need some 'let unfold's below after
+// optimize_let_vc became the default in F*.
+// https://github.com/FStarLang/FStar/pull/3861
+
 #restart-solver
 let rec mk_bezout
   (n: pos)
@@ -115,9 +119,9 @@ let rec mk_bezout
   (decreases l)
 = if l = 0
   then begin
-    let d : pos = n in
-    let q_n : nat = 1 in
-    let q_l : nat = 0 in
+    let unfold d : pos = n in
+    let unfold q_n : nat = 1 in
+    let unfold q_l : nat = 0 in
     let u_n : int = 1 in
     let u_l : int = 0 in
     let res = {
@@ -145,17 +149,17 @@ let rec mk_bezout
     let upre_lpre = bpre.u_l in
     let n_alt0 = l * ql + lpre in
     assert (n == n_alt0);
-    let l_alt = d * q_l in
-    let lpre_alt1 = d * qpre_lpre in
-    let n_alt1 = l_alt * ql + lpre_alt1 in
+    let unfold l_alt = d * q_l in
+    let unfold lpre_alt1 = d * qpre_lpre in
+    let unfold n_alt1 = l_alt * ql + lpre_alt1 in
     assert (n_alt1 == n);
-    let q_n = q_l * ql + qpre_lpre in
+    let unfold q_n = q_l * ql + qpre_lpre in
     assert (eq2 #int n_alt1 (d * q_n)) by (int_semiring ());
-    let lpre_alt2 = n + - l * ql in
+    let unfold lpre_alt2 = n + - l * ql in
     assert (lpre_alt2 == lpre);
-    let d_alt = l * upre_l + lpre_alt2 * upre_lpre in
+    let unfold d_alt = l * upre_l + lpre_alt2 * upre_lpre in
     assert (d_alt == d);
-    let u_l = upre_l + - ql * upre_lpre in
+    let unfold u_l = upre_l + - ql * upre_lpre in
     assert (eq2 #int (n * upre_lpre + l * u_l) d_alt) by (int_semiring ());
     let res = {
       d = d;
@@ -209,13 +213,13 @@ let jump_mod_d
   let x' = jump n l x in
   let x'q = (x + l) / n in
   euclidean_division_definition (x + l) n;
-  let l_alt = b.d * b.q_l in
+  let unfold l_alt = b.d * b.q_l in
   assert (l_alt == l);
-  let n_alt = b.d * b.q_n in
+  let unfold n_alt = b.d * b.q_n in
   assert (n_alt == n);
-  let x'_alt = x + l_alt + - x'q * n_alt in
+  let unfold x'_alt = x + l_alt + - x'q * n_alt in
   assert (x'_alt == x');
-  let qx = b.q_l + - x'q * b.q_n in
+  let unfold qx = b.q_l + - x'q * b.q_n in
   assert (eq2 #int x'_alt (x + qx * b.d)) by (int_semiring ());
   lemma_mod_plus x qx b.d
 
@@ -279,11 +283,11 @@ let jump_coverage
     x == iter_fun (jump n l) k (x % b.d)
   ))
 =
-  let i = x % b.d in
-  let qx = x / b.d in
+  let unfold i = x % b.d in
+  let unfold qx = x / b.d in
   euclidean_division_definition x b.d;
-  let k1 = qx * b.u_l in
-  let m = qx * b.u_n in
+  let unfold k1 = qx * b.u_l in
+  let unfold m = qx * b.u_n in
   assert (eq2 #int (qx * (n * b.u_n + l * b.u_l) + i) (i + k1 * l + m * n)) by (int_semiring ());
   assert (x == i + k1 * l + m * n);
   small_mod x n;
@@ -397,10 +401,10 @@ let mod_eq_elim
   (ensures (fun k -> x1 - x2 == k * n))
 = euclidean_division_definition x1 n;
   euclidean_division_definition x2 n;
-  let q1 = x1 / n in
-  let q2 = x2 / n in
-  let k = q1 + - q2 in
-  let r = x1 % n in
+  let unfold q1 = x1 / n in
+  let unfold q2 = x2 / n in
+  let unfold k = q1 + - q2 in
+  let unfold r = x1 % n in
   assert (q1 * n + r + - (q2 * n + r) == k * n) by (int_semiring ());
   k
 
@@ -606,6 +610,9 @@ let array_swap_post
     l <= n /\
     s `Seq.equal` (Seq.slice s0 l n `Seq.append` Seq.slice s0 0 l)
 
+#restart-solver
+
+#push-options "--z3rlimit 20"
 let array_as_ring_buffer_swap
   (#t: Type)
   (n: nat)
@@ -637,6 +644,7 @@ let array_as_ring_buffer_swap
   = Seq.index s idx == Seq.index s0 (jump n l idx)
   in
   jump_iter_elim n p l bz
+#pop-options
 
 let array_swap_outer_invariant // hoisting necessary because "Let binding is effectful"
   (#t: Type0) (s0: Seq.seq t) (n: nat) (l: nat) (bz: bezout (n) (l))

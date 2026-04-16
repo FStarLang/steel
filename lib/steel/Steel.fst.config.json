@@ -1,7 +1,6 @@
 {
   "fstar_exe": "fstar.exe",
   "options": [
-     "--load_cmxs", "steel",
      "--compat_pre_typed_indexed_effects"
   ],
   "include_dirs": [

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Guido 2026/04/26: This seems pretty outdated (e.g. src/ocaml-output no longer
+# exists)
+
 set -e
 set -x
 

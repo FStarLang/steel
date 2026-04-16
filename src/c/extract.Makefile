@@ -7,12 +7,12 @@ world: $(INCLUDE_STEEL)/Steel_SpinLock.h
 
 STEEL_HOME ?= ../..
 FSTAR_EXE ?= fstar.exe
+KRML_EXE ?= krml
 
 FSTAR = $(RUNLIM) $(FSTAR_EXE) --cache_checked_modules \
   --include $(LIB_STEEL) \
   --load_cmxs steel \
   --warn_error @241 \
-  --cmi \
   --already_cached '*,'
 
 ROOTS = $(LIB_STEEL)/Steel.SpinLock.fsti
@@ -29,10 +29,8 @@ include .depend
 	  $(notdir $(subst .checked,,$<)) && \
 	touch $@
 
-KRML=$(KRML_HOME)/krml
-
 $(INCLUDE_STEEL)/Steel_SpinLock.h: $(ALL_KRML_FILES)
-	$(KRML) \
+	$(KRML_EXE) \
 	  -fparentheses \
 	  -fcurly-braces \
 	  -fno-shadow \

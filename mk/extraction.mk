@@ -6,8 +6,8 @@ TAG=extraction
 ROOTS=$(shell find src/extraction -name '*.fst' -o -name '*.fsti')
 
 FSTAR_OPTIONS += --lax
-FSTAR_OPTIONS += --MLish --MLish_effect "FStarC.Effect"
 FSTAR_OPTIONS += --with_fstarc
+FSTAR_OPTIONS += --warn_error -272 # top-level effects
 FSTAR_OPTIONS += --already_cached 'Prims,FStarC'
 
 EXTRACT += --extract ExtractSteel,ExtractSteelC

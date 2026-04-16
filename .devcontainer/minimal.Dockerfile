@@ -49,24 +49,14 @@ RUN wget -nv https://github.com/Z3Prover/z3/releases/download/Z3-4.8.5/z3-4.8.5-
  && cp z3-4.8.5-x64-ubuntu-16.04/bin/z3 $HOME/bin/z3 \
  && rm -r z3-4.8.5-*
 
-# Get F* master and build
+# Get F* master and build (including its krml)
 RUN eval $(opam env) \
  && source $HOME/.profile \
  && git clone --depth=1 https://github.com/FStarLang/FStar \
  && cd FStar/ \
  && make -j$(nproc) ADMIT=1 \
- && ln -s $(realpath bin/fstar.exe) $HOME/bin/fstar.exe
-
-# Get karamel master and build
-RUN eval $(opam env) \
- && source $HOME/.profile \
- && git clone --depth=1 https://github.com/FStarLang/karamel \
- && cd karamel/ \
- && .docker/build/install-other-deps.sh \
- && make -j$(nproc)
-
-ENV FSTAR_HOME $HOME/FStar
-ENV KRML_HOME $HOME/karamel
+ && ln -s $(realpath out/bin/fstar.exe) $HOME/bin/fstar.exe
+ && ln -s $(realpath out/bin/krml) $HOME/bin/krml
 
 # Instrument .bashrc to set the opam switch. Note that this
 # just appends the *call* to eval $(opam env) in these files, so we

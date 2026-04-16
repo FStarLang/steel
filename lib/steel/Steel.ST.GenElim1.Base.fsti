@@ -104,9 +104,6 @@ let fstp #a #b t = fst #a #b t
 [@@noextract_to "Plugin"]
 let sndp #a #b t = snd #a #b t
 
-[@@gen_elim_reduce; __steel_reduce__; noextract_to "Plugin"]
-let coerce_with_trefl (#tfrom #tto: Type) (x: tfrom) : Pure tto (requires (T.with_tactic T.trefl (tfrom == tto))) (ensures (fun _ -> True)) = x
-
 [@@gen_elim_reduce]
 let rec compute_gen_elim_q
   (x: gen_elim_i)
@@ -114,20 +111,20 @@ let rec compute_gen_elim_q
   (decreases x)
 = match x as x' returns (compute_gen_elim_a x' -> Tot vprop) with
   | GEUnit u -> fun _ -> compute_gen_unit_elim_q u
-  | GEStarL left right -> fun v -> compute_gen_elim_q left (coerce_with_trefl v) `star` compute_gen_unit_elim_q right
-  | GEStarR left right -> fun v -> compute_gen_unit_elim_q left `star` compute_gen_elim_q right (coerce_with_trefl v)
+  | GEStarL left right -> fun v -> compute_gen_elim_q left (coerce_eq () v) `star` compute_gen_unit_elim_q right
+  | GEStarR left right -> fun v -> compute_gen_unit_elim_q left `star` compute_gen_elim_q right (coerce_eq () v)
   | GEStar left right ->
     let tleft = compute_gen_elim_a left in
     let tright = compute_gen_elim_a right in
     fun v ->
-      let v' : (tleft & tright) = coerce_with_trefl v in
+      let v' : (tleft & tright) = v in
       compute_gen_elim_q left (fstp #tleft #tright v') `star` compute_gen_elim_q right (sndp #tleft #tright v')
   | GEExistsNoAbs0 #a p -> fun v -> p (U.downgrade_val v)
   | GEExistsUnit0 #a p -> fun v -> compute_gen_unit_elim_q (p (U.downgrade_val v))
   | GEExists0 #a body ->
     let dept = (fun x -> compute_gen_elim_a (body x)) in
     fun v ->
-    let v' : dtuple2 a dept = coerce_with_trefl v in
+    let v' : dtuple2 a dept = v in
     compute_gen_elim_q
       (body (dfstp #a #dept v'))
       (dsndp #a #dept v')
@@ -136,7 +133,7 @@ let rec compute_gen_elim_q
   | GEExists1 #a body ->
     let dept = (fun x -> compute_gen_elim_a (body x)) in
     fun v ->
-    let v' : dtuple2 a dept = coerce_with_trefl v in
+    let v' : dtuple2 a dept = v in
     compute_gen_elim_q
       (body (dfstp #a #dept v'))
       (dsndp #a #dept v')
@@ -148,20 +145,20 @@ let rec compute_gen_elim_post
   (decreases x)
 = match x as x' returns (compute_gen_elim_a x' -> Tot prop) with
   | GEUnit u -> fun _ -> compute_gen_unit_elim_post u
-  | GEStarL left right -> fun v -> compute_gen_elim_post left (coerce_with_trefl v) /\ compute_gen_unit_elim_post right
-  | GEStarR left right -> fun v -> compute_gen_unit_elim_post left /\ compute_gen_elim_post right (coerce_with_trefl v)
+  | GEStarL left right -> fun v -> compute_gen_elim_post left (coerce_eq () v) /\ compute_gen_unit_elim_post right
+  | GEStarR left right -> fun v -> compute_gen_unit_elim_post left /\ compute_gen_elim_post right (coerce_eq () v)
   | GEStar left right ->
     let tleft = compute_gen_elim_a left in
     let tright = compute_gen_elim_a right in
     fun v ->
-      let v' : (tleft & tright) = coerce_with_trefl v in
+      let v' : (tleft & tright) = v in
       compute_gen_elim_post left (fstp #tleft #tright v') /\ compute_gen_elim_post right (sndp #tleft #tright v')
   | GEExistsNoAbs0 #a p -> fun _ -> True
   | GEExistsUnit0 #a p -> fun v -> compute_gen_unit_elim_post (p (U.downgrade_val v))
   | GEExists0 #a body ->
     let dept = (fun x -> compute_gen_elim_a (body x)) in
     fun v ->
-    let v' : dtuple2 a dept = coerce_with_trefl v in
+    let v' : dtuple2 a dept = v in
     compute_gen_elim_post
       (body (dfstp #a #dept v'))
       (dsndp #a #dept v')
@@ -170,7 +167,7 @@ let rec compute_gen_elim_post
   | GEExists1 #a body ->
     let dept = (fun x -> compute_gen_elim_a (body x)) in
     fun v ->
-    let v' : dtuple2 a dept = coerce_with_trefl v in
+    let v' : dtuple2 a dept = v in
     compute_gen_elim_post
       (body (dfstp #a #dept v'))
       (dsndp #a #dept v')

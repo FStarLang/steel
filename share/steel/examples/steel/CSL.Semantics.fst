@@ -20,7 +20,7 @@ module P = FStar.Preorder
 
 open FStar.Tactics
 
-open FStar.NMST
+open Steel.NMST
 
 
 (*
@@ -520,7 +520,7 @@ let step_act (#st:st) (#a:Type u#a) (#pre:st.hprop) (#post:post_t st a)
   let x = f () in
   Step (Ret post x)
 
-module M = FStar.MST
+module M = Steel.MST
 
 let step_bind_ret_aux (#st:st) (#a:Type) (#pre:st.hprop) (#post:post_t st a)
   (f:m st a pre post{Bind? f /\ Ret? (Bind?.f f)})

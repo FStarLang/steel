@@ -885,7 +885,7 @@ let write_a
   (tr:trace p next)
   (x:msg_t next)
   :SteelT unit (pts_to r (A_W next tr)) (fun _ -> endpoint_a r (step next x) (extend tr x))
-  = let v : t p =
+  = let unfold v : t p =
       if is_send (step next x)
       then A_W (step next x) (extend tr x)
       else if is_recv (step next x)
@@ -901,7 +901,7 @@ let write_b
   (tr:trace p next)
   (x:msg_t next)
   :SteelT unit (pts_to r (B_W next tr)) (fun _ -> endpoint_b r (step next x) (extend tr x))
-  = let v : t p =
+  = let unfold v : t p =
       if is_send (step next x)
       then B_R (step next x) (extend tr x)
       else if is_recv (step next x)

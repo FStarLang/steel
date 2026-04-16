@@ -673,7 +673,7 @@ let put_vprops_aux (#opened:_)
       (fun _ -> tperm arr (Map.upd m i c) (Map.remove borrows i))
       (requires pure_invariant arr m borrows s)
       (ensures fun _ -> True)
-  = let vopt = Seq.index s (US.v idx) in
+  = let unfold vopt = Seq.index s (US.v idx) in
     match vopt with
     | None ->
       //
