@@ -131,7 +131,7 @@ let rec hp_of (p:vprop) = match p with
 [@@ __steel_reduce__]
 let rec t_of (p:vprop) = match p with
   | VUnit p -> p.t
-  | VStar p1 p2 -> t_of p1 * t_of p2
+  | VStar p1 p2 -> t_of p1 & t_of p2
 
 /// Extracting the selector from a vprop
 [@@ __steel_reduce__]
@@ -751,7 +751,7 @@ type exp : Type =
 /// A map from atoms to the terms they represent.
 /// The second component of the term corresponds to a default element,
 /// ensuring we never raise an exception when trying to access an element in the map
-let amap (a:Type) = list (atom * a) * a
+let amap (a:Type) = list (atom & a) & a
 
 /// An empty atom map: The list map is empty
 let const (#a:Type) (xa:a) : amap a = ([], xa)
@@ -816,7 +816,7 @@ let rec trivial_cancel (t:atom) (l:list atom) =
 /// The last two lists are the removed parts of l1 and l2, with
 /// the additional invariant that they are equal
 let rec trivial_cancels (l1 l2:list atom) (am:amap term)
-  : Tac (list atom * list atom * list atom * list atom) =
+  : Tac (list atom & list atom & list atom & list atom) =
   match l1 with
   | [] -> [], l2, [], []
   | hd::tl ->
@@ -839,7 +839,7 @@ let rec print_atoms (l:list atom) (am:amap term) : Tac string =
 /// Does not try to unify with a uvar, this will be done at the very end.
 /// Tries to unify with slprops with a different head symbol, it might
 /// be an abbreviation
-let rec try_candidates (t:atom) (l:list atom) (am:amap term) : Tac (atom * int) =
+let rec try_candidates (t:atom) (l:list atom) (am:amap term) : Tac (atom & int) =
   match l with
   | [] -> t, 0
   | hd::tl ->
@@ -863,7 +863,7 @@ let rec remove_from_list (t:atom) (l:list atom) : Tac (list atom) =
 /// Assumes that only l2 contains terms with the head symbol unresolved.
 /// It returns all elements that were not resolved during this iteration *)
 let rec equivalent_lists_once (l1 l2 l1_del l2_del:list atom) (am:amap term)
-  : Tac (list atom * list atom * list atom * list atom) =
+  : Tac (list atom & list atom & list atom & list atom) =
   match l1 with
   | [] -> [], l2, l1_del, l2_del
   | hd::tl ->
@@ -884,7 +884,7 @@ let rec equivalent_lists_once (l1 l2 l1_del l2_del:list atom) (am:amap term)
 /// This is very close to equivalent_lists_once above, but helps making progress
 /// when l1 contains syntactically equal candidates
 let rec equivalent_lists_once_l2 (l1 l2 l1_del l2_del:list atom) (am:amap term)
-  : Tac (list atom * list atom * list atom * list atom) =
+  : Tac (list atom & list atom & list atom & list atom) =
   match l2 with
   | [] -> l1, [], l1_del, l2_del
   | hd::tl ->
@@ -931,7 +931,7 @@ let is_smt_binder (b:binder) : Tac bool =
 
 /// Creates a new term, where all arguments where SMT rewriting is enabled have been replaced
 /// by fresh, unconstrained unification variables
-let rec new_args_for_smt_attrs (env:env) (l:list argv) (ty:typ) : Tac (list argv * list term) =
+let rec new_args_for_smt_attrs (env:env) (l:list argv) (ty:typ) : Tac (list argv & list term) =
   let fresh_ghost_uvar ty =
     let e = cur_env () in
     ghost_uvar_env e ty
@@ -965,7 +965,7 @@ let rec new_args_for_smt_attrs (env:env) (l:list argv) (ty:typ) : Tac (list argv
   | _ -> fail "should not happen. Is an slprop partially applied?"
 
 /// Rewrites all terms in the context to enable SMT rewriting through the use of fresh, unconstrained unification variables
-let rewrite_term_for_smt (env:env) (am:amap term * list term) (a:atom) : Tac (amap term * list term)
+let rewrite_term_for_smt (env:env) (am:amap term & list term) (a:atom) : Tac (amap term & list term)
   = let am, prev_uvar_terms = am in
     let term = select a am in
     let hd, args = collect_app term in
@@ -982,7 +982,7 @@ let fail_atoms (#a:Type) (l1 l2:list atom) (am:amap term) : Tac a
 /// If unification succeeds and we have unicity of the solution, this tactic will succeed,
 /// and ultimately create an SMT guard that the two terms are actually equal
 let rec equivalent_lists_fallback (n:nat) (l1 l2 l1_del l2_del:list atom) (am:amap term)
-  : Tac (list atom * list atom * bool) =
+  : Tac (list atom & list atom & bool) =
   match l1 with
   | [] -> begin match l2 with
     | [] -> (l1_del, l2_del, false)
@@ -1013,7 +1013,7 @@ let rec equivalent_lists_fallback (n:nat) (l1 l2 l1_del l2_del:list atom) (am:am
       else equivalent_lists_fallback n' rem1 rem2 l1_del' l2_del' am
 
 /// Iterates over all terms in [l2] to prepare them for unification with SMT rewriting
-let replace_smt_uvars (l1 l2:list atom) (am:amap term) : Tac (amap term * list term)
+let replace_smt_uvars (l1 l2:list atom) (am:amap term) : Tac (amap term & list term)
   = let env = cur_env () in
     fold_left (rewrite_term_for_smt env) (am, []) l2
 
@@ -1024,7 +1024,7 @@ let replace_smt_uvars (l1 l2:list atom) (am:amap term) : Tac (amap term * list t
 /// that the two lists are unifiable at any point
 /// The boolean indicates if there is a leftover empty frame
 let rec equivalent_lists' (n:nat) (use_smt:bool) (l1 l2 l1_del l2_del:list atom) (am:amap term)
-  : Tac (list atom * list atom * bool * list term) =
+  : Tac (list atom & list atom & bool & list term) =
   match l1 with
   | [] -> begin match l2 with
     | [] -> (l1_del, l2_del, false, [])
@@ -1094,7 +1094,7 @@ let rec most_restricted_at_top (l1 l2:list atom) (am:amap term) : Tac (list atom
 /// If it succeeds, returns permutations of l1, l2, and a boolean indicating
 /// if l2 has a trailing empty frame to be unified
 let equivalent_lists (use_smt:bool) (l1 l2:list atom) (am:amap term)
-  : Tac (list atom * list atom * bool * list term)
+  : Tac (list atom & list atom & bool & list term)
 = let l1, l2, l1_del, l2_del = trivial_cancels l1 l2 am in
   let l1 = most_restricted_at_top l1 l2 am in
   let n = List.Tot.length l1 in
@@ -1610,7 +1610,7 @@ let rec where_aux (n:nat) (x:term) (xs:list term) :
   | x'::xs' -> if lax_term_eq x x' then Some n else where_aux (n+1) x xs'
 let where = where_aux 0
 
-let fatom (t:term) (ts:list term) (am:amap term) : Tac (exp * list term * amap term) =
+let fatom (t:term) (ts:list term) (am:amap term) : Tac (exp & list term & amap term) =
   match where t ts with
   | Some v -> (Atom v, ts, am)
   | None ->
@@ -1623,7 +1623,7 @@ let fatom (t:term) (ts:list term) (am:amap term) : Tac (exp * list term * amap t
 /// they correspond to the same atoms
 /// This expects that mult, unit, and t have already been normalized
 let rec reification_aux (ts:list term) (am:amap term)
-                        (mult unit t : term) : Tac (exp * list term * amap term) =
+                        (mult unit t : term) : Tac (exp & list term & amap term) =
   let hd, tl = collect_app_ref t in
   match inspect_unascribe hd, List.Tot.Base.list_unref tl with
   | Tv_FVar fv, [(t1, Q_Explicit) ; (t2, Q_Explicit)] ->
@@ -1639,14 +1639,14 @@ let rec reification_aux (ts:list term) (am:amap term)
 
 /// Performs the required normalization before calling the function above
 let reification (eq: term) (m: term) (ts:list term) (am:amap term) (t:term) :
-    Tac (exp * list term * amap term) =
+    Tac (exp & list term & amap term) =
   let mult = norm_term [iota; zeta; delta] (`CE.CM?.mult (`#m)) in
   let unit = norm_term [iota; zeta; delta] (`CE.CM?.unit (`#m)) in
   let t    = norm_term [iota; zeta] t in
   reification_aux ts am mult unit t
 
 /// Meta-F* internal: Transforms the atom map into a term
-let rec convert_map (m : list (atom * term)) : term =
+let rec convert_map (m : list (atom & term)) : term =
   match m with
   | [] -> `[]
   | (a, t)::ps ->
@@ -1699,7 +1699,7 @@ let normal_elim (x:Type0) : Lemma
   (ensures normal_tac x)
   = ()
 
-exception Result of list atom * list atom * bool * list term
+exception Result of list atom & list atom & bool & list term
 
 /// F* equalities are typed, but the generated type sometimes is a unification variable.
 /// This helper ensures that such unification variables are not left unresolved, which would lead to an error
@@ -3004,7 +3004,7 @@ let typ_contains_req_ens (t:term) : Tac bool =
   is_any_fvar name [`%req_t; `%ens_t; `%pure_wp; `%pure_pre; `%pure_post]
 
 /// Splits goals between separation logic goals (slgoals) and requires/ensures goals (loggoals)
-let rec filter_goals (l:list goal) : Tac (list goal * list goal) =
+let rec filter_goals (l:list goal) : Tac (list goal & list goal) =
   match l with
   | [] -> [], []
   | hd::tl ->

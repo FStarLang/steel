@@ -1,7 +1,6 @@
 module Steel.ST.GenArraySwap.Proof
 
 open FStar.Math.Lemmas
-open FStar.Mul
 module SZ = FStar.SizeT
 
 #set-options "--z3cliopt smt.arith.nl=false"

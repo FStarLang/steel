@@ -100,7 +100,7 @@ val interp_rec_fold_unfold_stream (a: Type) (x:R.ref(cell a)) :
 // version 2
 // stream(x, n) = exists v. x |-> v ** v.v == f n ** stream(v.next, n + 1)
 let rec_stream_value a (f: nat -> a)
-: rec_def (R.ref (cell a) * nat)
+: rec_def (R.ref (cell a) & nat)
 = Exists _ (fun v -> Star (Star
         (SLProp (fun p -> R.pts_to_sl (fst p) full_perm v))
         (SLProp (fun p -> pure (f (snd p) == v.v))))

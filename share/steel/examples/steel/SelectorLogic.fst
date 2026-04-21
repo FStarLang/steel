@@ -26,7 +26,7 @@ val reveal_wand (p q:slprop) (m:mem) : Lemma
 
 let star (p q:vprop) =
   {hp = p.hp `Mem.star` q.hp;
-   t = (fun h -> p.t h * q.t h);
+   t = (fun h -> p.t h & q.t h);
    sel = fun h -> p.sel h, q.sel h
   }
 
@@ -42,7 +42,7 @@ let wand (p q:vprop) =
 
 (* Simplification to avoid reasoning about existentials *)
 val star_split (p q:slprop) (m:hmem (p `Mem.star` q))
-  : GTot (r:(hmem p * hmem q){disjoint (fst r) (snd r) /\ join (fst r) (snd r) == m})
+  : GTot (r:(hmem p & hmem q){disjoint (fst r) (snd r) /\ join (fst r) (snd r) == m})
 
 let star_split p q m =
   elim_star p q m;

@@ -324,7 +324,7 @@ let ind_llist_sl' (#a:Type0) (r:ref (t a)) (p:t a) : slprop u#1 =
   pts_to_sl r full_perm p `Mem.star` llist_sl p
 let ind_llist_sl (#a:Type0) (r:ref (t a)) = Mem.h_exists (ind_llist_sl' r)
 
-let ind_llist_sel_full' (#a:Type0) (r:ref (t a)) : selector' (t a * list a) (ind_llist_sl r) =
+let ind_llist_sel_full' (#a:Type0) (r:ref (t a)) : selector' (t a & list a) (ind_llist_sl r) =
   fun h ->
     let p = id_elim_exists (ind_llist_sl' r) h in
     (reveal p, llist_sel p h)
@@ -348,7 +348,7 @@ let ind_llist_sel_depends_only_on_core (#a:Type0) (ptr:ref (t a))
     pts_to_witinv ptr full_perm;
     Mem.elim_wi (ind_llist_sl' ptr) p1 p2 (core_mem m0)
 
-let ind_llist_sel_full (#a:Type0) (r:ref (t a)) : selector (t a * list a) (ind_llist_sl r) =
+let ind_llist_sel_full (#a:Type0) (r:ref (t a)) : selector (t a & list a) (ind_llist_sl r) =
   Classical.forall_intro_2 (ind_llist_sel_depends_only_on r);
   Classical.forall_intro (ind_llist_sel_depends_only_on_core r);
   ind_llist_sel_full' r
@@ -358,7 +358,7 @@ let ind_llist_sel r = fun h -> snd (ind_llist_sel_full r h)
 [@@__steel_reduce__]
 let ind_llist_full' #a r : vprop' =
   {hp = ind_llist_sl r;
-   t = t a * list a;
+   t = t a & list a;
    sel = ind_llist_sel_full r}
 unfold
 let ind_llist_full (#a:Type0) (r:ref (t a)) = VUnit (ind_llist_full' r)
