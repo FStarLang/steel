@@ -560,7 +560,7 @@ let test_printf (m:UInt64.t) (l:UInt32.t) (x:A.array bool {A.length x == U32.v l
               "bye"
               done //dummy universe coercion
 
-let test2_printf (x:(int * int)) (print_pair:(int * int) -> StTrivial unit)
+let test2_printf (x:(int & int)) (print_pair:(int & int) -> StTrivial unit)
   : STT unit emp (fun _ -> emp)
   = printf "Hello pair %a" print_pair x done
 
