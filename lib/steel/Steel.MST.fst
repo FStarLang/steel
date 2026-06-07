@@ -20,8 +20,8 @@ module P = FStar.Preorder
 module W = Steel.Witnessed.Core
 open FStar.Monotonic.Pure
 
-type pre_t (state:Type u#2) = state -> Type0
-type post_t (state:Type u#2) (a:Type u#a) = state -> a -> state -> Type0
+type pre_t (state:Type u#2) = state -> prop
+type post_t (state:Type u#2) (a:Type u#a) = state -> a -> state -> prop
 
 type repr
       (a:Type)
@@ -222,7 +222,7 @@ let bind_div_mst (a:Type) (b:Type)
 polymonadic_bind (DIV, MSTATE) |> MSTATE = bind_div_mst
 
 
-let mst_assume (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let mst_assume (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : MSTATE unit state rel (fun _ -> True) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assume p
@@ -232,7 +232,7 @@ let mst_admit (#state:Type u#2) (#rel:P.preorder state) (#a:Type) ()
     =
   admit ()
 
-let mst_assert (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let mst_assert (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : MSTATE unit state rel (fun _ -> p) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assert p

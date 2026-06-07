@@ -194,7 +194,7 @@ let seq_seq_match_item
   then
     p (Seq.index c i) (Seq.index l i)
   else
-    pure (squash False)
+    pure False
 
 let seq_seq_match_item_tail
   (#t1 #t2: Type)
@@ -249,7 +249,7 @@ let seq_seq_match_length
         i j' j;
       rewrite
         (seq_seq_match_item p _ _ _)
-        (pure (squash False));
+        (pure False);
       let _ = gen_elim () in
       rewrite
         (seq_seq_match p s1 s2 i j')
@@ -356,7 +356,7 @@ let seq_seq_match_tail_elim
        end else begin
          rewrite
            (seq_seq_match_item p (Seq.slice c delta (Seq.length c)) (Seq.slice l delta (Seq.length l)) k)
-           (pure (squash False));
+           (pure False);
          let _ = gen_elim () in
          rewrite
            emp
@@ -398,7 +398,7 @@ let seq_seq_match_tail_intro
       end else begin
         rewrite
           (seq_seq_match_item p c l k)
-          (pure (squash False));
+          (pure False);
         let _ = gen_elim () in
         rewrite
           emp

@@ -108,7 +108,7 @@ val subcomp (a:Type)
 
 /// Logical precondition for the if_then_else combinator
 unfold
-let if_then_else_req (p:Type0) (req_then req_else:pure_pre)
+let if_then_else_req (p:prop) (req_then req_else:pure_pre)
   : pure_pre
   =  (p ==> req_then) /\
      ((~ p) ==> req_else)
@@ -116,7 +116,7 @@ let if_then_else_req (p:Type0) (req_then req_else:pure_pre)
 /// Logical precondition for the if_then_else combinator
 unfold
 let if_then_else_ens (a:Type)
-                     (p:Type0)
+                     (p:prop)
                      (ens_then ens_else : pure_post a)
   : pure_post a
   = fun (x:a) ->

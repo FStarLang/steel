@@ -16,7 +16,7 @@ let exclusive_frac
   (exclusive pcm_frac x <==> ((exists (y: a) . True) ==> (Some? x /\ full_perm `lesser_equal_perm` snd (Some?.v x))))
 = match x with
   | None ->
-    if FStar.StrongExcludedMiddle.strong_excluded_middle (exists (y: a). True)
+    if FStar.IndefiniteDescription.strong_excluded_middle (exists (y: a). True)
     then begin
       let y = FStar.IndefiniteDescription.indefinite_description_ghost a (fun _ -> True) in
       let frame = Some (y, full_perm) in
@@ -35,7 +35,7 @@ let exclusive_frac
     end
   | Some (y, p) ->
     assert (exists (z: a) . True);
-    if FStar.StrongExcludedMiddle.strong_excluded_middle (full_perm `lesser_equal_perm` p)
+    if FStar.IndefiniteDescription.strong_excluded_middle (full_perm `lesser_equal_perm` p)
     then ()
     else begin
       let frame = Some (y, MkPerm (let open FStar.Real in one -. p.v)) in

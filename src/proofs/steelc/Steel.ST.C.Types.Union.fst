@@ -224,12 +224,12 @@ let union_extract_full
       (x f)
       (match Ghost.reveal x0 with
       | None -> None
-      | Some (x1, p) -> if FStar.StrongExcludedMiddle.strong_excluded_middle (f == union_get_case x1) then Some (x1 f, p) else None
+      | Some (x1, p) -> if FStar.IndefiniteDescription.strong_excluded_middle (f == union_get_case x1) then Some (x1 f, p) else None
       )
       (match Ghost.reveal x0 with
       | None -> ()
       | Some (x1, p) ->
-        if FStar.StrongExcludedMiddle.strong_excluded_middle (f == union_get_case x1)
+        if FStar.IndefiniteDescription.strong_excluded_middle (f == union_get_case x1)
         then ()
         else ((union_field_typedef fields f).mk_fraction_eq_one (x1 f)) p
       )

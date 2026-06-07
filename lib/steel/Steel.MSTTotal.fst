@@ -20,8 +20,8 @@ module P = FStar.Preorder
 
 open FStar.Monotonic.Pure
 
-type pre_t (state:Type u#2) = state -> Type0
-type post_t (state:Type u#2) (a:Type u#a) = state -> a -> state -> Type0
+type pre_t (state:Type u#2) = state -> prop
+type post_t (state:Type u#2) (a:Type u#a) = state -> a -> state -> prop
 
 type repr
       (a:Type)
@@ -192,7 +192,7 @@ let lift_pure_mst_total
 sub_effect PURE ~> MSTATETOT = lift_pure_mst_total
 
 
-let mst_tot_assume (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let mst_tot_assume (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : MSTATETOT unit state rel (fun _ -> True) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assume p
@@ -202,7 +202,7 @@ let mst_tot_admit (#state:Type u#2) (#rel:P.preorder state) (#a:Type) ()
     =
   admit ()
 
-let mst_tot_assert (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let mst_tot_assert (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : MSTATETOT unit state rel (fun _ -> p) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assert p

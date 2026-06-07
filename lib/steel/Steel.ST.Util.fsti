@@ -55,7 +55,7 @@ val rewrite_with_tactic (#opened:_) (p q:vprop)
   : STGhost unit opened
       p
       (fun _ -> q)
-      (requires T.with_tactic init_resolve_tac (squash (p `equiv` q)))
+      (requires T.with_tactic init_resolve_tac (p `equiv` q))
       (ensures fun _ -> True)
 
 /// This rewrite is useful when you have equiv predicate in the logical context
@@ -317,7 +317,7 @@ val vpattern_rewrite
 /// equations.
 
 private
-unfold let (/!) : inames -> inames -> Type0 = fun is1 is2 -> Set.disjoint is1 is2
+unfold let (/!) : inames -> inames -> prop = fun is1 is2 -> Set.disjoint is1 is2
 
 val implies_
   (#[T.exact (`(hide Set.empty))] is : inames) // Empty inames by default
@@ -523,7 +523,7 @@ let rewrite_with_implies_with_tactic
 : STGhost unit opened
     p
     (fun _ -> q `star` (q @==> p))
-    (requires FStar.Tactics.with_tactic init_resolve_tac (squash (p `equiv` q)))
+    (requires FStar.Tactics.with_tactic init_resolve_tac (p `equiv` q))
     (fun _ -> True)
 = rewrite_equiv p q;
   intro_implies q p emp (fun _ ->
@@ -557,7 +557,7 @@ let implies_with_tactic
 : STGhost unit opened
     emp
     (fun _ -> p @==> q)
-    (requires FStar.Tactics.with_tactic init_resolve_tac (squash (p `equiv` q)))
+    (requires FStar.Tactics.with_tactic init_resolve_tac (p `equiv` q))
     (ensures fun _ -> True)
 = intro_implies p q emp (fun _ -> rewrite_equiv p q)
 

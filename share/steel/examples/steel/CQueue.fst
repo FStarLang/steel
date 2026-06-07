@@ -7,7 +7,7 @@ open CQueue.LList
 //which are delicate in the presence of optimizations that
 //unfold `Prims.squash (p /\ q)`to _:unit{p /\ q}
 //See Issue #2496
-let squash (p:Type u#a) : Type0 = squash p
+let squash (p:prop) : Type0 = squash p
 
 (* BEGIN library *)
 

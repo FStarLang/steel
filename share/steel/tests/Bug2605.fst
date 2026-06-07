@@ -6,7 +6,7 @@ open Steel.Effect
 open Steel.ST.Util
 open Steel.ST.Coercions
 
-assume val phi : int -> Type0
+assume val phi : int -> prop
 
 assume
 val f3 (i:int{phi i})

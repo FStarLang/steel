@@ -437,7 +437,7 @@ let exclusive_union_elim
 : Lemma
   (requires (exclusive (union_pcm p) x))
   (ensures (x k == one (p k) \/ exclusive (p k) (x k)))
-= if FStar.StrongExcludedMiddle.strong_excluded_middle (x k == one (p k))
+= if FStar.IndefiniteDescription.strong_excluded_middle (x k == one (p k))
   then ()
   else
     let phi

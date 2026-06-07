@@ -494,10 +494,10 @@ let subcomp_opaque a #framed_f #framed_g #pre_f #post_f #req_f #ens_f #pre_g #po
 
 #pop-options
 
-let lemma_rewrite (p:Type) : Lemma (requires T.rewrite_with_tactic vc_norm p) (ensures p)
+let lemma_rewrite (p:prop) : Lemma (requires T.rewrite_with_tactic vc_norm p) (ensures p)
   = T.unfold_rewrite_with_tactic vc_norm p
 
-let lemma_norm_opaque (p:Type) : Lemma (requires norm_opaque p) (ensures p) = ()
+let lemma_norm_opaque (p:prop) : Lemma (requires norm_opaque p) (ensures p) = ()
 
 (** Need to manually remove the rewrite_with_tactic marker here *)
 let lemma_subcomp_pre_opaque_aux1 (#a:Type)
@@ -529,7 +529,7 @@ let lemma_subcomp_pre_opaque_aux1 (#a:Type)
 
         ==> ens_g (mk_rmem pre_g h0) x (mk_rmem (post_g x) h1))
        ))))
-  = lemma_rewrite (squash (
+  = lemma_rewrite (
       (forall (h0:hmem pre_g). req_g (mk_rmem pre_g h0) ==> pr /\ (
         can_be_split_trans pre_g (pre_f `star` frame) pre_f;
         req_f (focus_rmem (mk_rmem pre_g h0) pre_f))) /\
@@ -548,7 +548,7 @@ let lemma_subcomp_pre_opaque_aux1 (#a:Type)
 
             ==> ens_g (mk_rmem pre_g h0) x (mk_rmem (post_g x) h1))
       ))
-    ))
+    )
 
 #push-options "--no_tactics"
 
@@ -582,8 +582,7 @@ let lemma_subcomp_pre_opaque_aux2 (#a:Type)
        ))))
 
   (ensures subcomp_pre_opaque req_f ens_f req_g ens_g p1 p2)
-  =  lemma_norm_opaque (squash (
-
+  =  lemma_norm_opaque (
     (forall (h0:hmem pre_g). req_g (mk_rmem pre_g h0) ==> pr /\ (
        can_be_split_trans pre_g (pre_f `star` frame) pre_f;
        req_f (focus_rmem (mk_rmem pre_g h0) pre_f))) /\
@@ -604,7 +603,7 @@ let lemma_subcomp_pre_opaque_aux2 (#a:Type)
 
         ==> ens_g (mk_rmem pre_g h0) x (mk_rmem (post_g x) h1))
        ))
-  ))
+  )
 
 let lemma_subcomp_pre_opaque (#a:Type)
   (#pre_f:pre_t) (#post_f:post_t a) (req_f:req_t pre_f) (ens_f:ens_t pre_f a post_f)

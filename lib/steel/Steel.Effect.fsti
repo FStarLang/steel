@@ -151,7 +151,7 @@ let subcomp_pre (#a:Type)
 // The call to with_tactic allows us to reduce VCs in a controlled way, once all
 // uvars have been resolved.
 // To ensure an SMT-friendly encoding of the VC, it needs to be encapsulated in a squash call
-= T.rewrite_with_tactic vc_norm (squash (
+= T.rewrite_with_tactic vc_norm (
   (forall (h0:hmem pre_g). req_g (mk_rmem pre_g h0) ==> pr /\
     (can_be_split_trans pre_g (pre_f `star` frame) pre_f;
     req_f (focus_rmem (mk_rmem pre_g h0) pre_f))) /\
@@ -170,7 +170,7 @@ let subcomp_pre (#a:Type)
 
         ==> ens_g (mk_rmem pre_g h0) x (mk_rmem (post_g x) h1))
   ))
-))
+)
 
 /// Subtyping combinator for Steel computations.
 /// Computation [f] is given type `repr a framed_g pre_g post_g req_g ens_g`.
@@ -199,7 +199,7 @@ let if_then_else_req
   (#pre_f:pre_t) (#pre_g:pre_t) (#frame_f #frame_g:vprop) (#pr: prop)
   (s_pre: squash (can_be_split_dep pr (pre_f `star` frame_f) (pre_g `star` frame_g)))
   (req_then:req_t pre_f) (req_else:req_t pre_g)
-  (p:Type0)
+  (p:prop)
 : req_t (pre_f `star` frame_f)
 = fun h -> pr /\ (
     can_be_split_trans (pre_f `star` frame_f) (pre_g `star` frame_g) pre_g;
@@ -214,7 +214,7 @@ let if_then_else_ens (#a:Type)
   (s1: squash (can_be_split_dep pr (pre_f `star` frame_f) (pre_g `star` frame_g)))
   (s2: squash (equiv_forall (fun x -> post_f x `star` frame_f) (fun x -> post_g x `star` frame_g)))
   (ens_then:ens_t pre_f a post_f) (ens_else:ens_t pre_g a post_g)
-  (p:Type0)
+  (p:prop)
 : ens_t (pre_f `star` frame_f) a (fun x -> post_f x `star` frame_f)
 = fun h0 x h1 -> pr /\ (
     can_be_split_trans (pre_f `star` frame_f) (pre_g `star` frame_g) pre_g;

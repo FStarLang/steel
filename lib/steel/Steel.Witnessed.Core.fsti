@@ -1,7 +1,7 @@
 module Steel.Witnessed.Core
 module P = FStar.Preorder
 
-let s_predicate (state:Type u#a) = state -> Type0
+let s_predicate (state:Type u#a) = state -> prop
 
 let stable (state:Type u#a)
            (rel:P.preorder state)

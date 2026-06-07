@@ -200,7 +200,7 @@ let bind_div_nmst (a:Type) (b:Type)
 polymonadic_bind (DIV, NMSTATE) |> NMSTATE = bind_div_nmst
 
 
-let nmst_assume (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let nmst_assume (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : NMSTATE unit state rel (fun _ -> True) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assume p
@@ -210,7 +210,7 @@ let nmst_admit (#state:Type u#2) (#rel:P.preorder state) (#a:Type) ()
     =
   admit ()
 
-let nmst_assert (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let nmst_assert (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : NMSTATE unit state rel (fun _ -> p) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assert p
