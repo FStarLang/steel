@@ -267,7 +267,7 @@ let lemma_ahead_implies_trace_prefix
   (tr':trace from to')
   : Lemma (requires ahead tag to' to tr' tr)
           (ensures is_trace_prefix tr tr')
-  = let stable (z:partial_trace_of from) : Type0 = is_trace_prefix tr z.tr in
+  = let stable (z:partial_trace_of from) : prop = is_trace_prefix tr z.tr in
     let aux (y z:partial_trace_of from)
       : Lemma (requires stable y /\ next tag y z)
               (ensures stable z)
@@ -306,13 +306,24 @@ let lemma_ahead_is_longer (tag:party) (#p:dprot) (q:dprot) (s:trace p q) (q':dpr
   = let open FStar.ReflexiveTransitiveClosure in
     let l = ({to = q'; tr = s'}) in
     let r = ({to = q; tr = s}) in
-    let stable_p (x:partial_trace_of p) : Type0 = trace_length x.tr >= trace_length s' in
+    let stable_p (x:partial_trace_of p) : prop = trace_length x.tr >= trace_length s' in
     let aux (x y:partial_trace_of p)
       : Lemma (requires stable_p x /\ next tag x y)
               (ensures stable_p y)
       = next_increase_length tag x y
     in Classical.forall_intro_2 (fun x -> Classical.move_requires (aux x));
     stable_on_closure (next tag) stable_p ()
+
+let ahead_single_step (tag:party) (#p:dprot)
+  (n:dprot{more n /\ tag_of n = (if A? tag then Send else Recv)})
+  (n_tr:trace p n) (x:msg_t n)
+  : Lemma (ahead tag (step n x) n (extend n_tr x) n_tr)
+  = let s0 = ({to = n; tr = n_tr}) in
+    let s1 = ({to = step n x; tr = extend n_tr x}) in
+    introduce exists (msg:next_msg_t n). s1.to == step s0.to msg /\ s1.tr == extend s0.tr msg
+    with x and ();
+    assert (next tag s0 s1);
+    R.closure_step (next tag) s0 s1
 
 
 let compatible_a_r_v_is_ahead
@@ -764,7 +775,7 @@ let write_b_f_aux
           if is_send (step next x) 
           then begin
             assert (ahead B next q' tr s');
-            assert (ahead B (step next x) next (extend tr x) tr);
+            ahead_single_step B next tr x;
             assert (ahead B (step next x) q' (extend tr x) s');
             lemma_ahead_is_longer B next tr q' s';
             assert (trace_length tr >= trace_length s');
@@ -774,12 +785,12 @@ let write_b_f_aux
           else if is_recv (step next x)
           then begin
             assert (ahead B next q' tr s');
-            assert (ahead B (step next x) next (extend tr x) tr);
+            ahead_single_step B next tr x;
             assert (ahead B (step next x) q' (extend tr x) s')
           end
           else begin
             assert (ahead B next q' tr s');
-            assert (ahead B (step next x) next (extend tr x) tr);
+            ahead_single_step B next tr x;
             assert (ahead B (step next x) q' (extend tr x) s')
           end
       in
@@ -911,7 +922,7 @@ let write_b
     upd_gen_action r _ v (write_b_f tr x)
 
 val alloc (#p:dprot) (x:t p{compatible (pcm p) x x /\ refine x})
-  : Steel (chan p) emp (fun r -> pts_to r x) (fun _ -> squash (compatible (pcm p) x x)) (fun _ _ _ -> True)
+  : Steel (chan p) emp (fun r -> pts_to r x) (fun _ -> compatible (pcm p) x x) (fun _ _ _ -> True)
 
 let alloc x =
   let r = alloc x in

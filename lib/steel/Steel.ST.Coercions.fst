@@ -43,16 +43,16 @@ module STAG = Steel.ST.Effect.AtomicAndGhost
 
 unfold
 let bind_div_st_req (#a:Type) (wp:pure_wp a)
-                    (req_g:a -> Type0)
-  : Type0
+                    (req_g:a -> pure_pre)
+  : pure_pre
   = FStar.Monotonic.Pure.elim_pure_wp_monotonicity wp;
     wp (fun _ -> True) /\ (forall x. req_g x)
 
 unfold
 let bind_div_st_ens (#a:Type) (#b:Type)
                        (wp:pure_wp a)
-                       (ens_g:a -> b -> Type0)
-    : b -> Type0
+                       (ens_g:a -> pure_post b)
+    : pure_post b
     = fun y -> wp (fun _ -> True) /\ (exists x. ens_g x y)
 
 let bind_div_st_ (a:Type) (b:Type)
@@ -60,8 +60,8 @@ let bind_div_st_ (a:Type) (b:Type)
                   (#framed:bool)
                   (#[@@@ defer_to framing_implicit] pre:pre_t)
                   (#[@@@ defer_to framing_implicit] post:post_t b)
-                  (#[@@@ defer_to framing_implicit] req:a -> Type0)
-                  (#[@@@ defer_to framing_implicit] ens:a -> b -> Type0)
+                  (#[@@@ defer_to framing_implicit] req:a -> pure_pre)
+                  (#[@@@ defer_to framing_implicit] ens:a -> pure_post b)
                   (f:unit -> DIV a wp)
                   (g:(x:a -> STF.repr b framed pre post (req x) (ens x)))
   : STF.repr b
@@ -95,8 +95,8 @@ polymonadic_bind (DIV, STF.STBase) |> STF.STBase = bind_div_st_
 let reify_steel_comp (#a:Type)
                      (#pre:pre_t)
                      (#post:post_t a)
-                     (#req:Type0)
-                     (#ens:a -> Type0)
+                     (#req:pure_pre)
+                     (#ens:pure_post a)
                      ($f:unit -> SF.SteelBase a false pre post (fun _ -> req) (fun _ x _ -> ens x))
   : Dv (STF.repr a false pre post req ens)
   = SF.reify_steel_comp f
@@ -104,8 +104,8 @@ let reify_steel_comp (#a:Type)
 let reflect (#a:Type)
             (#pre:pre_t)
             (#post:post_t a)
-            (#req:Type0)
-            (#ens:a -> Type0)
+            (#req:pure_pre)
+            (#ens:pure_post a)
             ($f:STF.repr a false pre post req ens)
   : STF.ST a pre post req ens
   = STF.STBase?.reflect f
@@ -124,8 +124,8 @@ let coerce_steel (#a:Type)
 let coerce_atomic #a #o #obs
                  (#p:vprop)
                  (#q:a -> vprop)
-                 (#pre:Type0)
-                 (#post: a -> Type0)
+                 (#pre:prop)
+                 (#post: a -> prop)
                  ($f:unit -> SA.SteelAtomicBase a false o obs p q
                    (fun _ -> pre)
                    (fun _ x _ -> post x))
@@ -139,8 +139,8 @@ let coerce_ghost (#a:Type)
                  (#o:inames)
                  (#p:vprop)
                  (#q:a -> vprop)
-                 (#pre:Type0)
-                 (#post: a -> Type0)
+                 (#pre:prop)
+                 (#post: a -> prop)
                  ($f:unit -> SA.SteelGhostBase a false o Unobservable p q
                    (fun _ -> pre)
                    (fun _ x _ -> post x))
@@ -155,8 +155,8 @@ let lift_st_steel
       (#framed:bool)
       (#pre:pre_t)
       (#post:post_t a)
-      (#req:Type0)
-      (#ens:a -> Type0)
+      (#req:pure_pre)
+      (#ens:pure_post a)
       (f:STF.repr a framed pre post req ens)
   : SF.repr a framed pre post (fun _ -> req) (fun _ x _ -> ens x)
   = f
@@ -168,8 +168,8 @@ let lift_sta_sa
       (#obs:observability)
       (#pre:pre_t)
       (#post:post_t a)
-      (#req:Type0)
-      (#ens:a -> Type0)
+      (#req:pure_pre)
+      (#ens:pure_post a)
       (f:STAG.repr a framed o obs pre post req ens)
   : SA.repr a framed o obs pre post (fun _ -> req) (fun _ x _ -> ens x)
   = f

@@ -167,7 +167,7 @@ let lift_pure_nmst
 
 sub_effect PURE ~> NMSTATETOT = lift_pure_nmst
 
-let nmst_tot_assume (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let nmst_tot_assume (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : NMSTATETOT unit state rel (fun _ -> True) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assume p
@@ -177,7 +177,7 @@ let nmst_tot_admit (#state:Type u#2) (#rel:P.preorder state) (#a:Type) ()
     =
   admit ()
 
-let nmst_tot_assert (#state:Type u#2) (#rel:P.preorder state) (p:Type)
+let nmst_tot_assert (#state:Type u#2) (#rel:P.preorder state) (p:prop)
     : NMSTATETOT unit state rel (fun _ -> p) (fun m0 _ m1 -> p /\ m0 == m1)
     =
   assert p

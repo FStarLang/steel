@@ -162,7 +162,7 @@ let exclusive_uninit
 = match x with
   | Uninitialized -> ()
   | InitOrUnit z ->
-    if FStar.StrongExcludedMiddle.strong_excluded_middle (z == one p)
+    if FStar.IndefiniteDescription.strong_excluded_middle (z == one p)
     then begin
       assert (composable (pcm_uninit p) x Uninitialized)
     end else

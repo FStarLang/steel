@@ -245,7 +245,7 @@ let is_implies
   (hyp concl: vprop)
   (v: vprop)
 : GTot prop
-= squash (elim_implies_t is hyp concl v)
+= exists (_: elim_implies_t is hyp concl v). True
 
 let implies_
   (#is : inames)
@@ -277,9 +277,9 @@ let implies_apply
     (fun _ -> concl)
     (is_implies is hyp concl v)
     (fun _ -> True)
-= let sq : squash (is_implies is hyp concl v) = () in
-  let _ : squash (elim_implies_t is hyp concl v) = FStar.Squash.join_squash sq in
-  let f : Ghost.erased (elim_implies_t is hyp concl v) = FStar.IndefiniteDescription.elim_squash #(elim_implies_t is hyp concl v) () in
+= let f : Ghost.erased (elim_implies_t is hyp concl v) =
+      FStar.IndefiniteDescription.indefinite_description_ghost
+        (elim_implies_t is hyp concl v) (fun _ -> True) in
   Ghost.reveal f _
 
 let elim_implies_gen
@@ -301,8 +301,10 @@ let implies_fold
 : STGhostT unit opened
     v
     (fun _ -> (@==>) #is hyp concl)
-= intro_pure (squash (elim_implies_t is hyp concl v));
-  intro_exists v (fun v -> v `star` pure (squash (elim_implies_t is hyp concl v)))
+= introduce exists (_: elim_implies_t is hyp concl v). True
+  with f_elim and ();
+  intro_pure (is_implies is hyp concl v);
+  intro_exists v (fun v -> v `star` pure (is_implies is hyp concl v))
 
 let intro_implies_gen #opened #is = implies_fold #opened #is
 
@@ -318,7 +320,7 @@ let is_forall
   (p: t -> vprop)
   (v: vprop)
 : GTot prop
-= squash (elim_forall_t p v)
+= exists (_: elim_forall_t p v). True
 
 let forall_ p
 = exists_ (fun (v: vprop) ->
@@ -328,8 +330,10 @@ let forall_ p
 let intro_forall
   v p f
 = let f' : elim_forall_t p v = fun opened x -> f opened x in
-  intro_pure (squash (elim_forall_t p v));
-  intro_exists v (fun v -> v `star` pure (squash (elim_forall_t p v)))
+  introduce exists (_: elim_forall_t p v). True
+  with f' and ();
+  intro_pure (is_forall p v);
+  intro_exists v (fun v -> v `star` pure (is_forall p v))
 
 let forall_apply
   (#opened: inames)
@@ -342,9 +346,9 @@ let forall_apply
     (fun _ -> p x)
     (is_forall p v)
     (fun _ -> True)
-= let sq : squash (is_forall p v) = () in
-  let _ : squash (elim_forall_t p v) = FStar.Squash.join_squash sq in
-  let f : Ghost.erased (elim_forall_t p v) = FStar.IndefiniteDescription.elim_squash #(elim_forall_t p v) () in
+= let f : Ghost.erased (elim_forall_t p v) =
+      FStar.IndefiniteDescription.indefinite_description_ghost
+        (elim_forall_t p v) (fun _ -> True) in
   let f' : elim_forall_t p v = Ghost.reveal f in
   f' _ x
 

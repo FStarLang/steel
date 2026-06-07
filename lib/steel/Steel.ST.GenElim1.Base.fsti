@@ -326,8 +326,9 @@ let compute_gen_elim_nondep_post0 (i0: gen_elim_i) (i: gen_elim_nondep_t) : Tot 
 let compute_gen_elim_nondep_post (i0: gen_elim_i) (i: gen_elim_nondep_t) (x: Ghost.erased (compute_gen_elim_nondep_a i0 i)) : Tot prop =
   compute_gen_elim_nondep_post0 i0 i (Ghost.reveal x)
 
+// Remove?
 let is_squash (t:T.term) : T.Tac bool =
-  is_any_fvar t [`%squash; `%auto_squash]
+  is_any_fvar t [`%squash]
 
 let is_star_or_vstar (t:T.term) : T.Tac bool =
   is_any_fvar t [`%star; `%VStar]

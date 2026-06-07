@@ -17,9 +17,9 @@ module U64 = FStar.UInt64
     See PointStruct.fst for more detailed explanations of the various definitions needed below.
 *)
 
-noextract inline_for_extraction let five = normalize (nat_t_of_nat 5)
-noextract inline_for_extraction let twenty = normalize (nat_t_of_nat 20)
-noextract inline_for_extraction let comp_name = normalize (mk_string_t "HaclExample2.comp")
+noextract inline_for_extraction let five = normalize_term (nat_t_of_nat 5)
+noextract inline_for_extraction let twenty = normalize_term (nat_t_of_nat 20)
+noextract inline_for_extraction let comp_name = normalize_term (mk_string_t "HaclExample2.comp")
 
 noeq
 type comp_t = {
