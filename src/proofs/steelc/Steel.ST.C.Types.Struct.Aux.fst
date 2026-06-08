@@ -1,6 +1,6 @@
 module Steel.ST.C.Types.Struct.Aux
-open Steel.ST.GenElim1
 friend Steel.ST.C.Types.Base
+open Steel.ST.GenElim1
 open Steel.ST.C.Types.Base
 
 open Steel.C.Model.PCM

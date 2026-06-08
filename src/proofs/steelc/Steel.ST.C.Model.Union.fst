@@ -30,7 +30,7 @@ let is_union (#a:Type) (#b:a->Type) (p:(k:a -> pcm (b k))) (f: restricted_t a b)
 
 let union (#a:Type) (#b:a->Type) (p:(k:a -> pcm (b k))) = f:restricted_t a b{is_union p f}
 
-let union_elim (p:(k:'a -> pcm ('b k))) (f: union p) (goal:Type)
+let union_elim (p:(k:'a -> pcm ('b k))) (f: union p) (goal:prop)
   (cont:(k:'a -> Lemma (requires case_refinement_f p k f) (ensures goal)
     [SMTPat (case_refinement_f p k f)]))
 : Lemma (forall (j:'a). goal)
@@ -245,6 +245,7 @@ let union_to_field
     (union_to_field_f p k) ()
     (fun x1 x2 -> ())
 
+#push-options "--fuel 2 --ifuel 4 --z3rlimit 30"
 let union_field_lift_fpu'
   (#a: eqtype)
   (#b: a -> Type)
@@ -254,13 +255,19 @@ let union_field_lift_fpu'
   (y: Ghost.erased (b k))
   (f: frame_preserving_upd (p k) x y)
   (v: frame_preserving_upd_dom (union_pcm p) ((field_to_struct p k).morph x))
-: Tot (union p)
+: Pure (union p)
+  (requires True)
+  (ensures (fun r -> r k == f (v k) /\ p_refine (p k) (r k)))
 = 
-    on_dom a (fun k' ->
+    let r : union p = on_dom a (fun k' ->
       if k' = k
       then f (v k) <: b k'
       else one (p k')
-    )
+    ) in
+    assert (r k == f (v k));
+    assert (p_refine (p k) (f (v k)));
+    r
+#pop-options
 
 #restart-solver
 
@@ -280,6 +287,7 @@ let union_field_lift_fpu0_prf1
 =
       let y' = (field_to_union p k).morph y in
       let v_new = union_field_lift_fpu' p k x y f v in
+      introduce exists k'. p_refine (p k') (v_new k') with k and ();
       assert (p_refine (union_pcm p) v_new);
       Classical.forall_intro_2 (fun k -> is_unit (p k));
       let frame : b k = compatible_elim (p k) y (f (v k)) in

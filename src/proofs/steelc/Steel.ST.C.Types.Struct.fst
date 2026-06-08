@@ -1,7 +1,7 @@
 module Steel.ST.C.Types.Struct
-open Steel.ST.GenElim1
 friend Steel.ST.C.Types.Base
 friend Steel.ST.C.Types.Struct.Aux
+open Steel.ST.GenElim1
 open Steel.ST.C.Types.Struct.Aux
 
 module FX = FStar.FunctionalExtensionality
@@ -13,7 +13,7 @@ let nonempty_field_description_nonempty
   (fd: nonempty_field_description_t tf)
 : Lemma
   (exists (f: field_t fd) . True)
-= if StrongExcludedMiddle.strong_excluded_middle (exists (f: field_t fd) . True)
+= if FStar.IndefiniteDescription.strong_excluded_middle (exists (f: field_t fd) . True)
   then ()
   else begin
     let prf

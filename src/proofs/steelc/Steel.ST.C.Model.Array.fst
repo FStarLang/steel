@@ -895,14 +895,16 @@ let array_as_one_ref_iso_eq
 = assert_norm (size_v 0sz == 0);
   assert_norm (size_v 1sz == 1);
   let l = (connection_of_isomorphism (array_as_one_ref_iso p)) in
-  let m = (cell p 1sz 0sz) in
+  let m = struct_field (array_elements_pcm p 1sz) 0sz in
+  assert (m == cell p 1sz 0sz);
   connection_eq_gen
     l
     m
     ()
     (fun x y f v ->
       connection_of_isomorphism_fpu_eq (array_as_one_ref_iso p) x y f v;
-      assert_norm ((m.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v == struct_field_lift_fpu' (array_elements_pcm p 1sz) 0sz x y f v);
+      struct_field_fpu_f_eq (array_elements_pcm p 1sz) 0sz x y f v;
+      assert ((m.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v == struct_field_lift_fpu' (array_elements_pcm p 1sz) 0sz x y f v);
       assert (connection_of_isomorphism_fpu' (array_as_one_ref_iso p) x y f v `feq` struct_field_lift_fpu' (array_elements_pcm p 1sz) 0sz x y f v);
       assert ((l.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v == (m.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v)
     )
@@ -921,12 +923,14 @@ let g_array_of_ref
 : Ghost (array base_t p)
     (requires True)
     (ensures (fun a ->
+      Ghost.reveal a.base_len == 1sz /\
+      Ghost.reveal a.len == 1sz /\
       size_v a.base_len == 1 /\
       size_v a.len == 1
     ))
 = assert_norm (size_v 1sz == 1);
   {
-    base_len = _;
+    base_len = 1sz;
     base = ref_focus r (array_of_ref_conn p);
     offset = 0sz;
     len = 1sz;
@@ -997,17 +1001,9 @@ let array_of_ref
   let v' : Ghost.erased (array_pcm_carrier t 1sz) = Ghost.hide (field_to_struct_f (array_elements_pcm p 1sz) 0sz v) in
   assert (seq_of_array_pcm_carrier v' `Seq.equal` Seq.create 1 (Ghost.reveal v));
   let r' = R.focus r (array_of_ref_conn p) _ v' in
-  let a : array base_t p = {
-    base_len = 1sz;
-    base = r';
-    offset = 0sz;
-    len = 1sz;
-    prf = ();    
-  }
-  in
   ref_of_array_of_ref_base r;
-  intro_pts_to1 a _ _ _;
-  return a
+  intro_pts_to1 ({ base_len = 1sz; base = r'; offset = 0sz; len = 1sz; prf = (); }) r' v' (Seq.create 1 (Ghost.reveal v));
+  return ({ base_len = 1sz; base = r'; offset = 0sz; len = 1sz; prf = (); })
 
 #push-options "--split_queries always --z3rlimit 32 --query_stats"
 
@@ -1029,7 +1025,8 @@ let unarray_of_ref
   assert_norm (size_v 1sz == 1);
   let _ = elim_pts_to _ _ in
   ref_of_array_of_ref_base r;
-  R.unfocus (ref_of_array a) r (array_of_ref_conn p) _;
+  let conn : connection p (array_pcm p a.len) = coerce_eq () (array_of_ref_conn p) in
+  R.unfocus (ref_of_array a) r conn _;
   let x = (array_pcm_carrier_of_seq a.len v) in
   assert_norm ((array_of_ref_conn p).conn_small_to_large.morph x == x 0sz);
   array_pcm_carrier_of_seq_eq a.len v 0sz;

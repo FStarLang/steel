@@ -1,8 +1,8 @@
 module Steel.C.Model.Ref
-open FStar.FunctionalExtensionality
-open Steel.ST.Coercions {}
 
 friend Steel.C.Model.Ref.Base
+open FStar.FunctionalExtensionality
+open Steel.ST.Coercions {}
 
 let pts_to_view_explicit
   (#a: Type u#0) (#b: Type u#b) (#p: pcm b)

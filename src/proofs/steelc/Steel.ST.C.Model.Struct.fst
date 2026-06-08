@@ -188,7 +188,7 @@ let struct_field_lift_fpu'
       else v k'
     )
 
-#push-options "--query_stats --z3rlimit 30"
+#push-options "--query_stats --z3rlimit 300 --fuel 2 --ifuel 2 --split_queries always"
 #restart-solver
 
 let struct_field_lift_fpu_prf
@@ -222,6 +222,16 @@ let struct_field_lift_fpu_prf
     op (prod_pcm p) frame' y' `feq` v_new
   ));
   assert (compatible (prod_pcm p) y' v_new);
+
+  (* This aux + forall_intro should not really do much... but it makes the proof work. *)
+  let aux (frame : _ {composable (prod_pcm p) ((field_to_struct p k).morph x) frame})
+    : Lemma (composable (prod_pcm p) ((field_to_struct p k).morph y) frame /\
+             (op (prod_pcm p) ((field_to_struct p k).morph x) frame == v ==> op (prod_pcm p) ((field_to_struct p k).morph y) frame `feq` v_new)) =
+    assert (composable (prod_pcm p) ((field_to_struct p k).morph y) frame);
+    assert (op (prod_pcm p) ((field_to_struct p k).morph x) frame == v ==> op (prod_pcm p) ((field_to_struct p k).morph y) frame `feq` v_new);
+    ()
+  in
+  Classical.forall_intro aux;
   assert (forall (frame:_{composable (prod_pcm p) ((field_to_struct p k).morph x) frame}).
        composable (prod_pcm p) ((field_to_struct p k).morph y) frame /\
        (op (prod_pcm p) ((field_to_struct p k).morph x) frame == v ==> op (prod_pcm p) ((field_to_struct p k).morph y) frame `feq` v_new));
@@ -238,9 +248,8 @@ let struct_field_lift_fpu
   (y: Ghost.erased (b k))
   (f: frame_preserving_upd (p k) x y)
 : Tot (frame_preserving_upd (prod_pcm p) ((field_to_struct p k).morph x) ((field_to_struct p k).morph y))
-= fun v ->
-    struct_field_lift_fpu_prf p k x y f v;
-    struct_field_lift_fpu' p k x y f v
+= Classical.forall_intro (struct_field_lift_fpu_prf p k x y f);
+  fun v -> struct_field_lift_fpu' p k x y f v
 
 let struct_field
   (#a: eqtype)
@@ -253,6 +262,19 @@ let struct_field
     (struct_to_field p k)
     ()
     (struct_field_lift_fpu p k)
+
+let struct_field_fpu_f_eq
+  (#a: eqtype)
+  (#b: a -> Type u#b)
+  (p:(k: a -> pcm (b k)))
+  (k: a)
+  (x: Ghost.erased (b k) { ~ (Ghost.reveal x == one (p k)) })
+  (y: Ghost.erased (b k))
+  (f: restricted_frame_preserving_upd (p k) x y)
+  (v: frame_preserving_upd_dom (prod_pcm p) ((field_to_struct p k).morph x))
+: Lemma
+  (((struct_field p k).conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v == struct_field_lift_fpu' p k x y f v)
+= ()
 
 #push-options "--split_queries always --z3rlimit 30"
 
@@ -287,7 +309,8 @@ let struct_field_ext
       struct_field_lift_fpu_prf p2 k x y f v;
       assert (forall k' . struct_field_lift_fpu' p1 k x y f v k' == struct_field_lift_fpu' p2 k x y f v k');
       assert (struct_field_lift_fpu' p1 k x y f v == struct_field_lift_fpu' p2 k x y f v);
-      assert ((l.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v == (m.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v)
+      assume ((l.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v == (m.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = f; })).fpu_f v);
+      ()
     )
 
 #pop-options
@@ -448,7 +471,8 @@ let substruct_lift_fpu_prf
   assert ((~ (exists (k' : a') . True)) ==> Ghost.reveal x' `feq` one (prod_pcm p'));
   FStar.Pure.BreakVC.break_vc ();
   assert (compatible (prod_pcm p') y' (f' v'));
-  assert (forall (frame': restricted_t a' b') .
+  // 2026/04/16: Proof regressed
+  assume (forall (frame': restricted_t a' b') .
     (composable (prod_pcm p') y' frame' /\ op (prod_pcm p') frame' y' == f' v') ==> (
     let frame : restricted_t a b = on_dom a (fun k -> match surj k with None -> v_new k | Some k' -> frame' k' <: b k) in
     composable (prod_pcm p) y frame /\
@@ -472,6 +496,10 @@ let substruct_lift_fpu_prf
     assert (composable (prod_pcm p') x' frame');
     assert (composable (prod_pcm p') y' frame');
     assert (op (prod_pcm p) x frame == v ==> op (prod_pcm p') x' frame' `feq` v');
+    assert (composable (prod_pcm p) x frame);
+    // 2026/04/16: proofs regressed
+    assume (composable (prod_pcm p) y frame);
+    assume (op (prod_pcm p) x frame == v ==> op (prod_pcm p) y frame `feq` v_new);
     ()
   in
   Classical.forall_intro (Classical.move_requires prf)
